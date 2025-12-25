@@ -121,9 +121,7 @@ export default function Auth() {
             {/* Business email notice */}
             <div className="flex items-start gap-3 p-3 mb-6 rounded-lg bg-secondary/50 border border-border">
               <Briefcase className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-              <p className="text-sm text-primary">
-                flyby is for business teams only. Please use your company email address.
-              </p>
+              <p className="text-sm text-primary">Flyby is for business teams only. Please use your company email address.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -169,7 +167,7 @@ export default function Auth() {
               <button type="button" onClick={() => {
               setIsLogin(!isLogin);
               setErrors({});
-            }} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            }} className="text-sm transition-colors text-primary">
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>
             </div>
