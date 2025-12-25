@@ -103,7 +103,7 @@ export default function Auth() {
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">
-          <img src={flybyLogo} alt="flyby" className="h-10" />
+          <img src={flybyLogo} alt="flyby" className="h-10 mix-blend-multiply" />
         </div>
 
         <Card className="border-border/50 shadow-xl">
