@@ -121,7 +121,7 @@ export default function Auth() {
             {/* Business email notice */}
             <div className="flex items-start gap-3 p-3 mb-6 rounded-lg bg-secondary/50 border border-border">
               <Briefcase className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-primary">
                 flyby is for business teams only. Please use your company email address.
               </p>
             </div>
