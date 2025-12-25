@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plane, ArrowRight, AlertCircle, Briefcase } from "lucide-react";
+import { ArrowRight, AlertCircle, Briefcase } from "lucide-react";
+import flybyLogo from "@/assets/flyby-logo.png";
 import { z } from "zod";
 
 const authSchema = z.object({
@@ -101,11 +102,8 @@ export default function Auth() {
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <Plane className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-2xl font-bold text-foreground">flyby</span>
+        <div className="flex items-center justify-center mb-8">
+          <img src={flybyLogo} alt="flyby" className="h-10" />
         </div>
 
         <Card className="border-border/50 shadow-xl">
