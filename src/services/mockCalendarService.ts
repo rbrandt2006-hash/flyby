@@ -10,12 +10,39 @@ export interface CalendarEvent {
   description: string | null;
 }
 
+const STORAGE_KEY = 'flyby_calendar_connection';
+
+// Load persisted state from localStorage
+function loadPersistedState(): { connected: boolean; email: string | null } {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load calendar state:', e);
+  }
+  return { connected: false, email: null };
+}
+
+// Save state to localStorage
+function persistState(connected: boolean, email: string | null): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ connected, email }));
+  } catch (e) {
+    console.error('Failed to persist calendar state:', e);
+  }
+}
+
+// Initialize from persisted state
+const initialState = loadPersistedState();
+
 // Fake credentials (would be real OAuth tokens in production)
 export const MOCK_CREDENTIALS = {
   provider: 'google',
-  connected: false,
-  email: null as string | null,
-  accessToken: null as string | null,
+  connected: initialState.connected,
+  email: initialState.email,
+  accessToken: initialState.connected ? 'mock_access_token_xyz123' : null,
 };
 
 // Sample calendar events that suggest travel
@@ -62,6 +89,9 @@ export async function connectGoogleCalendar(): Promise<{ success: boolean; email
   MOCK_CREDENTIALS.email = 'user@company.com';
   MOCK_CREDENTIALS.accessToken = 'mock_access_token_xyz123';
   
+  // Persist the connection
+  persistState(true, MOCK_CREDENTIALS.email);
+  
   return { success: true, email: MOCK_CREDENTIALS.email };
 }
 
@@ -71,6 +101,9 @@ export async function disconnectCalendar(): Promise<void> {
   MOCK_CREDENTIALS.connected = false;
   MOCK_CREDENTIALS.email = null;
   MOCK_CREDENTIALS.accessToken = null;
+  
+  // Clear persisted state
+  persistState(false, null);
 }
 
 export async function fetchCalendarEvents(): Promise<CalendarEvent[]> {

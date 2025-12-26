@@ -77,6 +77,23 @@ export default function Trips() {
     fetchTrips();
   }, [user]);
 
+  // Restore calendar events on mount if already connected
+  useEffect(() => {
+    async function restoreCalendarEvents() {
+      if (isCalendarConnected()) {
+        setCalendarConnected(true);
+        try {
+          const events = await fetchCalendarEvents();
+          setCalendarEvents(events);
+        } catch (error) {
+          console.error("Failed to restore calendar events:", error);
+        }
+      }
+    }
+
+    restoreCalendarEvents();
+  }, []);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "confirmed":
