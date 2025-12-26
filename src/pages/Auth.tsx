@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth, isBusinessEmail } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, AlertCircle, Briefcase } from "lucide-react";
+import { ArrowRight, AlertCircle } from "lucide-react";
 import flybyLogo from "@/assets/flyby-logo.png";
 import { z } from "zod";
 const authSchema = z.object({
@@ -49,9 +49,6 @@ export default function Auth() {
           }
         });
       }
-    }
-    if (!isBusinessEmail(email) && email.includes("@")) {
-      newErrors.email = "Please use your work email. Personal domains (Gmail, Yahoo, etc.) are not allowed.";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -118,12 +115,6 @@ export default function Auth() {
           </CardHeader>
 
           <CardContent>
-            {/* Business email notice */}
-            <div className="flex items-start gap-3 p-3 mb-6 rounded-lg bg-secondary/50 border border-border">
-              <Briefcase className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-              <p className="text-sm text-primary">Flyby is for business teams only. Please use your company email address.</p>
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && <div className="space-y-2">
                   <Label htmlFor="fullName">Full name</Label>
@@ -135,8 +126,8 @@ export default function Auth() {
                 </div>}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Work email</Label>
-                <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} disabled={loading} />
+                <Label htmlFor="email">Email address</Label>
+                <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} disabled={loading} />
                 {errors.email && <p className="text-sm text-destructive flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
                     {errors.email}

@@ -13,32 +13,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// List of blocked personal email domains
-const BLOCKED_DOMAINS = [
-  "gmail.com",
-  "yahoo.com",
-  "hotmail.com",
-  "outlook.com",
-  "aol.com",
-  "icloud.com",
-  "mail.com",
-  "protonmail.com",
-  "zoho.com",
-  "yandex.com",
-  "gmx.com",
-  "live.com",
-  "msn.com",
-  "me.com",
-  "inbox.com",
-  "fastmail.com",
-  "tutanota.com",
-];
-
-export const isBusinessEmail = (email: string): boolean => {
-  const domain = email.split("@")[1]?.toLowerCase();
-  if (!domain) return false;
-  return !BLOCKED_DOMAINS.includes(domain);
-};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -66,19 +40,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    if (!isBusinessEmail(email)) {
-      return { error: new Error("Please use your work email address. Personal email domains are not allowed.") };
-    }
-
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error ? new Error(error.message) : null };
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    if (!isBusinessEmail(email)) {
-      return { error: new Error("Please use your work email address. Personal email domains are not allowed.") };
-    }
-
     const redirectUrl = `${window.location.origin}/`;
 
     const { error } = await supabase.auth.signUp({
