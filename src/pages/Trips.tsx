@@ -7,7 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, MapPin, Calendar, Plane } from "lucide-react";
 import { format } from "date-fns";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
+import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
 import { toast } from "sonner";
+import { 
+  fetchCalendarEvents, 
+  isCalendarConnected, 
+  getConnectedEmail, 
+  disconnectCalendar,
+  type CalendarEvent 
+} from "@/services/mockCalendarService";
 
 interface Trip {
   id: string;
@@ -25,9 +33,30 @@ export default function Trips() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [calendarConnected, setCalendarConnected] = useState(isCalendarConnected());
 
-  const handleCalendarConnected = () => {
+  const handleCalendarConnected = async () => {
     toast.success("Calendar synced! Detecting travel-related meetings...");
+    setCalendarConnected(true);
+    try {
+      const events = await fetchCalendarEvents();
+      setCalendarEvents(events);
+    } catch (error) {
+      console.error("Failed to fetch calendar events:", error);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    await disconnectCalendar();
+    setCalendarConnected(false);
+    setCalendarEvents([]);
+    toast.success("Calendar disconnected");
+  };
+
+  const handleCreateTrip = (event: CalendarEvent) => {
+    toast.info(`Creating trip for: ${event.title}`);
+    // TODO: Implement trip creation from calendar event
   };
 
   useEffect(() => {
@@ -96,6 +125,15 @@ export default function Trips() {
         onConnected={handleCalendarConnected}
       />
 
+      {calendarConnected && calendarEvents.length > 0 && (
+        <CalendarEventsDisplay 
+          events={calendarEvents}
+          connectedEmail={getConnectedEmail()}
+          onDisconnect={handleDisconnect}
+          onCreateTrip={handleCreateTrip}
+        />
+      )}
+
       {trips.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -104,7 +142,7 @@ export default function Trips() {
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-1">No trips yet</h3>
             <p className="text-muted-foreground text-center mb-4">
-              Create your first trip to get started
+              Create your first trip or sync your calendar to get started
             </p>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
