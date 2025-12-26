@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -9,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarIcon, Plane, ArrowRightLeft, Users, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { AirportAutocomplete } from "./AirportAutocomplete";
 
 interface FlightSearchDialogProps {
   open: boolean;
@@ -118,11 +118,10 @@ export function FlightSearchDialog({ open, onOpenChange }: FlightSearchDialogPro
           <div className="flex items-end gap-2">
             <div className="flex-1">
               <Label className="text-sm text-muted-foreground mb-2 block">From</Label>
-              <Input
-                placeholder="City or airport code (e.g., LAX, New York)"
+              <AirportAutocomplete
                 value={origin}
-                onChange={(e) => setOrigin(e.target.value)}
-                className="h-12"
+                onChange={setOrigin}
+                placeholder="City or airport (e.g., LAX, New York)"
               />
             </div>
             <Button
@@ -135,11 +134,10 @@ export function FlightSearchDialog({ open, onOpenChange }: FlightSearchDialogPro
             </Button>
             <div className="flex-1">
               <Label className="text-sm text-muted-foreground mb-2 block">To</Label>
-              <Input
-                placeholder="City or airport code (e.g., JFK, London)"
+              <AirportAutocomplete
                 value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                className="h-12"
+                onChange={setDestination}
+                placeholder="City or airport (e.g., JFK, London)"
               />
             </div>
           </div>
