@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import flybyLogo from "@/assets/flyby-logo-new.png";
+import flybyLogo from "@/assets/flyby-logo.png";
 import { Home, MapPin, Users, Receipt, Settings, LogOut, Bell, Search } from "lucide-react";
 
 const navItems = [
@@ -30,7 +30,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <aside className="w-64 bg-sidebar border-r border-sidebar-border hidden lg:flex flex-col">
         <div className="p-6">
           <Link to="/" className="flex items-center">
-            <img src={flybyLogo} alt="flyby" className="h-8 brightness-0 invert" />
+            <img src={flybyLogo} alt="flyby" className="h-8" />
           </Link>
         </div>
 
@@ -77,7 +77,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6">
           <div className="flex items-center gap-4 flex-1">
             <div className="lg:hidden">
-              <img src={flybyLogo} alt="flyby" className="h-7 mix-blend-multiply" />
+              <img src={flybyLogo} alt="flyby" className="h-7" />
             </div>
             <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary max-w-md flex-1">
               <Search className="w-4 h-4 text-muted-foreground" />
