@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, MapPin, Calendar, Plane } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, MapPin, Calendar, Plane, X } from "lucide-react";
 import { format } from "date-fns";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
@@ -35,6 +36,7 @@ export default function Trips() {
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [calendarConnected, setCalendarConnected] = useState(isCalendarConnected());
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
 
   const handleCalendarConnected = async () => {
     toast.success("Calendar synced! Detecting travel-related meetings...");
@@ -129,7 +131,7 @@ export default function Trips() {
             <Calendar className="w-4 h-4 mr-2" />
             Sync Work Calendar
           </Button>
-          <Button>
+          <Button onClick={() => setBookingDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             New Trip
           </Button>
@@ -141,6 +143,24 @@ export default function Trips() {
         onOpenChange={setCalendarDialogOpen}
         onConnected={handleCalendarConnected}
       />
+
+      <Dialog open={bookingDialogOpen} onOpenChange={setBookingDialogOpen}>
+        <DialogContent className="max-w-6xl h-[85vh] p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b">
+            <div className="flex items-center justify-between">
+              <DialogTitle>Book Your Flight</DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 h-full">
+            <iframe
+              src="https://www.aa.com/homePage.do"
+              className="w-full h-[calc(85vh-80px)] border-0"
+              title="American Airlines Booking"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {calendarConnected && calendarEvents.length > 0 && (
         <CalendarEventsDisplay 
