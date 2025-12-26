@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, MapPin, Calendar, Plane } from "lucide-react";
 import { format } from "date-fns";
+import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
+import { toast } from "sonner";
 
 interface Trip {
   id: string;
@@ -23,6 +24,11 @@ export default function Trips() {
   const { user } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
+
+  const handleCalendarConnected = () => {
+    toast.success("Calendar synced! Detecting travel-related meetings...");
+  };
 
   useEffect(() => {
     async function fetchTrips() {
@@ -73,7 +79,7 @@ export default function Trips() {
           <p className="text-muted-foreground">Manage your business travel</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setCalendarDialogOpen(true)}>
             <Calendar className="w-4 h-4 mr-2" />
             Sync Work Calendar
           </Button>
@@ -83,6 +89,12 @@ export default function Trips() {
           </Button>
         </div>
       </div>
+
+      <CalendarSyncDialog 
+        open={calendarDialogOpen} 
+        onOpenChange={setCalendarDialogOpen}
+        onConnected={handleCalendarConnected}
+      />
 
       {trips.length === 0 ? (
         <Card className="border-dashed">
