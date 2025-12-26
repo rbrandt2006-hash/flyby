@@ -154,13 +154,9 @@ export default function Trips() {
       {trips.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Plane className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-1">No trips yet</h3>
-            <p className="text-muted-foreground text-center">
-              Sync your calendar to get started
-            </p>
           </CardContent>
         </Card>
       ) : (
