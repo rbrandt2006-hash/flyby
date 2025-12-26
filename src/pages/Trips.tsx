@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, MapPin, Calendar, Plane } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, MapPin, Calendar, Plane, X } from "lucide-react";
 import { format } from "date-fns";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
@@ -38,7 +39,7 @@ export default function Trips() {
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
 
   const handleNewTrip = () => {
-    window.open("https://www.aa.com/homePage.do", "_blank", "noopener,noreferrer");
+    setBookingDialogOpen(true);
   };
 
   const handleCalendarConnected = async () => {
@@ -146,6 +147,30 @@ export default function Trips() {
         onOpenChange={setCalendarDialogOpen}
         onConnected={handleCalendarConnected}
       />
+
+      <Dialog open={bookingDialogOpen} onOpenChange={setBookingDialogOpen}>
+        <DialogContent className="max-w-6xl h-[85vh] p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b flex flex-row items-center justify-between">
+            <DialogTitle>Search Flights - Multi-Airline Search</DialogTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setBookingDialogOpen(false)}
+              className="h-8 w-8"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogHeader>
+          <div className="flex-1 h-full">
+            <iframe
+              src="https://www.google.com/travel/flights"
+              className="w-full h-[calc(85vh-80px)] border-0"
+              title="Google Flights - Multi-Airline Search"
+              allow="geolocation"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {calendarConnected && calendarEvents.length > 0 && (
         <CalendarEventsDisplay 
