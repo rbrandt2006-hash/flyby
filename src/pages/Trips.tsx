@@ -72,10 +72,16 @@ export default function Trips() {
           <h1 className="text-2xl font-bold text-foreground">Trips</h1>
           <p className="text-muted-foreground">Manage your business travel</p>
         </div>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          New Trip
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline">
+            <Calendar className="w-4 h-4 mr-2" />
+            Sync Work Calendar
+          </Button>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            New Trip
+          </Button>
+        </div>
       </div>
 
       {trips.length === 0 ? (
