@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import flybyLogo from "@/assets/flyby-logo.png";
+import flybyLogo from "@/assets/flyby-logo-new.png";
 import { Home, MapPin, Users, Receipt, Settings, LogOut, Bell, Search } from "lucide-react";
 
 const navItems = [
