@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Mail, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { isBusinessEmail } from "@/contexts/AuthContext";
 import { z } from "zod";
 
 const emailSchema = z.object({
@@ -31,12 +30,6 @@ export default function ForgotPassword() {
         setError(err.errors[0].message);
         return;
       }
-    }
-
-    // Validate business email
-    if (!isBusinessEmail(email)) {
-      setError("Please use your work email. Personal domains are not allowed.");
-      return;
     }
 
     setLoading(true);
@@ -80,7 +73,7 @@ export default function ForgotPassword() {
             <CardDescription className="text-base">
               {submitted 
                 ? "If an account exists with this email, a password reset link has been sent."
-                : "Enter the email associated with your company account."
+                : "Enter the email address associated with your account."
               }
             </CardDescription>
           </CardHeader>
@@ -104,11 +97,11 @@ export default function ForgotPassword() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Work Email Address</Label>
+                  <Label htmlFor="email">Email Address</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="you@company.com"
+                    placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
