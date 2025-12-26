@@ -158,13 +158,9 @@ export default function Trips() {
               <Plane className="w-6 h-6 text-primary" />
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-1">No trips yet</h3>
-            <p className="text-muted-foreground text-center mb-4">
-              Create your first trip or sync your calendar to get started
+            <p className="text-muted-foreground text-center">
+              Sync your calendar to get started
             </p>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Trip
-            </Button>
           </CardContent>
         </Card>
       ) : (
