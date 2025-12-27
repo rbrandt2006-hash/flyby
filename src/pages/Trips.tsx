@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, MapPin, Calendar, Plane } from "lucide-react";
+import { Plus, MapPin, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
@@ -65,23 +65,27 @@ export default function Trips() {
     // TODO: Implement trip creation from calendar event
   };
 
-  useEffect(() => {
-    async function fetchTrips() {
-      if (!user) return;
-      
-      const { data, error } = await supabase
-        .from("trips")
-        .select("*")
-        .order("start_date", { ascending: false });
+  const fetchTrips = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from("trips")
+      .select("*")
+      .order("start_date", { ascending: false });
 
-      if (!error && data) {
-        setTrips(data);
-      }
-      setLoading(false);
+    if (!error && data) {
+      setTrips(data);
     }
+    setLoading(false);
+  };
 
+  useEffect(() => {
     fetchTrips();
   }, [user]);
+
+  const handleTripCreated = () => {
+    fetchTrips();
+  };
 
   // Restore calendar events on mount if already connected
   useEffect(() => {
@@ -150,7 +154,8 @@ export default function Trips() {
 
       <FlightSearchDialog 
         open={bookingDialogOpen} 
-        onOpenChange={setBookingDialogOpen} 
+        onOpenChange={setBookingDialogOpen}
+        onTripCreated={handleTripCreated}
       />
 
       {calendarConnected && calendarEvents.length > 0 && (

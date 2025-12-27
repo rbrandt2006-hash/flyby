@@ -12,13 +12,17 @@ import { AirportAutocomplete } from "./AirportAutocomplete";
 import { FlightResults, type Flight } from "./FlightResults";
 import { generateMockFlights } from "@/services/mockFlightService";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface FlightSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTripCreated?: () => void;
 }
 
-export function FlightSearchDialog({ open, onOpenChange }: FlightSearchDialogProps) {
+export function FlightSearchDialog({ open, onOpenChange, onTripCreated }: FlightSearchDialogProps) {
+  const { user } = useAuth();
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [departureDate, setDepartureDate] = useState<Date>();
@@ -42,12 +46,47 @@ export function FlightSearchDialog({ open, onOpenChange }: FlightSearchDialogPro
     setIsSearching(false);
   };
 
-  const handleSelectFlight = (flight: Flight) => {
-    toast.success(`Selected ${flight.airline} ${flight.flightNumber} for $${flight.price}`, {
-      description: "Flight added to your trip planning"
+  const handleSelectFlight = async (flight: Flight) => {
+    if (!user || !departureDate) return;
+
+    const endDate = returnDate || departureDate;
+    
+    const { error } = await supabase.from("trips").insert({
+      user_id: user.id,
+      title: `Trip to ${destination}`,
+      destination: destination,
+      start_date: format(departureDate, "yyyy-MM-dd"),
+      end_date: format(endDate, "yyyy-MM-dd"),
+      status: "draft",
+      purpose: `${flight.airline} ${flight.flightNumber}`,
+      total_estimated_cost: flight.price * parseInt(passengers),
+      flight_details: {
+        airline: flight.airline,
+        flightNumber: flight.flightNumber,
+        departureTime: flight.departureTime,
+        arrivalTime: flight.arrivalTime,
+        duration: flight.duration,
+        stops: flight.stops,
+        price: flight.price,
+        cabinClass: cabinClass,
+        passengers: parseInt(passengers),
+        origin: origin,
+      },
     });
+
+    if (error) {
+      toast.error("Failed to create trip");
+      console.error(error);
+      return;
+    }
+
+    toast.success(`Trip created with ${flight.airline} ${flight.flightNumber}`, {
+      description: `$${flight.price * parseInt(passengers)} total for ${passengers} passenger(s)`
+    });
+    
     onOpenChange(false);
     resetForm();
+    onTripCreated?.();
   };
 
   const handleBack = () => {
