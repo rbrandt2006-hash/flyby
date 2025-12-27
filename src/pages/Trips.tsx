@@ -165,9 +165,7 @@ export default function Trips() {
       {trips.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Plane className="w-6 h-6 text-primary" />
-            </div>
+            <p className="text-muted-foreground">No trips yet. Create your first trip!</p>
           </CardContent>
         </Card>
       ) : (
