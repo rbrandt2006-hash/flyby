@@ -160,7 +160,7 @@ export default function Dashboard() {
               scale: 0.98
             }}>
                 <Button variant="accent" size="lg" className="shrink-0 rounded-xl shadow-glow">
-                  <Sparkles className="w-4 h-4 mr-2" />
+                  <Sparkles className="w-4 h-4 mr-2 text-white" />
                   Plan trip
                 </Button>
               </motion.div>
