@@ -76,7 +76,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Link>
 
               {/* Center Navigation Tabs */}
-              <nav className="hidden md:flex items-center gap-3 absolute left-1/2 -translate-x-1/2">
+              <nav className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
@@ -84,7 +84,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       key={item.path}
                       to={item.path}
                       className={cn(
-                        "relative px-5 py-2.5 text-base font-medium transition-colors duration-200",
+                        "relative px-6 py-3 text-lg font-semibold uppercase tracking-wide transition-colors duration-200",
                         isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                       )}
                     >
