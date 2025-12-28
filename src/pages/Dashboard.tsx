@@ -1,17 +1,105 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, Car, X } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import AnimatedCard from "@/components/home/AnimatedCard";
 import AlertCard from "@/components/home/AlertCard";
+
+interface TripPlan {
+  destination: string;
+  dates: string;
+  flight: {
+    airline: string;
+    departTime: string;
+    returnTime: string;
+  };
+  hotel: {
+    name: string;
+    location: string;
+  };
+  groundTransport: string;
+  estimatedCost: number;
+}
+
+// Mock AI function to generate trip plan
+const generateTripPlan = async (prompt: string): Promise<TripPlan> => {
+  await new Promise(r => setTimeout(r, 900));
+  
+  // Parse destination from prompt (simple extraction)
+  const cityMatch = prompt.match(/(?:to|in|visit)\s+([A-Za-z\s]+?)(?:\s+(?:next|on|for|from|$))/i);
+  const destination = cityMatch ? cityMatch[1].trim() : "New York City";
+  
+  // Parse dates if present
+  const dateMatch = prompt.match(/(next\s+\w+|jan(?:uary)?\s+\d+|feb(?:ruary)?\s+\d+|mar(?:ch)?\s+\d+|\d+\/\d+)/i);
+  const dates = dateMatch ? `${dateMatch[1]}, 2025` : "Jan 15-17, 2025";
+  
+  // Parse landmark if present
+  const landmarkMatch = prompt.match(/near\s+([A-Za-z\s]+?)(?:\s+for|$|\.)/i);
+  const landmark = landmarkMatch ? landmarkMatch[1].trim() : "downtown";
+  
+  return {
+    destination,
+    dates,
+    flight: {
+      airline: "United Airlines",
+      departTime: "8:30 AM",
+      returnTime: "6:45 PM"
+    },
+    hotel: {
+      name: "Marriott Marquis",
+      location: `Near ${landmark}`
+    },
+    groundTransport: "Uber/Lyft recommended - estimated $45-60 from airport",
+    estimatedCost: 1850
+  };
+};
+
 export default function Dashboard() {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
   const [tripInput, setTripInput] = useState("");
+  const [isPlanning, setIsPlanning] = useState(false);
+  const [planResult, setPlanResult] = useState<TripPlan | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [inputError, setInputError] = useState<string | null>(null);
+
+  const handlePlanTrip = async () => {
+    // Clear previous states
+    setError(null);
+    setInputError(null);
+    
+    // Validate input
+    if (!tripInput.trim()) {
+      setInputError("Please describe your trip first");
+      return;
+    }
+    
+    setIsPlanning(true);
+    setPlanResult(null);
+    
+    try {
+      const result = await generateTripPlan(tripInput);
+      setPlanResult(result);
+    } catch (err) {
+      setError("Failed to generate trip plan. Please try again.");
+    } finally {
+      setIsPlanning(false);
+    }
+  };
+
+  const handleRefine = () => {
+    setPlanResult(null);
+    setError(null);
+  };
+
+  const handleSaveDraft = () => {
+    // For now just clear and show success
+    setPlanResult(null);
+    setTripInput("");
+    alert("Trip saved as draft!");
+  };
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -145,29 +233,176 @@ export default function Dashboard() {
             </div>
             <CardDescription>Describe your travel needs in natural language</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex gap-3">
               <div className="flex-1 relative">
-                <motion.input type="text" placeholder='Try: "Book me a flight to NYC next Tuesday for a client pitch near Times Square"' value={tripInput} onChange={e => setTripInput(e.target.value)} whileFocus={{
-                scale: 1.01
-              }} transition={{
-                duration: 0.2
-              }} className="w-full h-12 px-4 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200" />
+                <motion.input 
+                  type="text" 
+                  placeholder='Try: "Book me a flight to NYC next Tuesday for a client pitch near Times Square"' 
+                  value={tripInput} 
+                  onChange={e => {
+                    setTripInput(e.target.value);
+                    if (inputError) setInputError(null);
+                  }} 
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !isPlanning) handlePlanTrip();
+                  }}
+                  whileFocus={{ scale: 1.01 }} 
+                  transition={{ duration: 0.2 }} 
+                  className={`w-full h-12 px-4 rounded-xl border ${inputError ? 'border-destructive' : 'border-border'} bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200`} 
+                />
               </div>
-              <motion.div whileHover={{
-              scale: 1.02
-            }} whileTap={{
-              scale: 0.98
-            }}>
-                <Button variant="accent" size="lg" className="shrink-0 rounded-xl shadow-glow bg-[#a2c4e0] hover:bg-[#8ab4d6] text-white">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Plan trip
+              <motion.div whileHover={{ scale: isPlanning ? 1 : 1.02 }} whileTap={{ scale: isPlanning ? 1 : 0.98 }}>
+                <Button 
+                  variant="accent" 
+                  size="lg" 
+                  className="shrink-0 rounded-xl shadow-glow bg-[#a2c4e0] hover:bg-[#8ab4d6] text-white disabled:opacity-70"
+                  onClick={handlePlanTrip}
+                  disabled={isPlanning}
+                >
+                  {isPlanning ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Planning…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Plan trip
+                    </>
+                  )}
                 </Button>
               </motion.div>
             </div>
+            
+            {/* Input error message */}
+            <AnimatePresence>
+              {inputError && (
+                <motion.p 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="text-sm text-destructive flex items-center gap-1"
+                >
+                  <AlertCircle className="w-4 h-4" />
+                  {inputError}
+                </motion.p>
+              )}
+            </AnimatePresence>
           </CardContent>
         </Card>
       </ScrollReveal>
+
+      {/* Error Banner */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <Card className="border-destructive bg-destructive/10">
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-2 text-destructive">
+                  <AlertCircle className="w-5 h-5" />
+                  <span>{error}</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setError(null)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Proposed Itinerary Results */}
+      <AnimatePresence>
+        {planResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+          >
+            <Card className="border-2 border-success/30 shadow-lg overflow-hidden">
+              <CardHeader className="pb-4 bg-success/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-success" />
+                    </div>
+                    <CardTitle className="text-lg">Proposed Itinerary</CardTitle>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setPlanResult(null)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <CardDescription className="mt-2 text-base font-medium text-foreground">
+                  {planResult.destination} • {planResult.dates}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                {/* Flight */}
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
+                  <Plane className="w-5 h-5 text-primary mt-0.5" />
+                  <div>
+                    <p className="font-medium">Flight - {planResult.flight.airline}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Depart: {planResult.flight.departTime} • Return: {planResult.flight.returnTime}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Hotel */}
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
+                  <Hotel className="w-5 h-5 text-primary mt-0.5" />
+                  <div>
+                    <p className="font-medium">{planResult.hotel.name}</p>
+                    <p className="text-sm text-muted-foreground">{planResult.hotel.location}</p>
+                  </div>
+                </div>
+
+                {/* Ground Transport */}
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
+                  <Car className="w-5 h-5 text-primary mt-0.5" />
+                  <div>
+                    <p className="font-medium">Ground Transport</p>
+                    <p className="text-sm text-muted-foreground">{planResult.groundTransport}</p>
+                  </div>
+                </div>
+
+                {/* Estimated Cost */}
+                <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-primary" />
+                    <span className="font-medium">Estimated Total Cost</span>
+                  </div>
+                  <span className="text-2xl font-bold text-primary">${planResult.estimatedCost.toLocaleString()}</span>
+                </div>
+
+                {/* CTA Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <Button 
+                    variant="default" 
+                    className="flex-1"
+                    onClick={handleSaveDraft}
+                  >
+                    Save as Draft Trip
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={handleRefine}
+                  >
+                    Refine
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Alerts */}
       {alerts.length > 0 && <ScrollReveal delay={0.15}>
