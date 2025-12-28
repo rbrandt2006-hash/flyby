@@ -84,7 +84,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       key={item.path}
                       to={item.path}
                       className={cn(
-                        "relative px-6 py-3 text-lg font-semibold uppercase tracking-wide transition-colors duration-200",
+                        "relative px-6 py-3 text-lg font-semibold capitalize tracking-wide transition-colors duration-200",
                         isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                       )}
                     >
