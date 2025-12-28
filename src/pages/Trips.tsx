@@ -167,53 +167,56 @@ export default function Trips() {
         />
       )}
 
-      {trips.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-muted-foreground">No trips yet. Create your first trip!</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {trips.map((trip) => (
-            <Card key={trip.id} className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-foreground truncate">{trip.title}</h3>
-                      <Badge variant="outline" className={getStatusColor(trip.status)}>
-                        {trip.status}
-                      </Badge>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Your Trips</h2>
+        {trips.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <p className="text-muted-foreground">No trips yet. Create your first trip!</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {trips.map((trip) => (
+              <Card key={trip.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-semibold text-foreground truncate">{trip.title}</h3>
+                        <Badge variant="outline" className={getStatusColor(trip.status)}>
+                          {trip.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4" />
+                          {trip.destination}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-4 h-4" />
+                          {format(new Date(trip.start_date), "MMM d")} - {format(new Date(trip.end_date), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                      {trip.purpose && (
+                        <p className="text-sm text-muted-foreground mt-2 truncate">{trip.purpose}</p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-4 h-4" />
-                        {trip.destination}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4" />
-                        {format(new Date(trip.start_date), "MMM d")} - {format(new Date(trip.end_date), "MMM d, yyyy")}
-                      </span>
-                    </div>
-                    {trip.purpose && (
-                      <p className="text-sm text-muted-foreground mt-2 truncate">{trip.purpose}</p>
+                    {trip.total_estimated_cost && trip.total_estimated_cost > 0 && (
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Est. cost</p>
+                        <p className="font-semibold text-foreground">
+                          ${trip.total_estimated_cost.toLocaleString()}
+                        </p>
+                      </div>
                     )}
                   </div>
-                  {trip.total_estimated_cost && trip.total_estimated_cost > 0 && (
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Est. cost</p>
-                      <p className="font-semibold text-foreground">
-                        ${trip.total_estimated_cost.toLocaleString()}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
