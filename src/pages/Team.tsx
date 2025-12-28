@@ -1,11 +1,15 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, MessageSquarePlus } from "lucide-react";
 import { TeamMemberCard, type TeamMember } from "@/components/team/TeamMemberCard";
 import { TeamMemberPanel } from "@/components/team/TeamMemberPanel";
+import { CreateGroupChatModal } from "@/components/chats/CreateGroupChatModal";
+import { useChats, teamMembers as chatTeamMembers } from "@/hooks/useChats";
 import { cn } from "@/lib/utils";
 
-// Mock team data
+// Mock team data with additional trip info
 const mockTeamMembers: TeamMember[] = [
   {
     id: "1",
@@ -77,12 +81,21 @@ const mockTeamMembers: TeamMember[] = [
 ];
 
 export default function Team() {
+  const navigate = useNavigate();
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [createChatOpen, setCreateChatOpen] = useState(false);
+  const { createChat } = useChats();
 
   const handleMemberClick = (member: TeamMember) => {
     setSelectedMember(member);
     setPanelOpen(true);
+  };
+
+  const handleCreateChat = (name: string, memberIds: string[]) => {
+    const newChat = createChat(name, memberIds);
+    // Navigate to the new chat
+    navigate(`/chats?chat=${newChat.id}`);
   };
 
   const travelingMembers = mockTeamMembers.filter((m) => m.upcomingTrip);
@@ -91,12 +104,26 @@ export default function Team() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Team</h1>
-        <p className="text-muted-foreground">
-          See where your colleagues are traveling
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Team</h1>
+          <p className="text-muted-foreground">
+            See where your colleagues are traveling
+          </p>
+        </div>
+        <Button onClick={() => setCreateChatOpen(true)} className="gap-2">
+          <MessageSquarePlus className="w-4 h-4" />
+          New group chat
+        </Button>
       </div>
+
+      {/* Create Group Chat Modal */}
+      <CreateGroupChatModal
+        open={createChatOpen}
+        onOpenChange={setCreateChatOpen}
+        teamMembers={chatTeamMembers}
+        onCreateChat={handleCreateChat}
+      />
 
       {/* Team Member Panel */}
       <TeamMemberPanel
