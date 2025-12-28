@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Plus, MapPin, Calendar } from "lucide-react";
-import { format } from "date-fns";
+import { Card, CardContent } from "@/components/ui/card";
+import { Plus, Calendar, Plane } from "lucide-react";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
 import { FlightSearchDialog } from "@/components/flights/FlightSearchDialog";
+import { TripCard, type Trip } from "@/components/trips/TripCard";
+import { TripDetailPanel } from "@/components/trips/TripDetailPanel";
 import { toast } from "sonner";
 import { 
   fetchCalendarEvents, 
@@ -17,17 +17,7 @@ import {
   disconnectCalendar,
   type CalendarEvent 
 } from "@/services/mockCalendarService";
-
-interface Trip {
-  id: string;
-  title: string;
-  destination: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  purpose: string | null;
-  total_estimated_cost: number | null;
-}
+import { cn } from "@/lib/utils";
 
 export default function Trips() {
   const { user } = useAuth();
@@ -37,6 +27,8 @@ export default function Trips() {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [calendarConnected, setCalendarConnected] = useState(isCalendarConnected());
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false);
 
   const handleNewTrip = () => {
     setBookingDialogOpen(true);
@@ -62,7 +54,6 @@ export default function Trips() {
 
   const handleCreateTrip = (event: CalendarEvent) => {
     toast.info(`Creating trip for: ${event.title}`);
-    // TODO: Implement trip creation from calendar event
   };
 
   const fetchTrips = async () => {
@@ -74,7 +65,7 @@ export default function Trips() {
       .order("start_date", { ascending: false });
 
     if (!error && data) {
-      setTrips(data);
+      setTrips(data as Trip[]);
     }
     setLoading(false);
   };
@@ -87,7 +78,43 @@ export default function Trips() {
     fetchTrips();
   };
 
-  // Restore calendar events on mount if already connected
+  const handleTripClick = (trip: Trip) => {
+    setSelectedTrip(trip);
+    setDetailPanelOpen(true);
+  };
+
+  const handleConfirmTrip = async (tripId: string) => {
+    const { error } = await supabase
+      .from("trips")
+      .update({ status: "confirmed" })
+      .eq("id", tripId);
+
+    if (error) {
+      toast.error("Failed to confirm trip");
+      return;
+    }
+
+    toast.success("Trip confirmed!");
+    fetchTrips();
+    setDetailPanelOpen(false);
+  };
+
+  const handleCancelTrip = async (tripId: string) => {
+    const { error } = await supabase
+      .from("trips")
+      .update({ status: "cancelled" })
+      .eq("id", tripId);
+
+    if (error) {
+      toast.error("Failed to cancel trip");
+      return;
+    }
+
+    toast.success("Trip cancelled");
+    fetchTrips();
+    setDetailPanelOpen(false);
+  };
+
   useEffect(() => {
     async function restoreCalendarEvents() {
       if (isCalendarConnected()) {
@@ -100,24 +127,8 @@ export default function Trips() {
         }
       }
     }
-
     restoreCalendarEvents();
   }, []);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmed":
-        return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
-      case "pending":
-        return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-      case "draft":
-        return "bg-muted text-muted-foreground border-border";
-      case "cancelled":
-        return "bg-destructive/10 text-destructive border-destructive/20";
-      default:
-        return "bg-muted text-muted-foreground border-border";
-    }
-  };
 
   if (loading) {
     return (
@@ -128,24 +139,33 @@ export default function Trips() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Trips</h1>
+          <h1 className="text-2xl font-bold text-foreground">Your Trips</h1>
           <p className="text-muted-foreground">Manage your business travel</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => setCalendarDialogOpen(true)}>
+          <Button 
+            variant="outline" 
+            onClick={() => setCalendarDialogOpen(true)}
+            className="transition-smooth hover:border-primary/30"
+          >
             <Calendar className="w-4 h-4 mr-2" />
-            Sync Work Calendar
+            Sync Calendar
           </Button>
-          <Button onClick={handleNewTrip}>
+          <Button 
+            onClick={handleNewTrip}
+            className="bg-gradient-accent hover:opacity-90 text-accent-foreground font-medium transition-smooth"
+          >
             <Plus className="w-4 h-4 mr-2" />
             New Trip
           </Button>
         </div>
       </div>
 
+      {/* Dialogs */}
       <CalendarSyncDialog 
         open={calendarDialogOpen} 
         onOpenChange={setCalendarDialogOpen}
@@ -158,6 +178,15 @@ export default function Trips() {
         onTripCreated={handleTripCreated}
       />
 
+      <TripDetailPanel
+        trip={selectedTrip}
+        open={detailPanelOpen}
+        onOpenChange={setDetailPanelOpen}
+        onConfirm={handleConfirmTrip}
+        onCancel={handleCancelTrip}
+      />
+
+      {/* Calendar Events */}
       {calendarConnected && calendarEvents.length > 0 && (
         <CalendarEventsDisplay 
           events={calendarEvents}
@@ -167,52 +196,42 @@ export default function Trips() {
         />
       )}
 
+      {/* Trips List */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">Your Trips</h2>
         {trips.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-muted-foreground">No trips yet. Create your first trip!</p>
+          <Card className="border-dashed border-2 border-border/50 bg-muted/20">
+            <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
+              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center">
+                <Plane className="w-8 h-8 text-muted-foreground/50" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-foreground font-medium">No trips planned yet</p>
+                <p className="text-muted-foreground text-sm">
+                  Create your first trip to get started
+                </p>
+              </div>
+              <Button 
+                onClick={handleNewTrip}
+                className="mt-2 bg-gradient-accent hover:opacity-90 text-accent-foreground"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Trip
+              </Button>
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4">
-            {trips.map((trip) => (
-              <Card key={trip.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-foreground truncate">{trip.title}</h3>
-                        <Badge variant="outline" className={getStatusColor(trip.status)}>
-                          {trip.status}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="w-4 h-4" />
-                          {trip.destination}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="w-4 h-4" />
-                          {format(new Date(trip.start_date), "MMM d")} - {format(new Date(trip.end_date), "MMM d, yyyy")}
-                        </span>
-                      </div>
-                      {trip.purpose && (
-                        <p className="text-sm text-muted-foreground mt-2 truncate">{trip.purpose}</p>
-                      )}
-                    </div>
-                    {trip.total_estimated_cost && trip.total_estimated_cost > 0 && (
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Est. cost</p>
-                        <p className="font-semibold text-foreground">
-                          ${trip.total_estimated_cost.toLocaleString()}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            {trips.map((trip, index) => (
+              <div 
+                key={trip.id}
+                className="animate-slide-up"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <TripCard 
+                  trip={trip} 
+                  onClick={() => handleTripClick(trip)} 
+                />
+              </div>
             ))}
           </div>
         )}
