@@ -31,7 +31,7 @@ export default function AlertCard({
       ease: "easeInOut"
     }} />
       
-      <div className="relative flex items-center gap-4 p-4 bg-[#d4dff2]">
+      <div className="relative flex items-center gap-4 p-4 bg-[#d4dff2] border-solid rounded-xl border border-black">
         <motion.div animate={{
         scale: [1, 1.1, 1]
       }} transition={{
