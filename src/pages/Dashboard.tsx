@@ -95,7 +95,7 @@ export default function Dashboard() {
       }
     }
   };
-  return <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-5xl mx-auto space-y-8 pb-20 md:pb-0">
+  return <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-5xl mx-auto space-y-8 pb-20 md:pb-0 bg-primary-foreground">
       {/* Welcome header */}
       <motion.div variants={itemVariants}>
         <motion.h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight" initial={{
