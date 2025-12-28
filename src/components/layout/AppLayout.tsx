@@ -26,7 +26,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   // Intro animation state - only show on initial app load
   const [showIntro, setShowIntro] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -69,7 +69,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
                   alt="FlyBy"
-                  className="h-7"
+                  className="h-10 w-auto shrink-0"
                   src="/lovable-uploads/eb656c8d-2d9c-4190-9b5e-fa90371682e7.png"
                 />
               </Link>
@@ -84,9 +84,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       to={item.path}
                       className={cn(
                         "relative px-4 py-2 text-sm font-medium transition-colors duration-200",
-                        isActive
-                          ? "text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
+                        isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                       )}
                     >
                       {item.label}
@@ -152,10 +150,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link to="/settings" className="cursor-pointer">Settings</Link>
+                      <Link to="/settings" className="cursor-pointer">
+                        Settings
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive cursor-pointer">
+                    <DropdownMenuItem
+                      onClick={handleSignOut}
+                      className="text-destructive focus:text-destructive cursor-pointer"
+                    >
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign out
                     </DropdownMenuItem>
@@ -190,7 +193,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 to={item.path}
                 className={cn(
                   "relative flex flex-col items-center gap-1 py-2 px-4 rounded-lg transition-colors",
-                  isActive ? "text-foreground" : "text-muted-foreground"
+                  isActive ? "text-foreground" : "text-muted-foreground",
                 )}
               >
                 {isActive && (
