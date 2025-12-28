@@ -1,10 +1,10 @@
-import { useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useCallback, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign } from "lucide-react";
-import IntroAnimation from "@/components/home/IntroAnimation";
+import IntroAnimation, { hasIntroPlayed, prefersReducedMotion } from "@/components/home/IntroAnimation";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import AnimatedCard from "@/components/home/AnimatedCard";
 import AlertCard from "@/components/home/AlertCard";
@@ -12,7 +12,16 @@ import AlertCard from "@/components/home/AlertCard";
 export default function Dashboard() {
   const { user } = useAuth();
   const [tripInput, setTripInput] = useState("");
-  const [showIntro, setShowIntro] = useState(true);
+  // Check if intro should be shown (only on first load, respecting reduced motion)
+  const [showIntro, setShowIntro] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !hasIntroPlayed() && !prefersReducedMotion();
+  });
+  const [contentReady, setContentReady] = useState(() => {
+    // If intro won't play, content is immediately ready
+    if (typeof window === "undefined") return true;
+    return hasIntroPlayed() || prefersReducedMotion();
+  });
 
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
 
@@ -46,6 +55,7 @@ export default function Dashboard() {
 
   const handleIntroComplete = useCallback(() => {
     setShowIntro(false);
+    setContentReady(true);
   }, []);
 
   // Container animation variants
@@ -54,19 +64,19 @@ export default function Dashboard() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
+        staggerChildren: 0.08,
+        delayChildren: 0.1,
       },
     },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 16 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.6,
+        duration: 0.4,
         ease: [0.25, 0.1, 0.25, 1] as const,
       },
     },
@@ -74,13 +84,11 @@ export default function Dashboard() {
 
   return (
     <>
-      <AnimatePresence>
-        {showIntro && <IntroAnimation onComplete={handleIntroComplete} />}
-      </AnimatePresence>
+      {showIntro && <IntroAnimation onComplete={handleIntroComplete} />}
 
       <motion.div
         initial="hidden"
-        animate={!showIntro ? "visible" : "hidden"}
+        animate={contentReady ? "visible" : "hidden"}
         variants={containerVariants}
         className="max-w-6xl mx-auto space-y-8 pb-20 lg:pb-0"
       >

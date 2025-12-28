@@ -6,21 +6,48 @@ interface IntroAnimationProps {
   onComplete: () => void;
 }
 
+const INTRO_PLAYED_KEY = "flybyIntroPlayed";
+
+export function hasIntroPlayed(): boolean {
+  return sessionStorage.getItem(INTRO_PLAYED_KEY) === "true";
+}
+
+export function markIntroPlayed(): void {
+  sessionStorage.setItem(INTRO_PLAYED_KEY, "true");
+}
+
+export function prefersReducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 export default function IntroAnimation({ onComplete }: IntroAnimationProps) {
   const [phase, setPhase] = useState<"flying" | "morphing" | "settling" | "complete">("flying");
 
   useEffect(() => {
+    // Skip animation if reduced motion is preferred or already played
+    if (prefersReducedMotion() || hasIntroPlayed()) {
+      markIntroPlayed();
+      onComplete();
+      return;
+    }
+
     const timers = [
       setTimeout(() => setPhase("morphing"), 1200),
       setTimeout(() => setPhase("settling"), 2200),
       setTimeout(() => {
         setPhase("complete");
+        markIntroPlayed();
         onComplete();
       }, 3000),
     ];
 
     return () => timers.forEach(clearTimeout);
   }, [onComplete]);
+
+  // Don't render if already played or reduced motion
+  if (hasIntroPlayed() || prefersReducedMotion()) {
+    return null;
+  }
 
   return (
     <AnimatePresence>
