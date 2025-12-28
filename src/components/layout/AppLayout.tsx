@@ -44,15 +44,15 @@ export default function AppLayout({
   return <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <aside className="w-64 bg-sidebar border-r border-sidebar-border hidden lg:flex flex-col">
-        <div className="p-6 bg-[#ebeaea]">
+        <div className="p-6 bg-[#444e6a]">
           <Link to="/" className="flex items-center">
             <img alt="flyby" className="h-8" src="/lovable-uploads/eb656c8d-2d9c-4190-9b5e-fa90371682e7.png" />
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 space-y-1 bg-[#ebeaea]">
+        <nav className="flex-1 px-3 space-y-1 bg-[#424c67]">
           {navItems.map(item => <Link key={item.path} to={item.path} className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors", location.pathname === item.path ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50")}>
-              <item.icon className="w-5 h-5 text-black" />
+              <item.icon className="w-5 h-5 text-white" />
               {item.label}
             </Link>)}
         </nav>
