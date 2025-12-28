@@ -210,7 +210,7 @@ export default function Dashboard() {
             }} transition={{
               duration: 0.5
             }}>
-                  <stat.icon className={`w-6 h-6 ${stat.color} mb-3`} />
+                  <stat.icon className="w-6 h-6 text-foreground mb-3" />
                 </motion.div>
                 <p className="text-3xl font-bold tracking-tight">{stat.value}</p>
                 <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
