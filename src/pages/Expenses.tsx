@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import ConnectCardModal from "@/components/expenses/ConnectCardModal";
 import { 
   Plane, 
   Building2, 
@@ -17,7 +18,8 @@ import {
   Flag,
   CheckCircle,
   ArrowRight,
-  Plus
+  Plus,
+  Check
 } from "lucide-react";
 
 // Mock expense data
@@ -123,6 +125,8 @@ const itemVariants = {
 
 export default function Expenses() {
   const [selectedExpense, setSelectedExpense] = useState<typeof mockExpenses[0] | null>(null);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [isCardConnected, setIsCardConnected] = useState(false);
 
   const totalPending = mockExpenses
     .filter(e => e.status === "pending" || e.status === "submitted")
@@ -198,25 +202,48 @@ export default function Expenses() {
 
       {/* Corporate Card CTA */}
       <motion.div variants={itemVariants}>
-        <Card className="border-dashed border-2 border-muted-foreground/20 bg-secondary/30">
-          <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
-                <CreditCard className="w-6 h-6 text-muted-foreground" />
+        {isCardConnected ? (
+          <Card className="border-success/30 bg-success/5">
+            <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
+                  <Check className="w-6 h-6 text-success" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Corporate card connected</h3>
+                  <p className="text-sm text-muted-foreground">
+                    American Express Business •••• 3456
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold">Connect your corporate credit card</h3>
-                <p className="text-sm text-muted-foreground">
-                  Auto-import transactions and streamline expense tracking
-                </p>
+              <Badge variant="success">Active</Badge>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-dashed border-2 border-muted-foreground/20 bg-secondary/30">
+            <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
+                  <CreditCard className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Connect your corporate credit card</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Auto-import transactions and streamline expense tracking
+                  </p>
+                </div>
               </div>
-            </div>
-            <Button variant="outline" className="rounded-xl shrink-0">
-              Connect card
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </CardContent>
-        </Card>
+              <Button 
+                variant="outline" 
+                className="rounded-xl shrink-0"
+                onClick={() => setIsCardModalOpen(true)}
+              >
+                Connect card
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </motion.div>
 
       {/* Expense List */}
@@ -368,6 +395,13 @@ export default function Expenses() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Connect Card Modal */}
+      <ConnectCardModal
+        open={isCardModalOpen}
+        onOpenChange={setIsCardModalOpen}
+        onSuccess={() => setIsCardConnected(true)}
+      />
     </motion.div>
   );
 }
