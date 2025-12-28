@@ -159,8 +159,8 @@ export default function Dashboard() {
             }} whileTap={{
               scale: 0.98
             }}>
-                <Button variant="accent" size="lg" className="shrink-0 rounded-xl shadow-glow">
-                  <Sparkles className="w-4 h-4 mr-2 text-white" />
+                <Button variant="accent" size="lg" className="shrink-0 rounded-xl shadow-glow bg-[#a2c4e0] hover:bg-[#8ab4d6] text-white">
+                  <Sparkles className="w-4 h-4 mr-2" />
                   Plan trip
                 </Button>
               </motion.div>
