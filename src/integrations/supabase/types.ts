@@ -433,6 +433,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_user_company_id: { Args: never; Returns: string }
       get_or_create_company: { Args: { email_input: string }; Returns: string }
     }
     Enums: {
