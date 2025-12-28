@@ -139,7 +139,7 @@ export default function Dashboard() {
               repeat: Infinity,
               ease: "easeInOut"
             }} className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#a3c5e0]">
-                <Sparkles className="w-4 h-4 bg-[#a3c5e0] text-[#7095d7]" />
+                <Sparkles className="w-4 h-4 bg-[#a3c5e0] text-white" />
               </motion.div>
               <CardTitle className="text-lg">Plan a trip with AI</CardTitle>
             </div>
