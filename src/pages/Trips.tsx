@@ -157,7 +157,8 @@ export default function Trips() {
           </Button>
           <Button 
             onClick={handleNewTrip}
-            className="bg-gradient-accent hover:opacity-90 text-accent-foreground font-medium transition-smooth"
+            className="hover:opacity-90 text-white font-medium transition-smooth"
+            style={{ backgroundColor: '#a3c5e0' }}
           >
             <Plus className="w-4 h-4 mr-2" />
             New Trip
