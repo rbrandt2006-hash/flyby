@@ -84,6 +84,24 @@ export default function Dashboard() {
       setIsPlanning(false);
     }
   };
+  
+  const handleCalendarSuggestion = async (suggestion: { event: string; location: string; date: string }) => {
+    const prompt = `Trip to ${suggestion.location} for ${suggestion.event} on ${suggestion.date}`;
+    setTripInput(prompt);
+    setError(null);
+    setInputError(null);
+    setIsPlanning(true);
+    setPlanResult(null);
+    try {
+      const result = await generateTripPlan(prompt);
+      setPlanResult(result);
+    } catch (err) {
+      setError("Failed to generate trip plan. Please try again.");
+    } finally {
+      setIsPlanning(false);
+    }
+  };
+  
   const handleRefine = () => {
     setPlanResult(null);
     setError(null);
@@ -408,8 +426,14 @@ export default function Dashboard() {
           }} whileTap={{
             scale: 0.98
           }}>
-                  <Button variant="default" size="sm" className="rounded-xl">
-                    Prepare travel options
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="rounded-xl"
+                    disabled={isPlanning}
+                    onClick={() => handleCalendarSuggestion(suggestion)}
+                  >
+                    {isPlanning ? "Planning..." : "Prepare travel options"}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </motion.div>

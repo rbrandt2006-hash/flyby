@@ -23,6 +23,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { LocalRecommendations } from "./LocalRecommendations";
+import { AIReasoningPanel } from "./AIReasoningPanel";
 import type { Trip } from "./TripCard";
 
 interface TripDetailPanelProps {
@@ -234,6 +235,11 @@ export function TripDetailPanel({
               ))}
             </div>
           </section>
+
+          <Separator />
+
+          {/* AI Reasoning Panel */}
+          <AIReasoningPanel destination={trip.destination} />
 
           <Separator />
 
