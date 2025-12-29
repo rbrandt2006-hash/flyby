@@ -203,7 +203,7 @@ export default function Dashboard() {
         delay: 0.5,
         duration: 0.6,
         ease: [0.25, 0.1, 0.25, 1] as const
-      }}>Where to next?</motion.p>
+      }}> Where to next?</motion.p>
       </motion.div>
 
       {/* AI Trip Input */}
