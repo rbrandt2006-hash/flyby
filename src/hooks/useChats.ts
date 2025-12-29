@@ -62,6 +62,14 @@ export const teamMembers: ChatUser[] = [
   },
 ];
 
+// AI Assistant (virtual team member)
+export const aiAssistant: ChatUser = {
+  id: "ai-assistant",
+  name: "Flyby AI",
+  role: "Travel Assistant",
+  avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=flyby&backgroundColor=a3c5e0",
+};
+
 // Current user (mock)
 export const currentUser: ChatUser = {
   id: "current",
@@ -113,7 +121,7 @@ export function useChats() {
     return newChat;
   }, []);
 
-  const sendMessage = useCallback((chatId: string, text: string, senderId: string = currentUser.id) => {
+  const sendMessage = useCallback((chatId: string, text: string, senderId: string = currentUser.id, autoReply: boolean = true) => {
     const newMessage: ChatMessage = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       senderId,
@@ -128,6 +136,35 @@ export function useChats() {
           : chat
       )
     );
+
+    // Auto AI reply when user sends a message
+    if (autoReply && senderId === currentUser.id) {
+      setTimeout(() => {
+        const aiReplies = [
+          "I can help refine this itinerary or suggest cheaper alternatives.",
+          "Let me check for any policy conflicts with this booking.",
+          "I found a few options that might work better for your schedule.",
+          "Great choice! I'll prepare the booking details.",
+          "Would you like me to compare pricing across different dates?",
+        ];
+        const aiReply = aiReplies[Math.floor(Math.random() * aiReplies.length)];
+        
+        const aiMessage: ChatMessage = {
+          id: `msg_${Date.now()}_ai`,
+          senderId: "ai-assistant",
+          text: aiReply,
+          createdAt: new Date().toISOString(),
+        };
+        
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat.id === chatId
+              ? { ...chat, messages: [...chat.messages, aiMessage] }
+              : chat
+          )
+        );
+      }, 1000 + Math.random() * 500);
+    }
 
     return newMessage;
   }, []);
@@ -168,6 +205,7 @@ export function useChats() {
 
   const getMemberById = useCallback((memberId: string) => {
     if (memberId === currentUser.id) return currentUser;
+    if (memberId === aiAssistant.id) return aiAssistant;
     return teamMembers.find((m) => m.id === memberId) || null;
   }, []);
 
