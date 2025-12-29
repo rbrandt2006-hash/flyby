@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { 
   Sheet, 
   SheetContent, 
@@ -18,13 +19,18 @@ import {
   CheckCircle2,
   XCircle,
   ArrowRight,
-  Video
+  Video,
+  ChevronDown,
+  History
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 import { LocalRecommendations } from "./LocalRecommendations";
 import { AIReasoningPanel } from "./AIReasoningPanel";
+import { DecisionTimeline } from "./DecisionTimeline";
 import type { Trip } from "./TripCard";
+import type { TripTimelineEvent } from "@/hooks/useTrips";
 
 interface TripDetailPanelProps {
   trip: Trip | null;
@@ -32,6 +38,7 @@ interface TripDetailPanelProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: (tripId: string) => void;
   onCancel: (tripId: string) => void;
+  timeline?: TripTimelineEvent[];
 }
 
 // Mock meetings data
@@ -97,13 +104,23 @@ export function TripDetailPanel({
   open, 
   onOpenChange,
   onConfirm,
-  onCancel 
+  onCancel,
+  timeline = []
 }: TripDetailPanelProps) {
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  
   if (!trip) return null;
 
   const statusConfig = getStatusConfig(trip.status);
   const isConfirmed = trip.status === "confirmed";
   const isCancelled = trip.status === "cancelled";
+
+  // Generate mock timeline if none provided
+  const now = new Date().toISOString();
+  const displayTimeline = timeline.length > 0 ? timeline : [
+    { id: "1", type: "created" as const, description: "Trip created", timestamp: now },
+    { id: "2", type: "ai_recommendation" as const, description: "AI generated travel recommendations", timestamp: now },
+  ];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -234,6 +251,40 @@ export function TripDetailPanel({
                 </div>
               ))}
             </div>
+          </section>
+
+          <Separator />
+
+          {/* Decision Timeline */}
+          <section className="space-y-3">
+            <button
+              onClick={() => setIsTimelineOpen(!isTimelineOpen)}
+              className="w-full flex items-center justify-between hover:bg-secondary/50 rounded-lg p-2 -mx-2 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-primary" />
+                <h4 className="font-medium text-foreground">Trip Timeline</h4>
+              </div>
+              <motion.div
+                animate={{ rotate: isTimelineOpen ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              </motion.div>
+            </button>
+            <AnimatePresence>
+              {isTimelineOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <DecisionTimeline events={displayTimeline} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </section>
 
           <Separator />
