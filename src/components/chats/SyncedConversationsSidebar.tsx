@@ -71,6 +71,23 @@ export function SyncedConversationsSidebar({
     return <TeamsIcon className="w-4 h-4 text-[#6264A7]" />;
   };
 
+  const getSourceBadge = (source: "slack" | "teams") => {
+    if (source === "slack") {
+      return (
+        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#4A154B]/10 text-[#4A154B] text-[10px] font-medium">
+          <SlackIcon className="w-2.5 h-2.5" />
+          Slack
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#6264A7]/10 text-[#6264A7] text-[10px] font-medium">
+        <TeamsIcon className="w-2.5 h-2.5" />
+        Teams
+      </span>
+    );
+  };
+
   return (
     <ScrollArea className="h-full">
       <div className="p-2 space-y-1">
@@ -90,21 +107,21 @@ export function SyncedConversationsSidebar({
               )}
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  {getSourceIcon(conv.source)}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium truncate text-sm">{conv.name}</h3>
-                      {conv.hasTravelIntent && (
-                        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
-                          <Sparkles className="w-2.5 h-2.5" />
-                          Trip
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-medium truncate text-sm">{conv.name}</h3>
+                    {conv.hasTravelIntent && (
+                      <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        Trip
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    {getSourceBadge(conv.source)}
+                    <span className="text-xs text-muted-foreground">
                       #{conv.channel}
-                    </p>
+                    </span>
                   </div>
                 </div>
                 {lastMessage && (
