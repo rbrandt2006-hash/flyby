@@ -1,15 +1,23 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, Car, X } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, Car, X, Brain } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import AnimatedCard from "@/components/home/AnimatedCard";
 import AlertCard from "@/components/home/AlertCard";
+import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
+import { useTrips } from "@/hooks/useTrips";
+import { useChats } from "@/hooks/useChats";
+import { usePreferences } from "@/hooks/usePreferences";
+import { Badge } from "@/components/ui/badge";
+
 interface TripPlan {
   destination: string;
   dates: string;
+  purpose: string;
   flight: {
     airline: string;
     departTime: string;
@@ -21,6 +29,7 @@ interface TripPlan {
   };
   groundTransport: string;
   estimatedCost: number;
+  confidenceLevel: number;
 }
 
 // Mock AI function to generate trip plan
@@ -35,12 +44,18 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan> => {
   const dateMatch = prompt.match(/(next\s+\w+|jan(?:uary)?\s+\d+|feb(?:ruary)?\s+\d+|mar(?:ch)?\s+\d+|\d+\/\d+)/i);
   const dates = dateMatch ? `${dateMatch[1]}, 2025` : "Jan 15-17, 2025";
 
+  // Parse purpose if present
+  const purposeMatch = prompt.match(/for\s+(?:a\s+)?([a-z\s]+?)(?:\s+near|$|\.)/i);
+  const purpose = purposeMatch ? purposeMatch[1].trim() : "business meeting";
+
   // Parse landmark if present
   const landmarkMatch = prompt.match(/near\s+([A-Za-z\s]+?)(?:\s+for|$|\.)/i);
   const landmark = landmarkMatch ? landmarkMatch[1].trim() : "downtown";
+
   return {
     destination,
     dates,
+    purpose,
     flight: {
       airline: "United Airlines",
       departTime: "8:30 AM",
@@ -51,24 +66,30 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan> => {
       location: `Near ${landmark}`
     },
     groundTransport: "Uber/Lyft recommended - estimated $45-60 from airport",
-    estimatedCost: 1850
+    estimatedCost: 1850,
+    confidenceLevel: 87 + Math.floor(Math.random() * 10),
   };
 };
 export default function Dashboard() {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { createTrip } = useTrips();
+  const { createChat } = useChats();
+  const { getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
+  
   const [tripInput, setTripInput] = useState("");
   const [isPlanning, setIsPlanning] = useState(false);
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
+
+  const preferenceLabels = getActivePreferenceLabels();
+  const showLearnedBadge = hasLearnedPreferences();
+
   const handlePlanTrip = async () => {
-    // Clear previous states
     setError(null);
     setInputError(null);
 
-    // Validate input
     if (!tripInput.trim()) {
       setInputError("Please describe your trip first");
       return;
@@ -106,11 +127,44 @@ export default function Dashboard() {
     setPlanResult(null);
     setError(null);
   };
+
   const handleSaveDraft = () => {
-    // For now just clear and show success
+    if (!planResult) return;
+
+    // Parse dates from planResult
+    const now = new Date();
+    const startDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const endDate = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Create the trip with full model
+    const newTrip = createTrip({
+      destination: planResult.destination,
+      startDate,
+      endDate,
+      purpose: planResult.purpose,
+      flight: planResult.flight,
+      hotel: planResult.hotel,
+      groundTransport: planResult.groundTransport,
+      estimatedCost: planResult.estimatedCost,
+      confidenceLevel: planResult.confidenceLevel,
+    });
+
+    // Auto-create a chat for this trip
+    const chat = createChat(`${planResult.destination} Trip`, []);
+    
+    // Record preference learning (early flight = depart before 10am)
+    const isEarly = planResult.flight.departTime.includes("AM") && 
+      parseInt(planResult.flight.departTime) < 10;
+    recordBookingChoice({
+      isEarlyFlight: isEarly,
+      isDirect: true,
+      isBudgetOption: planResult.estimatedCost < 2000,
+    });
+
+    // Clear state and navigate to trips
     setPlanResult(null);
     setTripInput("");
-    alert("Trip saved as draft!");
+    navigate("/trips");
   };
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
   const getGreeting = () => {
@@ -242,6 +296,15 @@ export default function Dashboard() {
               <CardTitle className="text-lg">Plan a trip with AI</CardTitle>
             </div>
             <CardDescription>Describe your travel needs in natural language</CardDescription>
+            
+            {/* Learned preferences indicator */}
+            {(showLearnedBadge || preferenceLabels.length > 0) && (
+              <PreferencesIndicator 
+                labels={preferenceLabels}
+                showLearnedBadge={showLearnedBadge}
+                className="mt-2"
+              />
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-3">
@@ -347,9 +410,14 @@ export default function Dashboard() {
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
-                <CardDescription className="mt-2 text-base font-medium text-foreground">
-                  {planResult.destination} • {planResult.dates}
-                </CardDescription>
+                <div className="flex items-center gap-3 mt-2">
+                  <CardDescription className="text-base font-medium text-foreground">
+                    {planResult.destination} • {planResult.dates}
+                  </CardDescription>
+                  <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                    {planResult.confidenceLevel}% confidence
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4 pt-4">
                 {/* Flight */}
