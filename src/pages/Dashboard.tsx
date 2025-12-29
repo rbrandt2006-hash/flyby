@@ -13,10 +13,13 @@ import { useTrips } from "@/hooks/useTrips";
 import { useChats } from "@/hooks/useChats";
 import { usePreferences } from "@/hooks/usePreferences";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { findDestination, findLandmark, parseDates, parsePurpose, destinationTemplates } from "@/services/tripTemplates";
 
 interface TripPlan {
   destination: string;
   dates: string;
+  datesAssumed: boolean;
   purpose: string;
   flight: {
     airline: string;
@@ -30,44 +33,60 @@ interface TripPlan {
   groundTransport: string;
   estimatedCost: number;
   confidenceLevel: number;
+  originalPrompt: string;
 }
 
-// Mock AI function to generate trip plan
-const generateTripPlan = async (prompt: string): Promise<TripPlan> => {
+// Generate trip plan based on parsed destination
+const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true }> => {
   await new Promise(r => setTimeout(r, 900));
 
-  // Parse destination from prompt (simple extraction)
-  const cityMatch = prompt.match(/(?:to|in|visit)\s+([A-Za-z\s]+?)(?:\s+(?:next|on|for|from|$))/i);
-  const destination = cityMatch ? cityMatch[1].trim() : "New York City";
+  // Find matching destination
+  const template = findDestination(prompt);
+  
+  if (!template) {
+    return { needsDestination: true };
+  }
 
-  // Parse dates if present
-  const dateMatch = prompt.match(/(next\s+\w+|jan(?:uary)?\s+\d+|feb(?:ruary)?\s+\d+|mar(?:ch)?\s+\d+|\d+\/\d+)/i);
-  const dates = dateMatch ? `${dateMatch[1]}, 2025` : "Jan 15-17, 2025";
+  // Parse dates
+  const { dates, assumed: datesAssumed } = parseDates(prompt);
 
-  // Parse purpose if present
-  const purposeMatch = prompt.match(/for\s+(?:a\s+)?([a-z\s]+?)(?:\s+near|$|\.)/i);
-  const purpose = purposeMatch ? purposeMatch[1].trim() : "business meeting";
+  // Parse purpose
+  const purpose = parsePurpose(prompt);
 
-  // Parse landmark if present
-  const landmarkMatch = prompt.match(/near\s+([A-Za-z\s]+?)(?:\s+for|$|\.)/i);
-  const landmark = landmarkMatch ? landmarkMatch[1].trim() : "downtown";
+  // Find relevant landmark/location
+  const landmark = findLandmark(prompt, template);
+
+  // Pick random airline and hotel from template
+  const airline = template.airlines[Math.floor(Math.random() * template.airlines.length)];
+  const hotelData = template.hotels.find(h => h.locations.includes(landmark)) || template.hotels[0];
+  
+  // Calculate confidence based on how much info was detected
+  let confidence = 70;
+  if (!datesAssumed) confidence += 15;
+  if (purpose !== "business meeting") confidence += 10;
+  confidence += Math.floor(Math.random() * 5);
+
+  // Vary cost slightly
+  const costVariation = Math.floor(Math.random() * 300) - 150;
 
   return {
-    destination,
+    destination: template.city,
     dates,
+    datesAssumed,
     purpose,
     flight: {
-      airline: "United Airlines",
-      departTime: "8:30 AM",
-      returnTime: "6:45 PM"
+      airline,
+      departTime: "7:45 AM",
+      returnTime: "5:30 PM"
     },
     hotel: {
-      name: "Marriott Marquis",
-      location: `Near ${landmark}`
+      name: hotelData.name,
+      location: landmark
     },
-    groundTransport: "Uber/Lyft recommended - estimated $45-60 from airport",
-    estimatedCost: 1850,
-    confidenceLevel: 87 + Math.floor(Math.random() * 10),
+    groundTransport: template.groundTransport,
+    estimatedCost: template.baseCost + costVariation,
+    confidenceLevel: Math.min(98, confidence),
+    originalPrompt: prompt,
   };
 };
 export default function Dashboard() {
@@ -82,6 +101,7 @@ export default function Dashboard() {
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
+  const [needsDestination, setNeedsDestination] = useState(false);
 
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
@@ -89,6 +109,7 @@ export default function Dashboard() {
   const handlePlanTrip = async () => {
     setError(null);
     setInputError(null);
+    setNeedsDestination(false);
 
     if (!tripInput.trim()) {
       setInputError("Please describe your trip first");
@@ -98,7 +119,11 @@ export default function Dashboard() {
     setPlanResult(null);
     try {
       const result = await generateTripPlan(tripInput);
-      setPlanResult(result);
+      if ("needsDestination" in result) {
+        setNeedsDestination(true);
+      } else {
+        setPlanResult(result);
+      }
     } catch (err) {
       setError("Failed to generate trip plan. Please try again.");
     } finally {
@@ -111,11 +136,16 @@ export default function Dashboard() {
     setTripInput(prompt);
     setError(null);
     setInputError(null);
+    setNeedsDestination(false);
     setIsPlanning(true);
     setPlanResult(null);
     try {
       const result = await generateTripPlan(prompt);
-      setPlanResult(result);
+      if ("needsDestination" in result) {
+        setNeedsDestination(true);
+      } else {
+        setPlanResult(result);
+      }
     } catch (err) {
       setError("Failed to generate trip plan. Please try again.");
     } finally {
@@ -125,7 +155,22 @@ export default function Dashboard() {
   
   const handleRefine = () => {
     setPlanResult(null);
+    setNeedsDestination(false);
     setError(null);
+  };
+  
+  const handleSelectCity = (city: string) => {
+    const newPrompt = `${tripInput} to ${city}`;
+    setTripInput(newPrompt);
+    setNeedsDestination(false);
+    // Re-trigger planning with the city
+    setIsPlanning(true);
+    setPlanResult(null);
+    generateTripPlan(newPrompt).then(result => {
+      if (!("needsDestination" in result)) {
+        setPlanResult(result);
+      }
+    }).finally(() => setIsPlanning(false));
   };
 
   const handleSaveDraft = () => {
@@ -137,7 +182,7 @@ export default function Dashboard() {
     const endDate = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString();
 
     // Create the trip with full model
-    const newTrip = createTrip({
+    createTrip({
       destination: planResult.destination,
       startDate,
       endDate,
@@ -150,7 +195,7 @@ export default function Dashboard() {
     });
 
     // Auto-create a chat for this trip
-    const chat = createChat(`${planResult.destination} Trip`, []);
+    createChat(`${planResult.destination} Trip`, []);
     
     // Record preference learning (early flight = depart before 10am)
     const isEarly = planResult.flight.departTime.includes("AM") && 
@@ -159,6 +204,14 @@ export default function Dashboard() {
       isEarlyFlight: isEarly,
       isDirect: true,
       isBudgetOption: planResult.estimatedCost < 2000,
+    });
+
+    // Show toast and navigate
+    toast.success("Draft saved — you can find it under Draft Trips", {
+      action: {
+        label: "View Trips",
+        onClick: () => navigate("/trips"),
+      },
     });
 
     // Clear state and navigate to trips
@@ -353,6 +406,35 @@ export default function Dashboard() {
                   {inputError}
                 </motion.p>}
             </AnimatePresence>
+            
+            {/* City selection prompt */}
+            <AnimatePresence>
+              {needsDestination && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-3"
+                >
+                  <p className="text-sm text-muted-foreground">
+                    Which city are you traveling to?
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {["New York City", "Washington, DC", "Chicago", "San Francisco", "Los Angeles", "Seattle", "Austin", "Boston"].map(city => (
+                      <Button
+                        key={city}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSelectCity(city)}
+                        className="hover:bg-primary/10 hover:border-primary/30"
+                      >
+                        {city}
+                      </Button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </CardContent>
         </Card>
       </ScrollReveal>
@@ -410,14 +492,22 @@ export default function Dashboard() {
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
-                <div className="flex items-center gap-3 mt-2">
+                <div className="flex flex-col gap-1 mt-2">
                   <CardDescription className="text-base font-medium text-foreground">
                     {planResult.destination} • {planResult.dates}
+                    {planResult.datesAssumed && (
+                      <span className="ml-2 text-xs text-muted-foreground italic">
+                        (dates assumed — click Edit to change)
+                      </span>
+                    )}
                   </CardDescription>
-                  <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                    {planResult.confidenceLevel}% confidence
-                  </Badge>
+                  <p className="text-xs text-muted-foreground truncate max-w-md">
+                    Generated from: "{planResult.originalPrompt.slice(0, 60)}{planResult.originalPrompt.length > 60 ? '…' : ''}"
+                  </p>
                 </div>
+                <Badge variant="outline" className="bg-success/10 text-success border-success/20 shrink-0">
+                  {planResult.confidenceLevel}% confidence
+                </Badge>
               </CardHeader>
               <CardContent className="space-y-4 pt-4">
                 {/* Flight */}
