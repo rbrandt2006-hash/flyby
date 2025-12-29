@@ -117,19 +117,33 @@ export function SyncedConversationThread({ conversation }: SyncedConversationThr
               </div>
               <div className="space-y-4">
                 {messages.map((message) => (
-                  <div key={message.id} className="flex gap-3">
+                  <div key={message.id} className="flex gap-3 group">
                     <img
                       src={message.senderAvatar}
                       alt={message.senderName}
                       className="w-8 h-8 rounded-md object-cover shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-semibold">
                           {message.senderName}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {formatMessageTime(message.createdAt)}
+                        </span>
+                        {/* Platform indicator on hover */}
+                        <span className="text-[10px] text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                          via {conversation.source === "slack" ? (
+                            <>
+                              <SlackIcon className="w-2.5 h-2.5 text-[#4A154B]" />
+                              Slack
+                            </>
+                          ) : (
+                            <>
+                              <TeamsIcon className="w-2.5 h-2.5 text-[#6264A7]" />
+                              Teams
+                            </>
+                          )}
                         </span>
                       </div>
                       <p className="text-sm mt-1 leading-relaxed">

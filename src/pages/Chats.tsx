@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Sparkles, RefreshCw } from "lucide-react";
+import { MessageSquare, Sparkles, RefreshCw, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SyncedConversationsSidebar, SyncedConversation } from "@/components/chats/SyncedConversationsSidebar";
 import { SyncedConversationThread } from "@/components/chats/SyncedConversationThread";
@@ -12,12 +12,23 @@ export default function Chats() {
   const [conversations] = useState<SyncedConversation[]>(mockSyncedConversations);
   const [selectedId, setSelectedId] = useState<string | null>(mockSyncedConversations[0]?.id || null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showAIStatus, setShowAIStatus] = useState(true);
 
   const selectedConversation = conversations.find(c => c.id === selectedId);
   const detectedTrip = selectedId ? mockDetectedTrips[selectedId] : null;
+  const travelIntentCount = conversations.filter(c => c.hasTravelIntent).length;
+
+  // Auto-dismiss AI status after 8 seconds
+  useEffect(() => {
+    if (showAIStatus) {
+      const timer = setTimeout(() => setShowAIStatus(false), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [showAIStatus]);
 
   const handleSync = () => {
     setIsSyncing(true);
+    setShowAIStatus(true); // Show status again on sync
     setTimeout(() => setIsSyncing(false), 2000);
   };
 
@@ -109,20 +120,39 @@ export default function Chats() {
         </div>
       </Card>
 
-      {/* Floating AI indicator */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="fixed bottom-24 right-8 md:bottom-8"
-      >
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-background border border-border shadow-lg">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-sm text-muted-foreground">
-            AI is monitoring {conversations.filter(c => c.hasTravelIntent).length} conversations with travel intent
-          </span>
-        </div>
-      </motion.div>
+      {/* Floating AI Status Toast - positioned to avoid CTA buttons */}
+      <AnimatePresence>
+        {showAIStatus && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="fixed bottom-6 left-6 z-40 md:left-auto md:right-[420px]"
+          >
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-background border border-border shadow-lg">
+              <div className="flex items-center gap-2">
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Sparkles className="w-4 h-4 text-primary" />
+                </motion.div>
+                <span className="text-sm text-muted-foreground">
+                  AI monitoring {travelIntentCount} conversation{travelIntentCount !== 1 ? 's' : ''} with travel intent
+                </span>
+              </div>
+              <button
+                onClick={() => setShowAIStatus(false)}
+                className="p-1 rounded-full hover:bg-secondary/80 transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
