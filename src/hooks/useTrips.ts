@@ -234,10 +234,15 @@ export function useTrips() {
     });
   }, [updateTrip, addTimelineEvent]);
 
+  const deleteTrip = useCallback((tripId: string) => {
+    setTrips((prev) => prev.filter((trip) => trip.id !== tripId));
+  }, []);
+
   return {
     trips,
     createTrip,
     updateTrip,
+    deleteTrip,
     addTimelineEvent,
     linkChatToTrip,
     getTripById,
