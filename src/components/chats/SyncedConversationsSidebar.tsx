@@ -33,7 +33,7 @@ export interface SyncedMessage {
 export interface SyncedConversation {
   id: string;
   name: string;
-  source: "slack" | "teams";
+  source: "slack" | "teams" | "flyby";
   channel: string;
   messages: SyncedMessage[];
   hasTravelIntent: boolean;
@@ -64,19 +64,19 @@ export function SyncedConversationsSidebar({
     return format(date, "MMM d");
   };
 
-  const getSourceIcon = (source: "slack" | "teams") => {
-    if (source === "slack") {
-      return <SlackIcon className="w-4 h-4 text-[#4A154B]" />;
-    }
-    return <TeamsIcon className="w-4 h-4 text-[#6264A7]" />;
-  };
-
-  const getSourceBadge = (source: "slack" | "teams") => {
+  const getSourceBadge = (source: "slack" | "teams" | "flyby") => {
     if (source === "slack") {
       return (
         <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#4A154B]/10 text-[#4A154B] text-[10px] font-medium">
           <SlackIcon className="w-2.5 h-2.5" />
           Slack
+        </span>
+      );
+    }
+    if (source === "flyby") {
+      return (
+        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium">
+          FlyBy
         </span>
       );
     }

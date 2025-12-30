@@ -1,22 +1,69 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Sparkles, RefreshCw, X } from "lucide-react";
+import { MessageSquare, Sparkles, RefreshCw, X, Receipt } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SyncedConversationsSidebar, SyncedConversation } from "@/components/chats/SyncedConversationsSidebar";
 import { SyncedConversationThread } from "@/components/chats/SyncedConversationThread";
 import { AITripDetectionPanel } from "@/components/chats/AITripDetectionPanel";
 import { mockSyncedConversations, mockDetectedTrips } from "@/data/mockSyncedConversations";
 import { Button } from "@/components/ui/button";
+import { useChats, currentUser, teamMembers } from "@/hooks/useChats";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
 
 export default function Chats() {
-  const [conversations] = useState<SyncedConversation[]>(mockSyncedConversations);
-  const [selectedId, setSelectedId] = useState<string | null>(mockSyncedConversations[0]?.id || null);
+  const location = useLocation();
+  const { chats } = useChats();
+  
+  // Merge synced conversations with dynamic expense approval chats
+  const allConversations = useMemo(() => {
+    const expenseChats: SyncedConversation[] = chats
+      .filter(chat => chat.name.includes("Expense Approval"))
+      .map(chat => ({
+        id: chat.id,
+        name: chat.name,
+        source: "flyby" as const,
+        channel: "expenses",
+        hasTravelIntent: false,
+        lastUpdated: chat.createdAt,
+        messages: chat.messages.map(m => {
+          const sender = m.senderId === currentUser.id ? currentUser : teamMembers.find(t => t.id === m.senderId);
+          return {
+            id: m.id,
+            senderId: m.senderId,
+            senderName: sender?.name || "Unknown",
+            senderAvatar: sender?.avatar || "",
+            text: m.text,
+            createdAt: m.createdAt,
+          };
+        }),
+      }));
+    return [...expenseChats, ...mockSyncedConversations];
+  }, [chats]);
+
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    // Check if we're navigating from search/notification
+    const stateId = location.state?.openChatId || location.state?.entityId;
+    if (stateId) return stateId;
+    return allConversations[0]?.id || null;
+  });
   const [isSyncing, setIsSyncing] = useState(false);
   const [showAIStatus, setShowAIStatus] = useState(true);
 
-  const selectedConversation = conversations.find(c => c.id === selectedId);
+  // Handle navigation state for opening specific chat
+  useEffect(() => {
+    const stateId = location.state?.openChatId || location.state?.entityId;
+    if (stateId && allConversations.find(c => c.id === stateId)) {
+      setSelectedId(stateId);
+    }
+  }, [location.state, allConversations]);
+
+  const selectedConversation = allConversations.find(c => c.id === selectedId);
   const detectedTrip = selectedId ? mockDetectedTrips[selectedId] : null;
-  const travelIntentCount = conversations.filter(c => c.hasTravelIntent).length;
+  const travelIntentCount = allConversations.filter(c => c.hasTravelIntent).length;
 
   // Auto-dismiss AI status after 8 seconds
   useEffect(() => {
@@ -28,7 +75,7 @@ export default function Chats() {
 
   const handleSync = () => {
     setIsSyncing(true);
-    setShowAIStatus(true); // Show status again on sync
+    setShowAIStatus(true);
     setTimeout(() => setIsSyncing(false), 2000);
   };
 
@@ -65,12 +112,12 @@ export default function Chats() {
             <div className="p-4 border-b border-border">
               <h2 className="font-semibold text-sm">Synced Channels</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                From Slack & Teams
+                From Slack, Teams & FlyBy
               </p>
             </div>
             <div className="flex-1 overflow-hidden">
               <SyncedConversationsSidebar
-                conversations={conversations}
+                conversations={allConversations}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
               />
