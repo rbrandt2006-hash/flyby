@@ -47,7 +47,7 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip }: AITripDetec
   };
 
   return (
-    <div className="border-l border-border bg-secondary/20 w-[380px] flex flex-col">
+    <div className="border-l border-border bg-secondary/20 w-[380px] flex flex-col h-full overflow-hidden">
       <AnimatePresence mode="wait">
         {!showReviewPanel ? (
           <motion.div
@@ -55,7 +55,7 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip }: AITripDetec
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="p-4 flex flex-col h-full"
+            className="p-4 flex flex-col h-full overflow-y-auto"
           >
             {/* Header */}
             <div className="flex items-center gap-2 mb-4">
@@ -106,8 +106,11 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip }: AITripDetec
               <p className="text-sm leading-relaxed">{detectedTrip.reasoning}</p>
             </div>
 
-            {/* CTA */}
-            <div className="mt-auto pt-4">
+            {/* Spacer to push CTA to bottom */}
+            <div className="flex-1" />
+            
+            {/* Sticky CTA Footer */}
+            <div className="sticky bottom-0 pt-4 pb-2 bg-secondary/20 -mx-4 px-4 border-t border-border/50 mt-4">
               <Button 
                 className="w-full gap-2" 
                 onClick={() => setShowReviewPanel(true)}
@@ -123,8 +126,10 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip }: AITripDetec
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="p-4 flex flex-col h-full"
+            className="flex flex-col h-full overflow-hidden"
           >
+            {/* Scrollable content area */}
+            <div className="flex-1 overflow-y-auto p-4">
             {/* Header */}
             <div className="flex items-center gap-2 mb-4">
               <Button 
@@ -163,7 +168,7 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip }: AITripDetec
                 </div>
 
                 {/* Editable Sections */}
-                <div className="space-y-3 flex-1">
+                <div className="space-y-3">
                   <EditableSection
                     icon={<Plane className="w-4 h-4" />}
                     title="Flight"
@@ -190,14 +195,19 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip }: AITripDetec
                 </div>
 
                 {/* Total */}
-                <div className="py-4 border-t border-border">
+                <div className="py-4 border-t border-border mt-4">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">Total Estimated Cost</span>
                     <span className="text-lg font-semibold">${detectedTrip.totalCost.toLocaleString()}</span>
                   </div>
                 </div>
+              </>
+            )}
+            </div>
 
-                {/* Actions */}
+            {/* Sticky Footer Actions */}
+            {!confirmed && (
+              <div className="sticky bottom-0 p-4 bg-secondary/20 border-t border-border">
                 <div className="flex gap-2">
                   <Button 
                     variant="outline" 
@@ -225,7 +235,7 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip }: AITripDetec
                     )}
                   </Button>
                 </div>
-              </>
+              </div>
             )}
           </motion.div>
         )}
