@@ -64,33 +64,19 @@ export function SyncedConversationsSidebar({
     return format(date, "MMM d");
   };
 
-  const getSourceBadge = (source: "slack" | "teams" | "flyby") => {
+  const getSourceIcon = (source: "slack" | "teams" | "flyby") => {
     if (source === "slack") {
-      return (
-        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#4A154B]/10 text-[#4A154B] text-[10px] font-medium">
-          <SlackIcon className="w-2.5 h-2.5" />
-          Slack
-        </span>
-      );
+      return <SlackIcon className="w-3 h-3 text-muted-foreground/70" />;
     }
-    if (source === "flyby") {
-      return (
-        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium">
-          FlyBy
-        </span>
-      );
+    if (source === "teams") {
+      return <TeamsIcon className="w-3 h-3 text-muted-foreground/70" />;
     }
-    return (
-      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#6264A7]/10 text-[#6264A7] text-[10px] font-medium">
-        <TeamsIcon className="w-2.5 h-2.5" />
-        Teams
-      </span>
-    );
+    return null;
   };
 
   return (
     <ScrollArea className="h-full">
-      <div className="p-2 space-y-1">
+      <div className="py-1">
         {conversations.map((conv) => {
           const lastMessage = conv.messages[conv.messages.length - 1];
           const isSelected = conv.id === selectedId;
@@ -100,39 +86,42 @@ export function SyncedConversationsSidebar({
               key={conv.id}
               onClick={() => onSelect(conv.id)}
               className={cn(
-                "w-full text-left p-3 rounded-lg transition-all duration-200",
+                "w-full text-left px-3 py-2.5 transition-colors",
                 isSelected
-                  ? "bg-primary/10 border border-primary/20"
-                  : "hover:bg-secondary/50"
+                  ? "bg-primary/8 border-l-2 border-l-primary"
+                  : "hover:bg-muted/50 border-l-2 border-l-transparent"
               )}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-medium truncate text-sm">{conv.name}</h3>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground/60">#</span>
+                    <h3 className={cn(
+                      "text-sm truncate",
+                      isSelected ? "font-medium text-foreground" : "text-foreground/80"
+                    )}>
+                      {conv.name}
+                    </h3>
                     {conv.hasTravelIntent && (
-                      <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
-                        <Sparkles className="w-2.5 h-2.5" />
-                        Trip
-                      </span>
+                      <Sparkles className="w-3 h-3 text-primary shrink-0" />
                     )}
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    {getSourceBadge(conv.source)}
-                    <span className="text-xs text-muted-foreground">
-                      #{conv.channel}
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {getSourceIcon(conv.source)}
+                    <span className="text-[11px] text-muted-foreground/60 capitalize">
+                      {conv.source === "flyby" ? "Internal" : conv.source}
                     </span>
                   </div>
                 </div>
                 {lastMessage && (
-                  <span className="text-xs text-muted-foreground shrink-0">
+                  <span className="text-[10px] text-muted-foreground/50 shrink-0 mt-0.5">
                     {formatTime(lastMessage.createdAt)}
                   </span>
                 )}
               </div>
               {lastMessage && (
-                <p className="text-xs text-muted-foreground mt-2 truncate">
-                  <span className="font-medium">
+                <p className="text-xs text-muted-foreground/70 mt-1.5 truncate leading-relaxed">
+                  <span className="font-medium text-muted-foreground/80">
                     {lastMessage.senderName.split(" ")[0]}:
                   </span>{" "}
                   {lastMessage.text}
