@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Sparkles, Plane, Building2, Calendar, DollarSign, ChevronRight, Check, Pencil } from "lucide-react";
+import { Sparkles, Plane, Building2, Calendar, DollarSign, ChevronRight, Check, Pencil, X, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DetectedTrip {
@@ -29,9 +28,10 @@ interface DetectedTrip {
 interface AITripDetectionPanelProps {
   detectedTrip: DetectedTrip | null;
   onReviewTrip: () => void;
+  onClose?: () => void;
 }
 
-export function AITripDetectionPanel({ detectedTrip, onReviewTrip }: AITripDetectionPanelProps) {
+export function AITripDetectionPanel({ detectedTrip, onReviewTrip, onClose }: AITripDetectionPanelProps) {
   const [showReviewPanel, setShowReviewPanel] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -47,130 +47,125 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip }: AITripDetec
   };
 
   return (
-    <div className="border-l border-border bg-secondary/20 w-[380px] flex flex-col h-full overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-muted/30 border-l border-border/40">
       <AnimatePresence mode="wait">
         {!showReviewPanel ? (
           <motion.div
             key="detection"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="p-4 flex flex-col h-full overflow-y-auto"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col h-full"
           >
             {/* Header */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary" />
+            <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-medium text-foreground">AI Assistant</span>
               </div>
-              <div>
-                <h3 className="font-semibold text-sm">Trip Detected</h3>
-                <p className="text-xs text-muted-foreground">AI analysis of conversation</p>
-              </div>
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className="p-1 rounded hover:bg-muted transition-colors"
+                >
+                  <X className="w-3.5 h-3.5 text-muted-foreground/60" />
+                </button>
+              )}
             </div>
 
-            {/* Summary Card */}
-            <Card className="p-4 bg-background border-primary/20">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h4 className="font-semibold">{detectedTrip.destination}</h4>
-                  <p className="text-sm text-muted-foreground">{detectedTrip.purpose}</p>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {/* Trip summary card */}
+              <div className="rounded-lg bg-card border border-border/60 p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground/70 mb-0.5">Detected trip</p>
+                    <h4 className="font-semibold text-foreground">{detectedTrip.destination}</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">{detectedTrip.purpose}</p>
+                  </div>
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
-                  {detectedTrip.confidence}% match
-                </span>
+
+                <div className="space-y-2.5 mt-4">
+                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                    <Calendar className="w-3.5 h-3.5 text-muted-foreground/60" />
+                    <span>{detectedTrip.dates}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                    <Plane className="w-3.5 h-3.5 text-muted-foreground/60" />
+                    <span>{detectedTrip.flight.airline}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                    <Building2 className="w-3.5 h-3.5 text-muted-foreground/60" />
+                    <span>{detectedTrip.hotel.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs">
+                    <DollarSign className="w-3.5 h-3.5 text-primary/70" />
+                    <span className="font-medium text-foreground">${detectedTrip.totalCost.toLocaleString()}</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
-                  <span>{detectedTrip.dates}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Plane className="w-4 h-4" />
-                  <span>{detectedTrip.flight.airline} • {detectedTrip.flight.departure} → {detectedTrip.flight.arrival}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Building2 className="w-4 h-4" />
-                  <span>{detectedTrip.hotel.name}</span>
-                </div>
-                <div className="flex items-center gap-2 font-medium">
-                  <DollarSign className="w-4 h-4 text-primary" />
-                  <span>${detectedTrip.totalCost.toLocaleString()} estimated total</span>
-                </div>
+              {/* AI Reasoning - subtle */}
+              <div className="mt-4 p-3 rounded-lg bg-muted/50">
+                <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1.5">
+                  Why this was detected
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {detectedTrip.reasoning}
+                </p>
               </div>
-            </Card>
-
-            {/* AI Reasoning */}
-            <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border">
-              <p className="text-xs font-medium text-muted-foreground mb-1">AI Reasoning</p>
-              <p className="text-sm leading-relaxed">{detectedTrip.reasoning}</p>
             </div>
-
-            {/* Spacer to push CTA to bottom */}
-            <div className="flex-1" />
             
-            {/* Sticky CTA Footer */}
-            <div className="sticky bottom-0 pt-4 pb-2 bg-secondary/20 -mx-4 px-4 border-t border-border/50 mt-4">
+            {/* Footer CTA */}
+            <div className="p-4 border-t border-border/40">
               <Button 
-                className="w-full gap-2" 
+                className="w-full h-9 text-xs gap-1.5" 
                 onClick={() => setShowReviewPanel(true)}
               >
-                Review proposed trip
-                <ChevronRight className="w-4 h-4" />
+                Review & book
+                <ChevronRight className="w-3.5 h-3.5" />
               </Button>
             </div>
           </motion.div>
         ) : (
           <motion.div
             key="review"
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="flex flex-col h-full overflow-hidden"
+            exit={{ opacity: 0 }}
+            className="flex flex-col h-full"
           >
-            {/* Scrollable content area */}
-            <div className="flex-1 overflow-y-auto p-4">
             {/* Header */}
-            <div className="flex items-center gap-2 mb-4">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 px-2"
+            <div className="px-4 py-3 border-b border-border/40 flex items-center gap-2">
+              <button 
                 onClick={() => setShowReviewPanel(false)}
+                className="p-1 rounded hover:bg-muted transition-colors"
               >
-                ← Back
-              </Button>
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm">Review & Confirm</h3>
-              </div>
+                <ArrowLeft className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <span className="text-xs font-medium text-foreground">Review booking</span>
             </div>
 
-            {confirmed ? (
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="flex-1 flex flex-col items-center justify-center text-center"
-              >
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <Check className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">Trip Confirmed</h3>
-                <p className="text-sm text-muted-foreground">
-                  Your trip to {detectedTrip.destination} has been booked.
-                </p>
-              </motion.div>
-            ) : (
-              <>
-                {/* Booking Status */}
-                <div className="mb-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                  <p className="text-xs font-medium text-primary mb-1">Booking Status</p>
-                  <p className="text-sm">Ready to book • All details confirmed</p>
-                </div>
-
-                {/* Editable Sections */}
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {confirmed ? (
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="flex flex-col items-center justify-center text-center py-8"
+                >
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                    <Check className="w-5 h-5 text-primary" />
+                  </div>
+                  <h3 className="font-semibold text-sm mb-1">Booked</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Trip to {detectedTrip.destination} confirmed
+                  </p>
+                </motion.div>
+              ) : (
                 <div className="space-y-3">
                   <EditableSection
-                    icon={<Plane className="w-4 h-4" />}
+                    icon={<Plane className="w-3.5 h-3.5" />}
                     title="Flight"
                     details={[
                       detectedTrip.flight.airline,
@@ -179,58 +174,59 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip }: AITripDetec
                     ]}
                   />
                   <EditableSection
-                    icon={<Building2 className="w-4 h-4" />}
+                    icon={<Building2 className="w-3.5 h-3.5" />}
                     title="Hotel"
                     details={[
                       detectedTrip.hotel.name,
                       detectedTrip.hotel.location,
-                      `$${detectedTrip.hotel.pricePerNight}/night × ${detectedTrip.hotel.nights} nights`
+                      `$${detectedTrip.hotel.pricePerNight}/night × ${detectedTrip.hotel.nights}`
                     ]}
                   />
                   <EditableSection
-                    icon={<Calendar className="w-4 h-4" />}
+                    icon={<Calendar className="w-3.5 h-3.5" />}
                     title="Dates"
                     details={[detectedTrip.dates]}
                   />
-                </div>
 
-                {/* Total */}
-                <div className="py-4 border-t border-border mt-4">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">Total Estimated Cost</span>
-                    <span className="text-lg font-semibold">${detectedTrip.totalCost.toLocaleString()}</span>
+                  {/* Total */}
+                  <div className="pt-3 border-t border-border/40 mt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Total</span>
+                      <span className="text-sm font-semibold">${detectedTrip.totalCost.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
-              </>
-            )}
+              )}
             </div>
 
-            {/* Sticky Footer Actions */}
+            {/* Footer Actions */}
             {!confirmed && (
-              <div className="sticky bottom-0 p-4 bg-secondary/20 border-t border-border">
+              <div className="p-4 border-t border-border/40">
                 <div className="flex gap-2">
                   <Button 
                     variant="outline" 
-                    className="flex-1 gap-2"
+                    size="sm"
+                    className="flex-1 h-9 text-xs gap-1.5"
                     onClick={() => setShowReviewPanel(false)}
                   >
-                    <Pencil className="w-4 h-4" />
+                    <Pencil className="w-3 h-3" />
                     Edit
                   </Button>
                   <Button 
-                    className="flex-1 gap-2"
+                    size="sm"
+                    className="flex-1 h-9 text-xs gap-1.5"
                     onClick={handleConfirm}
                     disabled={isConfirming}
                   >
                     {isConfirming ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                        <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                         Booking...
                       </>
                     ) : (
                       <>
-                        <Check className="w-4 h-4" />
-                        Confirm & Book
+                        <Check className="w-3 h-3" />
+                        Confirm
                       </>
                     )}
                   </Button>
@@ -254,21 +250,21 @@ function EditableSection({
   details: string[];
 }) {
   return (
-    <Card className="p-3 hover:bg-secondary/50 transition-colors cursor-pointer group">
+    <div className="p-3 rounded-lg bg-card border border-border/60 hover:border-border transition-colors cursor-pointer group">
       <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+        <div className="flex items-start gap-2.5">
+          <div className="w-7 h-7 rounded-md bg-muted/70 flex items-center justify-center shrink-0 text-muted-foreground">
             {icon}
           </div>
           <div>
-            <p className="font-medium text-sm">{title}</p>
+            <p className="text-xs font-medium text-foreground">{title}</p>
             {details.map((detail, i) => (
-              <p key={i} className="text-xs text-muted-foreground">{detail}</p>
+              <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">{detail}</p>
             ))}
           </div>
         </div>
-        <Pencil className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        <Pencil className="w-3 h-3 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
-    </Card>
+    </div>
   );
 }
