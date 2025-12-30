@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, Car, X, Brain } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, Car, X, Brain, ChevronRight } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import AnimatedCard from "@/components/home/AnimatedCard";
 import AlertCard from "@/components/home/AlertCard";
@@ -15,6 +15,7 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { findDestination, findLandmark, parseDates, parsePurpose, destinationTemplates } from "@/services/tripTemplates";
+import { TripDetailSlideOver } from "@/components/home/TripDetailSlideOver";
 
 interface TripPlan {
   destination: string;
@@ -219,6 +220,16 @@ export default function Dashboard() {
     setTripInput("");
     navigate("/trips");
   };
+  // State for trip detail slide-over
+  const [selectedHomeTrip, setSelectedHomeTrip] = useState<{
+    id: string;
+    destination: string;
+    dates: string;
+    status: "approved" | "pending" | "cancelled" | "draft";
+    purpose: string;
+    estimatedCost?: number;
+  } | null>(null);
+
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -229,17 +240,19 @@ export default function Dashboard() {
 
   // Mock data for demo
   const upcomingTrips = [{
-    id: 1,
+    id: "home-1",
     destination: "San Francisco, CA",
     dates: "Jan 8-10, 2025",
-    status: "approved",
-    purpose: "Client meeting"
+    status: "approved" as const,
+    purpose: "Client meeting",
+    estimatedCost: 1850,
   }, {
-    id: 2,
+    id: "home-2",
     destination: "Seattle, WA",
     dates: "Jan 15-17, 2025",
-    status: "pending",
-    purpose: "Team offsite"
+    status: "pending" as const,
+    purpose: "Team offsite",
+    estimatedCost: 2100,
   }];
   const calendarSuggestions = [{
     id: 1,
@@ -627,13 +640,18 @@ export default function Dashboard() {
         }} transition={{
           duration: 0.2
         }}>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/trips")}>
               View all <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </motion.div>
         </div>
         <div className="grid md:grid-cols-2 gap-4">
-          {upcomingTrips.map((trip, index) => <AnimatedCard key={trip.id} delay={index * 0.1}>
+          {upcomingTrips.map((trip, index) => <AnimatedCard 
+              key={trip.id} 
+              delay={index * 0.1}
+              className="cursor-pointer group hover:shadow-md hover:border-primary/20 transition-all duration-200"
+              onClick={() => setSelectedHomeTrip(trip)}
+            >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -647,22 +665,40 @@ export default function Dashboard() {
                       <p className="text-sm text-muted-foreground">{trip.dates}</p>
                     </div>
                   </div>
-                  <motion.span initial={{
-                scale: 0.9,
-                opacity: 0
-              }} animate={{
-                scale: 1,
-                opacity: 1
-              }} transition={{
-                delay: 0.3 + index * 0.1
-              }} className={`text-xs px-2.5 py-1 rounded-full font-medium ${trip.status === "approved" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
-                    {trip.status}
-                  </motion.span>
+                  <div className="flex items-center gap-2">
+                    <motion.span initial={{
+                  scale: 0.9,
+                  opacity: 0
+                }} animate={{
+                  scale: 1,
+                  opacity: 1
+                }} transition={{
+                  delay: 0.3 + index * 0.1
+                }} className={`text-xs px-2.5 py-1 rounded-full font-medium ${trip.status === "approved" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
+                      {trip.status}
+                    </motion.span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground">{trip.purpose}</p>
               </CardContent>
             </AnimatedCard>)}
         </div>
       </ScrollReveal>
+
+      {/* Trip Detail Slide-Over */}
+      <TripDetailSlideOver
+        trip={selectedHomeTrip}
+        open={!!selectedHomeTrip}
+        onOpenChange={(open) => !open && setSelectedHomeTrip(null)}
+        onConfirm={() => {
+          setSelectedHomeTrip(null);
+          toast.success("Trip confirmed");
+        }}
+        onCancel={() => {
+          setSelectedHomeTrip(null);
+          toast.success("Trip cancelled");
+        }}
+      />
     </motion.div>;
 }

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Bell, Search, LogOut, ChevronDown } from "lucide-react";
+import { LogOut, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import IntroAnimation, { hasIntroPlayed, prefersReducedMotion } from "@/components/home/IntroAnimation";
+import { GlobalSearchDropdown } from "./GlobalSearchDropdown";
+import { NotificationDropdown } from "./NotificationDropdown";
 
 const navItems = [
   { label: "Home", path: "/" },
@@ -110,26 +112,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               {/* Right side: Search, Notifications, User */}
               <div className="flex items-center gap-3">
                 {/* Search */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2, duration: 0.4 }}
-                  className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-colors duration-200 cursor-pointer"
-                >
-                  <Search className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Search</span>
-                  <kbd className="hidden xl:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-background/80 rounded border border-border/50">
-                    ⌘K
-                  </kbd>
-                </motion.div>
+                <div className="hidden lg:block">
+                  <GlobalSearchDropdown />
+                </div>
 
                 {/* Notifications */}
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button variant="ghost" size="icon" className="relative w-9 h-9 rounded-full">
-                    <Bell className="w-4 h-4" />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
-                  </Button>
-                </motion.div>
+                <NotificationDropdown />
 
                 {/* User Avatar Dropdown */}
                 <DropdownMenu>
