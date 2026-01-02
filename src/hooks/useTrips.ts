@@ -238,6 +238,107 @@ export function useTrips() {
     setTrips((prev) => prev.filter((trip) => trip.id !== tripId));
   }, []);
 
+  const rebookTrip = useCallback((tripId: string, newFlight: {
+    airline: string;
+    flightNumber?: string;
+    departTime: string;
+    arrivalTime?: string;
+    price: number;
+  }) => {
+    const now = new Date().toISOString();
+    setTrips((prev) =>
+      prev.map((trip) =>
+        trip.id === tripId
+          ? {
+              ...trip,
+              status: trip.status === "cancelled" ? "pending" : trip.status,
+              flight: {
+                airline: newFlight.airline,
+                departTime: newFlight.departTime,
+                returnTime: newFlight.arrivalTime || trip.flight?.returnTime || "",
+              },
+              estimatedCost: newFlight.price + (trip.estimatedCost - (trip.flight ? 350 : 0)), // Adjust cost
+              timeline: [
+                ...trip.timeline,
+                {
+                  id: `evt_${Date.now()}`,
+                  type: "plan_refined" as const,
+                  description: `Flight rebooked to ${newFlight.airline}${newFlight.flightNumber ? ` (${newFlight.flightNumber})` : ""}`,
+                  timestamp: now,
+                },
+              ],
+              updatedAt: now,
+            }
+          : trip
+      )
+    );
+  }, []);
+
+  // Create a trip from a rebook action (when no existing trip)
+  const createTripFromRebook = useCallback((destination: string, flightData: {
+    airline: string;
+    flightNumber?: string;
+    departTime: string;
+    arrivalTime?: string;
+    price: number;
+  }): LocalTrip => {
+    const now = new Date();
+    const startDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const endDate = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString();
+    const aiReasoning = generateAIReasoning(destination, flightData.price);
+    
+    const newTrip: LocalTrip = {
+      id: `trip_${Date.now()}`,
+      destination,
+      startDate,
+      endDate,
+      purpose: "Rebooked trip",
+      status: "pending",
+      participants: [],
+      chatId: null,
+      flight: {
+        airline: flightData.airline,
+        departTime: flightData.departTime,
+        returnTime: flightData.arrivalTime || "",
+      },
+      hotel: null,
+      groundTransport: null,
+      estimatedCost: flightData.price + 800, // Base cost estimate
+      confidenceLevel: 85,
+      aiReasoning,
+      timeline: [
+        {
+          id: `evt_${Date.now()}_1`,
+          type: "created",
+          description: "Trip created from rebook",
+          timestamp: now.toISOString(),
+        },
+      ],
+      decisions: [
+        {
+          id: `dec_${Date.now()}_1`,
+          question: "Flight selection",
+          decision: flightData.airline,
+          madeBy: "user",
+          timestamp: now.toISOString(),
+        },
+      ],
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+
+    setTrips((prev) => [...prev, newTrip]);
+    return newTrip;
+  }, []);
+
+  // Find trip by destination (for rebook matching)
+  const getTripByDestination = useCallback((destination: string) => {
+    return trips.find((t) => 
+      t.destination.toLowerCase().includes(destination.toLowerCase()) ||
+      destination.toLowerCase().includes(t.destination.toLowerCase())
+    ) || null;
+  }, [trips]);
+
   return {
     trips,
     createTrip,
@@ -247,7 +348,10 @@ export function useTrips() {
     linkChatToTrip,
     getTripById,
     getTripByChatId,
+    getTripByDestination,
     confirmTrip,
     cancelTrip,
+    rebookTrip,
+    createTripFromRebook,
   };
 }

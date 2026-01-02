@@ -1,12 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plane, Hotel, Car, Check, ChevronDown, Star, Clock, DollarSign, MapPin, Fuel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { createPortal } from "react-dom";
 
 interface FlightOption {
   id: string;
@@ -227,36 +227,55 @@ export function RefineModal({
     return hotels;
   }, [hotelOptions, sortBy]);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      const scrollY = window.scrollY;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      
+      return () => {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [open]);
+
   if (!open) return null;
 
-  return (
+  const modalContent = (
     <AnimatePresence>
       {open && (
-        <>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => onOpenChange(false)}
           />
           
-          {/* Modal - Fixed height flex container */}
+          {/* Modal - Centered with flexbox, not transforms */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[min(920px,92vw)] h-[85vh] bg-background rounded-2xl shadow-2xl border border-border flex flex-col overflow-hidden"
+            className="relative z-10 w-full max-w-3xl max-h-[85vh] bg-background rounded-2xl shadow-2xl border border-border flex flex-col overflow-hidden"
           >
             {/* Header - Sticky */}
             <div className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-border bg-background">
               <div>
-                <h2 className="text-xl font-semibold">Refine Trip</h2>
+                <h2 className="text-xl font-semibold text-foreground">Refine Trip</h2>
                 <p className="text-sm text-muted-foreground">{destination} • {dates}</p>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+              <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -459,8 +478,10 @@ export function RefineModal({
               </div>
             </div>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );
+
+  return createPortal(modalContent, document.body);
 }
