@@ -22,10 +22,11 @@ import { cn } from "@/lib/utils";
 import { useTrips, type LocalTrip } from "@/hooks/useTrips";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { TripPlanningModal, type TripProposal } from "@/components/home/TripPlanningModal";
 
 export default function Trips() {
   const { user } = useAuth();
-  const { trips: localTrips, updateTrip: updateLocalTrip, confirmTrip: confirmLocalTrip, cancelTrip: cancelLocalTrip, deleteTrip: deleteLocalTrip } = useTrips();
+  const { trips: localTrips, createTrip, updateTrip: updateLocalTrip, confirmTrip: confirmLocalTrip, cancelTrip: cancelLocalTrip, deleteTrip: deleteLocalTrip } = useTrips();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
@@ -38,6 +39,10 @@ export default function Trips() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [tripToDelete, setTripToDelete] = useState<LocalTrip | null>(null);
   const [showCancelled, setShowCancelled] = useState(false);
+  
+  // Trip planning modal state
+  const [planningModalOpen, setPlanningModalOpen] = useState(false);
+  const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<CalendarEvent | null>(null);
 
   // Filter trips by status
   const draftTrips = localTrips.filter(t => t.status === "draft");
@@ -67,7 +72,68 @@ export default function Trips() {
   };
 
   const handleCreateTrip = (event: CalendarEvent) => {
-    toast.info(`Creating trip for: ${event.title}`);
+    setSelectedCalendarEvent(event);
+    setPlanningModalOpen(true);
+  };
+
+  const handleConfirmTrip = (tripData: TripProposal) => {
+    // Parse dates from the proposal
+    const [startDateStr, endDateStr] = tripData.dates.split(" - ");
+    const startDate = new Date(startDateStr).toISOString();
+    const endDate = new Date(endDateStr).toISOString();
+
+    // Create the trip with confirmed status
+    const newTrip = createTrip({
+      destination: tripData.destination,
+      startDate,
+      endDate,
+      purpose: tripData.purpose,
+      flight: {
+        airline: tripData.flight.airline,
+        departTime: tripData.flight.departTime,
+        returnTime: tripData.flight.returnDepartTime,
+      },
+      hotel: {
+        name: tripData.hotel.name,
+        location: tripData.hotel.area,
+      },
+      groundTransport: tripData.ground.provider,
+      estimatedCost: tripData.estimatedCost,
+      confidenceLevel: 92,
+    });
+
+    // Immediately confirm the trip
+    confirmLocalTrip(newTrip.id);
+    toast.success("Trip confirmed!");
+  };
+
+  const handleSaveDraft = (tripData: TripProposal) => {
+    // Parse dates from the proposal
+    const [startDateStr, endDateStr] = tripData.dates.split(" - ");
+    const startDate = new Date(startDateStr).toISOString();
+    const endDate = new Date(endDateStr).toISOString();
+
+    // Create the trip as draft
+    createTrip({
+      destination: tripData.destination,
+      startDate,
+      endDate,
+      purpose: tripData.purpose,
+      flight: {
+        airline: tripData.flight.airline,
+        departTime: tripData.flight.departTime,
+        returnTime: tripData.flight.returnDepartTime,
+      },
+      hotel: {
+        name: tripData.hotel.name,
+        location: tripData.hotel.area,
+      },
+      groundTransport: tripData.ground.provider,
+      estimatedCost: tripData.estimatedCost,
+      confidenceLevel: 87,
+    });
+
+    toast.success("Trip saved as draft");
   };
 
   const fetchTrips = async () => {
@@ -97,7 +163,7 @@ export default function Trips() {
     setDetailPanelOpen(true);
   };
 
-  const handleConfirmTrip = async (tripId: string) => {
+  const handleConfirmTripFromPanel = async (tripId: string) => {
     const { error } = await supabase
       .from("trips")
       .update({ status: "confirmed" })
@@ -291,7 +357,7 @@ export default function Trips() {
         trip={selectedTrip}
         open={detailPanelOpen}
         onOpenChange={setDetailPanelOpen}
-        onConfirm={handleConfirmTrip}
+        onConfirm={handleConfirmTripFromPanel}
         onCancel={handleCancelTrip}
       />
 
@@ -314,6 +380,15 @@ export default function Trips() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Trip Planning Modal */}
+      <TripPlanningModal
+        open={planningModalOpen}
+        onOpenChange={setPlanningModalOpen}
+        event={selectedCalendarEvent}
+        onConfirm={handleConfirmTrip}
+        onSaveDraft={handleSaveDraft}
+      />
 
       {/* Calendar Events */}
       {calendarConnected && calendarEvents.length > 0 && (
