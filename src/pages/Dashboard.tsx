@@ -14,13 +14,21 @@ import { useChats } from "@/hooks/useChats";
 import { usePreferences } from "@/hooks/usePreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { findDestination, findLandmark, parseDates, parsePurpose, destinationTemplates } from "@/services/tripTemplates";
+import { findDestination, findLandmark, parseDates, parsePurpose, destinationTemplates, ParsedDateResult } from "@/services/tripTemplates";
 import { TripDetailSlideOver } from "@/components/home/TripDetailSlideOver";
+import { RefineModal } from "@/components/home/RefineModal";
 
 interface TripPlan {
   destination: string;
   dates: string;
   datesAssumed: boolean;
+  datesConfirmed: boolean;
+  needsDateClarification: boolean;
+  monthIntent?: {
+    month: number;
+    year: number;
+    timing?: "early" | "mid" | "late";
+  };
   purpose: string;
   flight: {
     airline: string;
@@ -48,8 +56,8 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
     return { needsDestination: true };
   }
 
-  // Parse dates
-  const { dates, assumed: datesAssumed } = parseDates(prompt);
+  // Parse dates with new parser
+  const dateResult = parseDates(prompt);
 
   // Parse purpose
   const purpose = parsePurpose(prompt);
@@ -63,7 +71,7 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   
   // Calculate confidence based on how much info was detected
   let confidence = 70;
-  if (!datesAssumed) confidence += 15;
+  if (!dateResult.assumed) confidence += 15;
   if (purpose !== "business meeting") confidence += 10;
   confidence += Math.floor(Math.random() * 5);
 
@@ -72,8 +80,11 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
 
   return {
     destination: template.city,
-    dates,
-    datesAssumed,
+    dates: dateResult.dates,
+    datesAssumed: dateResult.assumed,
+    datesConfirmed: !dateResult.assumed,
+    needsDateClarification: dateResult.needsClarification || false,
+    monthIntent: dateResult.monthIntent,
     purpose,
     flight: {
       airline,
@@ -103,6 +114,8 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [needsDestination, setNeedsDestination] = useState(false);
+  const [isRefineOpen, setIsRefineOpen] = useState(false);
+  const [showDateClarification, setShowDateClarification] = useState(false);
 
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
@@ -155,9 +168,26 @@ export default function Dashboard() {
   };
   
   const handleRefine = () => {
-    setPlanResult(null);
-    setNeedsDestination(false);
-    setError(null);
+    // Open refine modal instead of clearing the plan
+    setIsRefineOpen(true);
+  };
+  
+  const handleRefineSave = (selections: {
+    flight: { airline: string; departTime: string; returnTime: string };
+    hotel: { name: string; location: string };
+    groundTransport: string;
+    estimatedCost: number;
+  }) => {
+    if (planResult) {
+      setPlanResult({
+        ...planResult,
+        flight: selections.flight,
+        hotel: selections.hotel,
+        groundTransport: selections.groundTransport,
+        estimatedCost: selections.estimatedCost,
+      });
+      toast.success("Trip options updated");
+    }
   };
   
   const handleSelectCity = (city: string) => {
@@ -508,9 +538,14 @@ export default function Dashboard() {
                 <div className="flex flex-col gap-1 mt-2">
                   <CardDescription className="text-base font-medium text-foreground">
                     {planResult.destination} • {planResult.dates}
-                    {planResult.datesAssumed && (
+                    {planResult.datesAssumed && !planResult.datesConfirmed && (
                       <span className="ml-2 text-xs text-muted-foreground italic">
-                        (dates assumed — click Edit to change)
+                        (Suggested dates — tap to adjust)
+                      </span>
+                    )}
+                    {planResult.datesConfirmed && (
+                      <span className="ml-2 text-xs text-success italic">
+                        Dates confirmed
                       </span>
                     )}
                   </CardDescription>
@@ -700,5 +735,20 @@ export default function Dashboard() {
           toast.success("Trip cancelled");
         }}
       />
+
+      {/* Refine Modal */}
+      {planResult && (
+        <RefineModal
+          open={isRefineOpen}
+          onOpenChange={setIsRefineOpen}
+          destination={planResult.destination}
+          dates={planResult.dates}
+          currentFlight={planResult.flight}
+          currentHotel={planResult.hotel}
+          currentGroundTransport={planResult.groundTransport}
+          currentCost={planResult.estimatedCost}
+          onSave={handleRefineSave}
+        />
+      )}
     </motion.div>;
 }

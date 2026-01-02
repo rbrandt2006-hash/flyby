@@ -167,42 +167,35 @@ export function findLandmark(input: string, template: DestinationTemplate): stri
   return template.hotels[0].locations[0];
 }
 
-export function parseDates(input: string): { dates: string; assumed: boolean } {
-  const lowered = input.toLowerCase();
-  
-  // Match patterns like "Jan 15-17", "January 15", "next Tuesday", etc.
-  const monthDayRange = input.match(/(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:\s*[-–]\s*\d{1,2})?/i);
-  if (monthDayRange) {
-    return { dates: `${monthDayRange[0]}, 2025`, assumed: false };
-  }
-  
-  // Match "next week", "next Tuesday", etc.
-  const nextMatch = lowered.match(/next\s+(week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
-  if (nextMatch) {
-    const now = new Date();
-    const daysUntilNext = nextMatch[1].toLowerCase() === "week" ? 7 : getDaysUntilDay(nextMatch[1]);
-    const start = new Date(now.getTime() + daysUntilNext * 24 * 60 * 60 * 1000);
-    const end = new Date(start.getTime() + 2 * 24 * 60 * 60 * 1000);
-    return { 
-      dates: `${formatShortDate(start)}-${formatShortDate(end)}`, 
-      assumed: false 
-    };
-  }
-  
-  // Match date ranges like "1/15-1/17" or "15-17"
-  const numericRange = input.match(/(\d{1,2})\/(\d{1,2})\s*[-–]\s*(?:\d{1,2}\/)?(\d{1,2})/);
-  if (numericRange) {
-    return { dates: `${numericRange[1]}/${numericRange[2]}-${numericRange[3]}, 2025`, assumed: false };
-  }
-  
-  // Default: upcoming dates
-  const now = new Date();
-  const start = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const end = new Date(start.getTime() + 2 * 24 * 60 * 60 * 1000);
-  return { 
-    dates: `${formatShortDate(start)}-${formatShortDate(end)}`, 
-    assumed: true 
+export interface ParsedDateResult {
+  dates: string;
+  startDate: Date;
+  endDate: Date;
+  assumed: boolean;
+  needsClarification?: boolean;
+  monthIntent?: {
+    month: number;
+    year: number;
+    timing?: "early" | "mid" | "late";
   };
+}
+
+const MONTH_NAMES = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+const MONTH_ABBREVS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+function getMonthIndex(monthStr: string): number {
+  const lower = monthStr.toLowerCase();
+  // Check full names first
+  const fullIdx = MONTH_NAMES.findIndex(m => lower.startsWith(m) || m.startsWith(lower));
+  if (fullIdx !== -1) return fullIdx;
+  // Check abbreviations
+  const abbrevIdx = MONTH_ABBREVS.findIndex(m => lower.startsWith(m));
+  return abbrevIdx;
+}
+
+function formatShortDate(date: Date): string {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[date.getMonth()]} ${date.getDate()}`;
 }
 
 function getDaysUntilDay(dayName: string): number {
@@ -215,9 +208,226 @@ function getDaysUntilDay(dayName: string): number {
   return diff;
 }
 
-function formatShortDate(date: Date): string {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${months[date.getMonth()]} ${date.getDate()}`;
+function getNextTuesdayThursday(): { start: Date; end: Date } {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  // Find next Tuesday (day 2)
+  let daysUntilTuesday = (2 - dayOfWeek + 7) % 7;
+  if (daysUntilTuesday === 0) daysUntilTuesday = 7; // If today is Tuesday, go to next week
+  
+  const start = new Date(now);
+  start.setDate(now.getDate() + daysUntilTuesday);
+  start.setHours(0, 0, 0, 0);
+  
+  const end = new Date(start);
+  end.setDate(start.getDate() + 2); // Thursday
+  
+  return { start, end };
+}
+
+function findTuesdayInMonth(year: number, month: number, timing?: "early" | "mid" | "late"): { start: Date; end: Date } {
+  // Determine date range based on timing
+  let dayRangeStart = 8;
+  let dayRangeEnd = 14;
+  
+  if (timing === "early") {
+    dayRangeStart = 2;
+    dayRangeEnd = 10;
+  } else if (timing === "mid") {
+    dayRangeStart = 11;
+    dayRangeEnd = 20;
+  } else if (timing === "late") {
+    dayRangeStart = 18;
+    dayRangeEnd = 28;
+  }
+  
+  // Find a Tuesday in that range
+  for (let day = dayRangeStart; day <= dayRangeEnd; day++) {
+    const date = new Date(year, month, day);
+    if (date.getDay() === 2) { // Tuesday
+      const start = date;
+      const end = new Date(start);
+      end.setDate(start.getDate() + 2); // Thursday
+      return { start, end };
+    }
+  }
+  
+  // Fallback: just pick the middle of the range
+  const start = new Date(year, month, dayRangeStart + 5);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 2);
+  return { start, end };
+}
+
+function parseTripDuration(input: string): number {
+  const lowered = input.toLowerCase();
+  
+  // Match "X nights" or "X days"
+  const nightsMatch = lowered.match(/(\d+)\s*nights?/);
+  if (nightsMatch) return parseInt(nightsMatch[1]);
+  
+  const daysMatch = lowered.match(/(\d+)\s*days?/);
+  if (daysMatch) return parseInt(daysMatch[1]) - 1; // days to nights
+  
+  // Match "week"
+  if (lowered.includes("week")) return 6;
+  
+  // Match "weekend"
+  if (lowered.includes("weekend")) return 2;
+  
+  return 2; // Default: 2 nights (3 days)
+}
+
+export function parseDates(input: string): ParsedDateResult {
+  const lowered = input.toLowerCase();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  
+  // Try to get trip duration from input
+  const tripNights = parseTripDuration(input);
+  
+  // Pattern 1: Explicit date range like "Jan 15-17", "January 15-17"
+  const monthDayRange = input.match(/(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?/i);
+  if (monthDayRange) {
+    const monthStr = monthDayRange[0].match(/[a-z]+/i)?.[0] || "";
+    const monthIdx = getMonthIndex(monthStr);
+    const startDay = parseInt(monthDayRange[1]);
+    const endDay = monthDayRange[2] ? parseInt(monthDayRange[2]) : startDay + tripNights;
+    
+    // Determine year (current or next)
+    let year = currentYear;
+    const testDate = new Date(year, monthIdx, startDay);
+    if (testDate < now) {
+      year = currentYear + 1;
+    }
+    
+    const startDate = new Date(year, monthIdx, startDay);
+    const endDate = new Date(year, monthIdx, endDay);
+    
+    return {
+      dates: `${formatShortDate(startDate)}-${formatShortDate(endDate)}, ${year}`,
+      startDate,
+      endDate,
+      assumed: false,
+    };
+  }
+  
+  // Pattern 2: Month only - "in March", "for March", "March trip"
+  const monthOnlyPatterns = [
+    /(?:in|for|during)\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)/i,
+    /(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(?:trip|flight|travel)/i,
+    /(?:^|\s)(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:\s|$)/i,
+  ];
+  
+  for (const pattern of monthOnlyPatterns) {
+    const monthOnlyMatch = lowered.match(pattern);
+    if (monthOnlyMatch) {
+      const monthStr = monthOnlyMatch[1];
+      const monthIdx = getMonthIndex(monthStr);
+      
+      if (monthIdx !== -1) {
+        // Check for early/mid/late modifier
+        let timing: "early" | "mid" | "late" | undefined;
+        if (lowered.includes("early " + monthStr) || lowered.includes("beginning of " + monthStr)) {
+          timing = "early";
+        } else if (lowered.includes("mid " + monthStr) || lowered.includes("middle of " + monthStr)) {
+          timing = "mid";
+        } else if (lowered.includes("late " + monthStr) || lowered.includes("end of " + monthStr)) {
+          timing = "late";
+        }
+        
+        // Determine year
+        let year = currentYear;
+        const testDate = new Date(year, monthIdx, 15);
+        if (testDate < now) {
+          year = currentYear + 1;
+        }
+        
+        // Find appropriate dates in that month
+        const { start, end } = findTuesdayInMonth(year, monthIdx, timing);
+        
+        // Adjust end date based on trip duration
+        const adjustedEnd = new Date(start);
+        adjustedEnd.setDate(start.getDate() + tripNights);
+        
+        // Log for debugging
+        console.log("[DateParser]", {
+          input,
+          destination: "parsed",
+          startDate: start.toISOString(),
+          endDate: adjustedEnd.toISOString(),
+          inferred: true,
+          monthIntent: { month: monthIdx, year, timing },
+        });
+        
+        return {
+          dates: `${formatShortDate(start)}-${formatShortDate(adjustedEnd)}, ${year}`,
+          startDate: start,
+          endDate: adjustedEnd,
+          assumed: true,
+          needsClarification: true,
+          monthIntent: { month: monthIdx, year, timing },
+        };
+      }
+    }
+  }
+  
+  // Pattern 3: "next week", "next Tuesday", etc.
+  const nextMatch = lowered.match(/next\s+(week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
+  if (nextMatch) {
+    const daysUntilNext = nextMatch[1].toLowerCase() === "week" ? 7 : getDaysUntilDay(nextMatch[1]);
+    const start = new Date(now.getTime() + daysUntilNext * 24 * 60 * 60 * 1000);
+    const end = new Date(start.getTime() + tripNights * 24 * 60 * 60 * 1000);
+    
+    return { 
+      dates: `${formatShortDate(start)}-${formatShortDate(end)}, ${start.getFullYear()}`, 
+      startDate: start,
+      endDate: end,
+      assumed: false 
+    };
+  }
+  
+  // Pattern 4: Numeric date ranges like "1/15-1/17"
+  const numericRange = input.match(/(\d{1,2})\/(\d{1,2})\s*[-–]\s*(?:\d{1,2}\/)?(\d{1,2})/);
+  if (numericRange) {
+    const month = parseInt(numericRange[1]) - 1;
+    const startDay = parseInt(numericRange[2]);
+    const endDay = parseInt(numericRange[3]);
+    
+    let year = currentYear;
+    const testDate = new Date(year, month, startDay);
+    if (testDate < now) {
+      year = currentYear + 1;
+    }
+    
+    const startDate = new Date(year, month, startDay);
+    const endDate = new Date(year, month, endDay);
+    
+    return { 
+      dates: `${numericRange[1]}/${numericRange[2]}-${numericRange[3]}, ${year}`, 
+      startDate,
+      endDate,
+      assumed: false 
+    };
+  }
+  
+  // Default: next available Tue-Thu
+  const { start, end } = getNextTuesdayThursday();
+  
+  console.log("[DateParser]", {
+    input,
+    destination: "default",
+    startDate: start.toISOString(),
+    endDate: end.toISOString(),
+    inferred: true,
+  });
+  
+  return { 
+    dates: `${formatShortDate(start)}-${formatShortDate(end)}, ${start.getFullYear()}`, 
+    startDate: start,
+    endDate: end,
+    assumed: true 
+  };
 }
 
 export function parsePurpose(input: string): string {
