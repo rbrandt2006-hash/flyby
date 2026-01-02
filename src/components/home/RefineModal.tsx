@@ -242,16 +242,16 @@ export function RefineModal({
             onClick={() => onOpenChange(false)}
           />
           
-          {/* Modal */}
+          {/* Modal - Fixed height flex container */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-4 md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 z-50 md:w-full md:max-w-2xl md:max-h-[85vh] bg-background rounded-2xl shadow-2xl border border-border flex flex-col overflow-hidden"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[min(920px,92vw)] h-[85vh] bg-background rounded-2xl shadow-2xl border border-border flex flex-col overflow-hidden"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-border">
+            {/* Header - Sticky */}
+            <div className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-border bg-background">
               <div>
                 <h2 className="text-xl font-semibold">Refine Trip</h2>
                 <p className="text-sm text-muted-foreground">{destination} • {dates}</p>
@@ -261,9 +261,10 @@ export function RefineModal({
               </Button>
             </div>
             
-            {/* Tabs */}
+            {/* Tabs container - flex-1 with min-h-0 for proper scroll */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-              <div className="px-5 pt-4 flex items-center justify-between">
+              {/* Controls row - Sticky */}
+              <div className="shrink-0 px-6 py-4 flex items-center justify-between border-b border-border/50 bg-background">
                 <TabsList className="grid grid-cols-3 w-auto">
                   <TabsTrigger value="flights" className="gap-2">
                     <Plane className="w-4 h-4" />
@@ -292,8 +293,9 @@ export function RefineModal({
                 </Select>
               </div>
               
-              {/* Content */}
-              <ScrollArea className="flex-1 px-5 py-4">
+              {/* Scrollable content area - THIS is the scroll container */}
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                <div className="mx-auto w-full max-w-[760px] px-6 py-5">
                 <TabsContent value="flights" className="mt-0 space-y-3">
                   {sortedFlights.map((flight) => (
                     <motion.div
@@ -302,21 +304,21 @@ export function RefineModal({
                       whileTap={{ scale: 0.99 }}
                       onClick={() => setSelectedFlight(flight)}
                       className={cn(
-                        "p-4 rounded-xl border-2 cursor-pointer transition-all",
+                        "w-full p-4 rounded-xl border-2 cursor-pointer transition-all",
                         selectedFlight?.id === flight.id
                           ? "border-primary bg-primary/5"
                           : "border-border hover:border-primary/30"
                       )}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-semibold">{flight.airline}</p>
                             {flight.tags.map(tag => (
                               <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
                             ))}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
                               {flight.departTime} → {flight.returnTime}
@@ -325,11 +327,11 @@ export function RefineModal({
                             <span>{flight.stops === 0 ? "Nonstop" : `${flight.stops} stop${flight.stops > 1 ? "s" : ""}`}</span>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex flex-col items-end">
                           <p className="text-lg font-bold">${flight.price}</p>
                           <p className="text-xs text-muted-foreground">per person</p>
                           {selectedFlight?.id === flight.id && (
-                            <Check className="w-5 h-5 text-primary mt-1 ml-auto" />
+                            <Check className="w-5 h-5 text-primary mt-1" />
                           )}
                         </div>
                       </div>
@@ -345,21 +347,21 @@ export function RefineModal({
                       whileTap={{ scale: 0.99 }}
                       onClick={() => setSelectedHotel(hotel)}
                       className={cn(
-                        "p-4 rounded-xl border-2 cursor-pointer transition-all",
+                        "w-full p-4 rounded-xl border-2 cursor-pointer transition-all",
                         selectedHotel?.id === hotel.id
                           ? "border-primary bg-primary/5"
                           : "border-border hover:border-primary/30"
                       )}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-semibold">{hotel.name}</p>
                             {hotel.tags.map(tag => (
                               <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
                             ))}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3" />
                               {hotel.location}
@@ -371,11 +373,11 @@ export function RefineModal({
                             </span>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex flex-col items-end">
                           <p className="text-lg font-bold">${hotel.pricePerNight}</p>
                           <p className="text-xs text-muted-foreground">per night</p>
                           {selectedHotel?.id === hotel.id && (
-                            <Check className="w-5 h-5 text-primary mt-1 ml-auto" />
+                            <Check className="w-5 h-5 text-primary mt-1" />
                           )}
                         </div>
                       </div>
@@ -391,15 +393,15 @@ export function RefineModal({
                       whileTap={{ scale: 0.99 }}
                       onClick={() => setSelectedGround(option)}
                       className={cn(
-                        "p-4 rounded-xl border-2 cursor-pointer transition-all",
+                        "w-full p-4 rounded-xl border-2 cursor-pointer transition-all",
                         selectedGround?.id === option.id
                           ? "border-primary bg-primary/5"
                           : "border-border hover:border-primary/30"
                       )}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-semibold">{option.provider}</p>
                             <Badge variant="outline" className="text-xs">{option.type}</Badge>
                             {option.tags.map(tag => (
@@ -408,43 +410,52 @@ export function RefineModal({
                           </div>
                           <p className="text-sm text-muted-foreground">{option.description}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex flex-col items-end">
                           <p className="text-lg font-bold">${option.price}</p>
                           <p className="text-xs text-muted-foreground">each way</p>
                           {selectedGround?.id === option.id && (
-                            <Check className="w-5 h-5 text-primary mt-1 ml-auto" />
+                            <Check className="w-5 h-5 text-primary mt-1" />
                           )}
                         </div>
                       </div>
                     </motion.div>
                   ))}
                 </TabsContent>
-              </ScrollArea>
-            </Tabs>
-            
-            {/* Footer */}
-            <div className="p-5 border-t border-border bg-secondary/30">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Updated total cost</p>
-                  <p className="text-2xl font-bold">${updatedCost.toLocaleString()}</p>
-                </div>
-                <div className={cn(
-                  "text-sm font-medium",
-                  updatedCost < currentCost ? "text-success" : updatedCost > currentCost ? "text-warning" : "text-muted-foreground"
-                )}>
-                  {updatedCost < currentCost && `$${(currentCost - updatedCost).toLocaleString()} less`}
-                  {updatedCost > currentCost && `$${(updatedCost - currentCost).toLocaleString()} more`}
-                  {updatedCost === currentCost && "No change"}
                 </div>
               </div>
-              <div className="flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-                  Cancel
-                </Button>
-                <Button className="flex-1" onClick={handleSave}>
-                  Save changes
-                </Button>
+            </Tabs>
+            
+            {/* Footer - Sticky */}
+            <div className="shrink-0 px-6 py-5 border-t border-border bg-secondary/30">
+              <div className="mx-auto max-w-[760px]">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Updated total cost</p>
+                    <p className="text-2xl font-bold">${updatedCost.toLocaleString()}</p>
+                  </div>
+                  <div className={cn(
+                    "text-sm font-medium px-3 py-1 rounded-full",
+                    updatedCost < currentCost 
+                      ? "bg-emerald-500/10 text-emerald-600" 
+                      : updatedCost > currentCost 
+                        ? "bg-amber-500/10 text-amber-600"
+                        : "bg-muted text-muted-foreground"
+                  )}>
+                    {updatedCost < currentCost 
+                      ? `$${(currentCost - updatedCost).toLocaleString()} savings`
+                      : updatedCost > currentCost
+                        ? `$${(updatedCost - currentCost).toLocaleString()} more`
+                        : "Same price"}
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSave} className="flex-1">
+                    Save changes
+                  </Button>
+                </div>
               </div>
             </div>
           </motion.div>
