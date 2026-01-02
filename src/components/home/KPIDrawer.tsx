@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plane, Clock, DollarSign, MapPin, Calendar, Building2, AlertCircle, ChevronRight, FileText, Receipt, TrendingUp } from "lucide-react";
+import { X, Plane, Clock, DollarSign, MapPin, Calendar, Building2, AlertCircle, ChevronRight, ChevronLeft, FileText, Receipt, TrendingUp, ExternalLink, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,33 @@ const mockHoursSaved = {
   ],
 };
 
+const mockActivityLog = [
+  {
+    id: "1",
+    date: "Today",
+    events: [
+      { id: "e1", title: "Generated flight + hotel shortlist", trip: "Seattle trip", minutesSaved: 32, type: "shortlist", source: "AI shortlist", timestamp: "10:45 AM" },
+      { id: "e2", title: "Auto-matched 3 receipts to expenses", trip: "Seattle trip", minutesSaved: 18, type: "expense_match", source: "Expense import", timestamp: "9:30 AM" },
+    ],
+  },
+  {
+    id: "2",
+    date: "Yesterday",
+    events: [
+      { id: "e3", title: "Created expense report PDF", trip: "SF trip", minutesSaved: 40, type: "report_generation", source: "Report engine", timestamp: "4:15 PM" },
+      { id: "e4", title: "Auto-rebooked due to weather disruption", trip: "Seattle trip", minutesSaved: 130, type: "auto_rebook", source: "Rebook engine", timestamp: "2:00 PM" },
+    ],
+  },
+  {
+    id: "3",
+    date: "Dec 31",
+    events: [
+      { id: "e5", title: "Detected calendar event requiring travel", trip: "Chicago trip", minutesSaved: 25, type: "calendar_detection", source: "Calendar sync", timestamp: "11:00 AM" },
+      { id: "e6", title: "Auto-imported 8 receipts from email", trip: "NYC trip", minutesSaved: 55, type: "expense_import", source: "Email scan", timestamp: "9:00 AM" },
+    ],
+  },
+];
+
 const mockPendingExpenses = {
   total: 1240,
   count: 5,
@@ -106,12 +134,19 @@ const drawerConfig: Record<KPIType, { title: string; icon: typeof Plane; color: 
   milesTraveled: { title: "Miles Traveled", icon: MapPin, color: "text-accent" },
 };
 
+type DrawerView = "summary" | "activity";
+
 export function KPIDrawer({ open, onOpenChange, type }: KPIDrawerProps) {
   const navigate = useNavigate();
   const config = drawerConfig[type];
   const Icon = config.icon;
+  const [drawerView, setDrawerView] = useState<DrawerView>("summary");
 
-  const handleClose = () => onOpenChange(false);
+  const handleClose = () => {
+    onOpenChange(false);
+    // Reset view when closing
+    setTimeout(() => setDrawerView("summary"), 300);
+  };
 
   const content = createPortal(
     <AnimatePresence>
@@ -138,6 +173,14 @@ export function KPIDrawer({ open, onOpenChange, type }: KPIDrawerProps) {
             {/* Sticky Header */}
             <div className="shrink-0 px-6 py-5 border-b border-border/40 flex items-center justify-between bg-background">
               <div className="flex items-center gap-3">
+                {drawerView === "activity" && (
+                  <button
+                    onClick={() => setDrawerView("summary")}
+                    className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+                  </button>
+                )}
                 <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", 
                   type === "upcomingTrips" && "bg-primary/10",
                   type === "hoursSaved" && "bg-success/10",
@@ -147,7 +190,9 @@ export function KPIDrawer({ open, onOpenChange, type }: KPIDrawerProps) {
                   <Icon className={cn("w-5 h-5", config.color)} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">{config.title}</h2>
+                  <h2 className="text-lg font-semibold text-foreground">
+                    {drawerView === "activity" ? "Activity Log" : config.title}
+                  </h2>
                   <p className="text-sm text-muted-foreground">Last 30 days</p>
                 </div>
               </div>
@@ -161,37 +206,72 @@ export function KPIDrawer({ open, onOpenChange, type }: KPIDrawerProps) {
 
             {/* Scrollable Content */}
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6">
-              {type === "upcomingTrips" && <UpcomingTripsContent />}
-              {type === "hoursSaved" && <HoursSavedContent />}
-              {type === "pendingExpenses" && <PendingExpensesContent />}
-              {type === "milesTraveled" && <MilesTraveledContent />}
+              <AnimatePresence mode="wait">
+                {drawerView === "summary" ? (
+                  <motion.div
+                    key="summary"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {type === "upcomingTrips" && <UpcomingTripsContent />}
+                    {type === "hoursSaved" && <HoursSavedContent />}
+                    {type === "pendingExpenses" && <PendingExpensesContent />}
+                    {type === "milesTraveled" && <MilesTraveledContent />}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="activity"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ActivityLogContent />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Sticky Footer CTA */}
             <div className="shrink-0 px-6 py-4 border-t border-border/40 bg-background">
-              {type === "upcomingTrips" && (
-                <Button className="w-full" onClick={() => { handleClose(); navigate("/trips"); }}>
-                  View all trips
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
-              )}
-              {type === "hoursSaved" && (
+              {drawerView === "activity" ? (
                 <Button variant="outline" className="w-full">
-                  See activity log
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
-              )}
-              {type === "pendingExpenses" && (
-                <Button className="w-full" onClick={() => { handleClose(); navigate("/expenses"); }}>
-                  Go to Expenses
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
-              )}
-              {type === "milesTraveled" && (
-                <Button variant="outline" className="w-full">
-                  Export travel report
+                  Export CSV
                   <FileText className="w-4 h-4 ml-2" />
                 </Button>
+              ) : (
+                <>
+                  {type === "upcomingTrips" && (
+                    <Button className="w-full" onClick={() => { handleClose(); navigate("/trips"); }}>
+                      View all trips
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  )}
+                  {type === "hoursSaved" && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => setDrawerView("activity")}
+                    >
+                      See activity log
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  )}
+                  {type === "pendingExpenses" && (
+                    <Button className="w-full" onClick={() => { handleClose(); navigate("/expenses"); }}>
+                      Go to Expenses
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  )}
+                  {type === "milesTraveled" && (
+                    <Button variant="outline" className="w-full">
+                      Export travel report
+                      <FileText className="w-4 h-4 ml-2" />
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </motion.div>
@@ -292,6 +372,103 @@ function HoursSavedContent() {
               <p className="text-xs text-muted-foreground">{item.detail}</p>
             </div>
             <span className="text-sm font-semibold text-success">{item.hours}h</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ActivityLogContent() {
+  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "ytd">("30d");
+  
+  const formatMinutes = (mins: number) => {
+    if (mins >= 60) {
+      const hours = Math.floor(mins / 60);
+      const remaining = mins % 60;
+      return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
+    }
+    return `${mins}m`;
+  };
+
+  const totalMinutes = mockActivityLog.flatMap(d => d.events).reduce((sum, e) => sum + e.minutesSaved, 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Header */}
+      <div className="text-center pb-4 border-b border-border/40">
+        <p className="text-4xl font-bold text-success">{formatMinutes(totalMinutes)}</p>
+        <p className="text-sm text-muted-foreground mt-1">total time saved</p>
+        <p className="text-xs text-muted-foreground mt-2">
+          How we calculate this: We track each automated action and estimate time saved vs. manual process.
+        </p>
+      </div>
+
+      {/* Time Range Selector */}
+      <div className="flex gap-2">
+        {[
+          { value: "7d", label: "7 days" },
+          { value: "30d", label: "30 days" },
+          { value: "90d", label: "90 days" },
+          { value: "ytd", label: "YTD" },
+        ].map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setTimeRange(option.value as typeof timeRange)}
+            className={cn(
+              "flex-1 py-2 px-3 text-xs font-medium rounded-lg transition-colors",
+              timeRange === option.value
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Event List by Day */}
+      <div className="space-y-6">
+        {mockActivityLog.map((day) => (
+          <div key={day.id} className="space-y-3">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              {day.date}
+            </h4>
+            <div className="space-y-2">
+              {day.events.map((event) => (
+                <div 
+                  key={event.id} 
+                  className="p-3 rounded-lg bg-card border border-border/60 hover:border-primary/20 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">{event.title}</p>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Plane className="w-3 h-3" />
+                          {event.trip}
+                        </span>
+                        <span>•</span>
+                        <span>{event.timestamp}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {event.source}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-semibold text-success">
+                        {formatMinutes(event.minutesSaved)}
+                      </span>
+                      <button className="block mt-1 text-xs text-primary hover:underline">
+                        View details
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
