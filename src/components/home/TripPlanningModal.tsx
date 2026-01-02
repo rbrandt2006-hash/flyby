@@ -110,23 +110,23 @@ const generateFlightOptions = (destination: string): FlightOption[] => [
   },
 ];
 
-const generateHotelOptions = (destination: string): HotelOption[] => [
+const generateHotelOptions = (destination: string, nights: number = 2): HotelOption[] => [
   {
     id: "h1",
     name: "The Westin",
     area: "Downtown",
     pricePerNight: 245,
-    totalPrice: 490,
+    totalPrice: 245 * nights,
     rating: 4.5,
     distanceToVenue: "0.3 mi",
-    tags: ["Closest", "Policy compliant"],
+    tags: ["Recommended", "Closest", "Policy compliant"],
   },
   {
     id: "h2",
     name: "Marriott",
     area: "Financial District",
     pricePerNight: 189,
-    totalPrice: 378,
+    totalPrice: 189 * nights,
     rating: 4.3,
     distanceToVenue: "0.8 mi",
     tags: ["Best value"],
@@ -136,10 +136,20 @@ const generateHotelOptions = (destination: string): HotelOption[] => [
     name: "Hilton Garden Inn",
     area: "Convention Center",
     pricePerNight: 165,
-    totalPrice: 330,
+    totalPrice: 165 * nights,
     rating: 4.1,
     distanceToVenue: "1.2 mi",
     tags: ["Cheapest"],
+  },
+  {
+    id: "h4",
+    name: "Hyatt Regency",
+    area: "Business District",
+    pricePerNight: 219,
+    totalPrice: 219 * nights,
+    rating: 4.4,
+    distanceToVenue: "0.5 mi",
+    tags: ["Executive preferred"],
   },
 ];
 
@@ -189,6 +199,19 @@ export function TripPlanningModal({
 
   const estimatedTotal = (selectedFlight?.price || 0) + (selectedHotel?.totalPrice || 0) + (selectedGround?.price || 0);
 
+  // Calculate nights from event dates
+  const calculateNights = (): number => {
+    if (!event) return 2;
+    const start = new Date(event.startDate);
+    const end = new Date(event.endDate);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return nights > 0 ? nights : 1;
+  };
+
+  const nights = calculateNights();
+  const isSameDayTrip = nights === 0 || (event && new Date(event.startDate).toDateString() === new Date(event.endDate).toDateString());
+
   // Lock body scroll when modal is open
   useEffect(() => {
     if (open) {
@@ -220,6 +243,9 @@ export function TripPlanningModal({
   }, [open, event]);
 
   const runPlanningSequence = async () => {
+    // Calculate nights for hotel pricing
+    const tripNights = calculateNights();
+    
     // Step 1: Reading
     await new Promise(r => setTimeout(r, 800));
     setCurrentStep("flights");
@@ -233,7 +259,7 @@ export function TripPlanningModal({
     
     // Step 3: Hotels
     await new Promise(r => setTimeout(r, 1000));
-    const hotels = generateHotelOptions(event?.location || "");
+    const hotels = generateHotelOptions(event?.location || "", tripNights);
     setHotelOptions(hotels);
     setSelectedHotel(hotels[0]);
     setCurrentStep("ground");
@@ -427,7 +453,7 @@ export function TripPlanningModal({
                   )}
 
                   {/* Hotel */}
-                  {selectedHotel && (
+                  {selectedHotel && !isSameDayTrip && (
                     <div className="p-4 rounded-xl bg-card border border-border/60">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3">
@@ -437,7 +463,10 @@ export function TripPlanningModal({
                           <div>
                             <p className="font-medium text-foreground">{selectedHotel.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {selectedHotel.area} • {selectedHotel.distanceToVenue} to venue
+                              {selectedHotel.area} • {selectedHotel.distanceToVenue} to venue • ⭐ {selectedHotel.rating}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              ${selectedHotel.pricePerNight}/night × {nights} night{nights !== 1 ? 's' : ''} = ${selectedHotel.totalPrice}
                             </p>
                             <div className="flex gap-1.5 mt-2">
                               {selectedHotel.tags.map((tag) => (
@@ -448,13 +477,29 @@ export function TripPlanningModal({
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-semibold">${selectedHotel.totalPrice}</p>
-                          <p className="text-xs text-muted-foreground">${selectedHotel.pricePerNight}/night</p>
                           <button 
                             onClick={() => { setIsRefining(true); setRefineSection("hotels"); }}
                             className="text-xs text-primary hover:underline mt-1"
                           >
                             Change
                           </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Same-day trip - no hotel needed */}
+                  {isSameDayTrip && (
+                    <div className="p-4 rounded-xl bg-muted/50 border border-border/60">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Hotel className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">No hotel needed</p>
+                          <p className="text-sm text-muted-foreground">
+                            Same-day trip — returning same evening
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -491,14 +536,35 @@ export function TripPlanningModal({
                     </div>
                   )}
 
-                  {/* Total */}
+                  {/* Total with breakdown */}
                   <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-5 h-5 text-primary" />
-                        <span className="font-medium">Estimated Total</span>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>Flight</span>
+                        <span>${selectedFlight?.price || 0}</span>
                       </div>
-                      <span className="text-2xl font-bold text-primary">${estimatedTotal.toLocaleString()}</span>
+                      {!isSameDayTrip && selectedHotel && (
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <span>Hotel ({nights} night{nights !== 1 ? 's' : ''})</span>
+                          <span>${selectedHotel.totalPrice}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>Ground transport</span>
+                        <span>${selectedGround?.price || 0}</span>
+                      </div>
+                      <div className="border-t border-primary/20 pt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-5 h-5 text-primary" />
+                          <span className="font-medium">Estimated Total</span>
+                        </div>
+                        <span className="text-2xl font-bold text-primary">
+                          ${(isSameDayTrip 
+                            ? (selectedFlight?.price || 0) + (selectedGround?.price || 0) 
+                            : estimatedTotal
+                          ).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -556,6 +622,9 @@ export function TripPlanningModal({
 
                   {refineSection === "hotels" && (
                     <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {nights} night{nights !== 1 ? 's' : ''} • {new Date(event.startDate).toLocaleDateString()} – {new Date(event.endDate).toLocaleDateString()}
+                      </p>
                       {hotelOptions.map((hotel) => (
                         <button
                           key={hotel.id}
@@ -573,6 +642,9 @@ export function TripPlanningModal({
                               <p className="text-sm text-muted-foreground">
                                 {hotel.area} • {hotel.distanceToVenue} to venue • ⭐ {hotel.rating}
                               </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                ${hotel.pricePerNight}/night × {nights} night{nights !== 1 ? 's' : ''}
+                              </p>
                               <div className="flex gap-1.5 mt-2">
                                 {hotel.tags.map((tag) => (
                                   <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
@@ -581,7 +653,7 @@ export function TripPlanningModal({
                             </div>
                             <div className="text-right">
                               <p className="text-lg font-semibold">${hotel.totalPrice}</p>
-                              <p className="text-xs text-muted-foreground">${hotel.pricePerNight}/night</p>
+                              <p className="text-xs text-muted-foreground">total</p>
                             </div>
                           </div>
                         </button>
