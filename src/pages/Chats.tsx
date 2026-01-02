@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { MessageSquare, Sparkles, RefreshCw, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SyncedConversationsSidebar, SyncedConversation } from "@/components/chats/SyncedConversationsSidebar";
-import { SyncedConversationThread } from "@/components/chats/SyncedConversationThread";
+import { ChannelsContainer, SyncedConversation } from "@/components/chats/ChannelsContainer";
+import { ConversationCanvas } from "@/components/chats/ConversationCanvas";
 import { SmartTripAssistant } from "@/components/chats/SmartTripAssistant";
 import { mockSyncedConversations, mockDetectedTrips } from "@/data/mockSyncedConversations";
 import { Button } from "@/components/ui/button";
 import { useChats, currentUser, teamMembers } from "@/hooks/useChats";
+import { toast } from "sonner";
 
 export default function Chats() {
   const location = useLocation();
@@ -70,8 +71,19 @@ export default function Chats() {
   const handleSync = () => {
     setIsSyncing(true);
     setShowAIStatus(true);
-    setTimeout(() => setIsSyncing(false), 2000);
+    setTimeout(() => {
+      setIsSyncing(false);
+      toast.success("Channels synced");
+    }, 2000);
   };
+
+  const handleSendMessage = (text: string) => {
+    // In a real app, this would send to Slack/Teams API
+    toast.success(`Message sent via ${selectedConversation?.source || "Flyby"}`);
+  };
+
+  // Mock connected platforms
+  const connectedPlatforms = { slack: true, teams: true };
 
   return (
     <div className="h-[calc(100vh-8rem)] animate-fade-in">
@@ -80,7 +92,7 @@ export default function Chats() {
         <div>
           <h1 className="text-xl font-semibold text-foreground tracking-tight">Inbox</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Synced from Slack, Teams & internal channels
+            Unified messaging across Slack, Teams & internal channels
           </p>
         </div>
         <Button 
@@ -95,68 +107,61 @@ export default function Chats() {
         </Button>
       </div>
 
-      {/* Main container with clean borders */}
-      <div className="h-[calc(100%-4rem)] bg-card rounded-xl border border-border/60 shadow-sm overflow-hidden">
-        <div className="flex h-full">
-          {/* Sidebar - Conversations list */}
-          <div className="w-72 border-r border-border/60 shrink-0 flex flex-col bg-secondary/30">
-            <div className="px-4 py-3 border-b border-border/40">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Channels
-              </p>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <SyncedConversationsSidebar
-                conversations={allConversations}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
+      {/* 3-Zone Layout with spacing-based separation */}
+      <div className="h-[calc(100%-4rem)] flex gap-6">
+        {/* Left: Channels Container (Card Style) */}
+        <div className="w-72 shrink-0">
+          <ChannelsContainer
+            conversations={allConversations}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            connectedPlatforms={connectedPlatforms}
+          />
+        </div>
+
+        {/* Center: Conversation Canvas */}
+        <div className="flex-1 bg-card rounded-2xl border border-border/40 shadow-sm overflow-hidden relative">
+          <AnimatePresence mode="wait">
+            {selectedConversation ? (
+              <motion.div
+                key={selectedConversation.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="h-full"
+              >
+                <ConversationCanvas 
+                  conversation={selectedConversation}
+                  onSendMessage={handleSendMessage}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="h-full flex flex-col items-center justify-center text-muted-foreground"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                  <MessageSquare className="w-6 h-6 opacity-40" />
+                </div>
+                <p className="text-sm font-medium">Select a conversation</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">
+                  Choose a channel to view messages
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Smart Trip Assistant - Floating Pill */}
+          {detectedTrip && (
+            <div className="absolute bottom-24 right-6 z-10">
+              <SmartTripAssistant 
+                detectedTrip={detectedTrip} 
+                onReviewTrip={() => {}}
               />
             </div>
-          </div>
-
-          {/* Main conversation area */}
-          <div className="flex-1 flex min-w-0">
-            <AnimatePresence mode="wait">
-              {selectedConversation ? (
-                <motion.div
-                  key={selectedConversation.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex-1 flex flex-col min-w-0 relative"
-                >
-                  <div className="flex-1 min-w-0">
-                    <SyncedConversationThread conversation={selectedConversation} />
-                  </div>
-                  
-                  {/* Smart Trip Assistant - Collapsible pill/panel */}
-                  {detectedTrip && (
-                    <div className="absolute bottom-4 right-4 z-10">
-                      <SmartTripAssistant 
-                        detectedTrip={detectedTrip} 
-                        onReviewTrip={() => {}}
-                      />
-                    </div>
-                  )}
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex-1 flex flex-col items-center justify-center text-muted-foreground"
-                >
-                  <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
-                    <MessageSquare className="w-5 h-5 opacity-40" />
-                  </div>
-                  <p className="text-sm font-medium">Select a conversation</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">
-                    Choose a channel to view messages
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          )}
         </div>
       </div>
 
@@ -170,7 +175,7 @@ export default function Chats() {
             transition={{ duration: 0.2 }}
             className="fixed bottom-5 left-5 z-40"
           >
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border/60 shadow-md">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/40 shadow-lg">
               <motion.div
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 2, repeat: Infinity }}
@@ -178,11 +183,11 @@ export default function Chats() {
                 <Sparkles className="w-3.5 h-3.5 text-primary" />
               </motion.div>
               <span className="text-xs text-muted-foreground">
-                Monitoring {travelIntentCount} channel{travelIntentCount !== 1 ? 's' : ''}
+                Monitoring {travelIntentCount} channel{travelIntentCount !== 1 ? 's' : ''} for travel intent
               </span>
               <button
                 onClick={() => setShowAIStatus(false)}
-                className="p-0.5 rounded hover:bg-muted transition-colors ml-1"
+                className="p-1 rounded-lg hover:bg-muted transition-colors ml-1"
               >
                 <X className="w-3 h-3 text-muted-foreground/60" />
               </button>
