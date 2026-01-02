@@ -4,7 +4,7 @@ import { MessageSquare, Sparkles, RefreshCw, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SyncedConversationsSidebar, SyncedConversation } from "@/components/chats/SyncedConversationsSidebar";
 import { SyncedConversationThread } from "@/components/chats/SyncedConversationThread";
-import { AITripDetectionPanel } from "@/components/chats/AITripDetectionPanel";
+import { SmartTripAssistant } from "@/components/chats/SmartTripAssistant";
 import { mockSyncedConversations, mockDetectedTrips } from "@/data/mockSyncedConversations";
 import { Button } from "@/components/ui/button";
 import { useChats, currentUser, teamMembers } from "@/hooks/useChats";
@@ -46,7 +46,6 @@ export default function Chats() {
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [showAIStatus, setShowAIStatus] = useState(true);
-  const [showAIPanel, setShowAIPanel] = useState(true);
 
   // Handle navigation state for opening specific chat
   useEffect(() => {
@@ -125,30 +124,21 @@ export default function Chats() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
-                  className="flex-1 flex min-w-0"
+                  className="flex-1 flex flex-col min-w-0 relative"
                 >
                   <div className="flex-1 min-w-0">
                     <SyncedConversationThread conversation={selectedConversation} />
                   </div>
                   
-                  {/* AI Panel - contextual assistant */}
-                  <AnimatePresence>
-                    {detectedTrip && showAIPanel && (
-                      <motion.div
-                        initial={{ width: 0, opacity: 0 }}
-                        animate={{ width: 340, opacity: 1 }}
-                        exit={{ width: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: "easeInOut" }}
-                        className="overflow-hidden"
-                      >
-                        <AITripDetectionPanel 
-                          detectedTrip={detectedTrip} 
-                          onReviewTrip={() => {}}
-                          onClose={() => setShowAIPanel(false)}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {/* Smart Trip Assistant - Collapsible pill/panel */}
+                  {detectedTrip && (
+                    <div className="absolute bottom-4 right-4 z-10">
+                      <SmartTripAssistant 
+                        detectedTrip={detectedTrip} 
+                        onReviewTrip={() => {}}
+                      />
+                    </div>
+                  )}
                 </motion.div>
               ) : (
                 <motion.div
