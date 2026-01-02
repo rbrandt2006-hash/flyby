@@ -294,7 +294,8 @@ export default function Dashboard() {
     id: 1,
     type: "warning",
     message: "Weather advisory for Seattle area - potential delays",
-    trip: "Seattle trip"
+    trip: "Seattle trip",
+    tripDestination: "Seattle, WA"
   }];
   const stats = [{
     icon: Plane,
@@ -612,7 +613,7 @@ export default function Dashboard() {
 
       {/* Alerts */}
       {alerts.length > 0 && <ScrollReveal delay={0.15}>
-          {alerts.map((alert, index) => <AlertCard key={alert.id} message={alert.message} trip={alert.trip} delay={index * 0.1} />)}
+          {alerts.map((alert, index) => <AlertCard key={alert.id} message={alert.message} trip={alert.trip} tripDestination={alert.tripDestination} delay={index * 0.1} />)}
         </ScrollReveal>}
 
       {/* Calendar suggestions */}
