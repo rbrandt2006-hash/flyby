@@ -124,8 +124,9 @@ export function TripDetailPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader className="space-y-3 pb-4">
+      <SheetContent className="w-full sm:max-w-lg flex flex-col h-full overflow-hidden p-0">
+        {/* Header - Sticky */}
+        <SheetHeader className="shrink-0 space-y-3 p-6 pb-4 border-b border-border bg-background">
           <div className="flex items-center gap-2">
             <Badge 
               variant="outline" 
@@ -144,185 +145,188 @@ export function TripDetailPanel({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Flight Details */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Plane className="w-4 h-4 text-primary" />
-              <h4 className="font-medium text-foreground">Flight</h4>
-            </div>
-            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-              {trip.flight_details?.airline ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{trip.flight_details.airline}</span>
-                    <span className="text-xs text-muted-foreground">{trip.flight_details.flightNumber || "AA 1234"}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <div className="text-center">
-                      <p className="font-semibold">SFO</p>
-                      <p className="text-xs text-muted-foreground">8:00 AM</p>
+        {/* Scrollable Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5">
+          <div className="space-y-6">
+            {/* Flight Details */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Plane className="w-4 h-4 text-primary" />
+                <h4 className="font-medium text-foreground">Flight</h4>
+              </div>
+              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                {trip.flight_details?.airline ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{trip.flight_details.airline}</span>
+                      <span className="text-xs text-muted-foreground">{trip.flight_details.flightNumber || "AA 1234"}</span>
                     </div>
-                    <div className="flex-1 flex items-center gap-2">
-                      <div className="flex-1 border-t border-dashed border-border" />
-                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                      <div className="flex-1 border-t border-dashed border-border" />
+                    <div className="flex items-center gap-3 text-sm">
+                      <div className="text-center">
+                        <p className="font-semibold">SFO</p>
+                        <p className="text-xs text-muted-foreground">8:00 AM</p>
+                      </div>
+                      <div className="flex-1 flex items-center gap-2">
+                        <div className="flex-1 border-t border-dashed border-border" />
+                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex-1 border-t border-dashed border-border" />
+                      </div>
+                      <div className="text-center">
+                        <p className="font-semibold">{trip.destination.slice(0, 3).toUpperCase()}</p>
+                        <p className="text-xs text-muted-foreground">11:30 AM</p>
+                      </div>
                     </div>
-                    <div className="text-center">
-                      <p className="font-semibold">{trip.destination.slice(0, 3).toUpperCase()}</p>
-                      <p className="text-xs text-muted-foreground">11:30 AM</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    No flight booked yet
+                  </p>
+                )}
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* Hotel Details */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-primary" />
+                <h4 className="font-medium text-foreground">Hotel</h4>
+              </div>
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                {trip.hotel_details?.name ? (
+                  <>
+                    <p className="text-sm font-medium">{trip.hotel_details.name}</p>
+                    {trip.hotel_details.address && (
+                      <p className="text-xs text-muted-foreground">{trip.hotel_details.address}</p>
+                    )}
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
+                      <span>Check-in: 3:00 PM</span>
+                      <span>Check-out: 11:00 AM</span>
                     </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-2">
-                  No flight booked yet
-                </p>
-              )}
-            </div>
-          </section>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    No hotel booked yet
+                  </p>
+                )}
+              </div>
+            </section>
 
-          <Separator />
+            <Separator />
 
-          {/* Hotel Details */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-primary" />
-              <h4 className="font-medium text-foreground">Hotel</h4>
-            </div>
-            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-              {trip.hotel_details?.name ? (
-                <>
-                  <p className="text-sm font-medium">{trip.hotel_details.name}</p>
-                  {trip.hotel_details.address && (
-                    <p className="text-xs text-muted-foreground">{trip.hotel_details.address}</p>
-                  )}
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
-                    <span>Check-in: 3:00 PM</span>
-                    <span>Check-out: 11:00 AM</span>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-2">
-                  No hotel booked yet
-                </p>
-              )}
-            </div>
-          </section>
-
-          <Separator />
-
-          {/* Meetings */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" />
-              <h4 className="font-medium text-foreground">Meetings</h4>
-            </div>
-            <div className="space-y-2">
-              {mockMeetings.map((meeting) => (
-                <div 
-                  key={meeting.id}
-                  className={cn(
-                    "bg-muted/50 rounded-lg p-3",
-                    "hover:bg-muted/70 transition-colors cursor-pointer"
-                  )}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        {meeting.title}
-                        {meeting.type === "video" && (
-                          <Video className="w-3.5 h-3.5 text-primary" />
-                        )}
-                      </p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {meeting.time}
-                        </span>
-                        <span>{meeting.duration}</span>
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3 h-3" />
-                          {meeting.attendees}
-                        </span>
+            {/* Meetings */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" />
+                <h4 className="font-medium text-foreground">Meetings</h4>
+              </div>
+              <div className="space-y-2">
+                {mockMeetings.map((meeting) => (
+                  <div 
+                    key={meeting.id}
+                    className={cn(
+                      "bg-muted/50 rounded-lg p-3",
+                      "hover:bg-muted/70 transition-colors cursor-pointer"
+                    )}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium flex items-center gap-2">
+                          {meeting.title}
+                          {meeting.type === "video" && (
+                            <Video className="w-3.5 h-3.5 text-primary" />
+                          )}
+                        </p>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {meeting.time}
+                          </span>
+                          <span>{meeting.duration}</span>
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {meeting.attendees}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <Separator />
-
-          {/* Decision Timeline */}
-          <section className="space-y-3">
-            <button
-              onClick={() => setIsTimelineOpen(!isTimelineOpen)}
-              className="w-full flex items-center justify-between hover:bg-secondary/50 rounded-lg p-2 -mx-2 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-primary" />
-                <h4 className="font-medium text-foreground">Trip Timeline</h4>
+                ))}
               </div>
-              <motion.div
-                animate={{ rotate: isTimelineOpen ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
+            </section>
+
+            <Separator />
+
+            {/* Decision Timeline */}
+            <section className="space-y-3">
+              <button
+                onClick={() => setIsTimelineOpen(!isTimelineOpen)}
+                className="w-full flex items-center justify-between hover:bg-secondary/50 rounded-lg p-2 -mx-2 transition-colors"
               >
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-              </motion.div>
-            </button>
-            <AnimatePresence>
-              {isTimelineOpen && (
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-primary" />
+                  <h4 className="font-medium text-foreground">Trip Timeline</h4>
+                </div>
                 <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
+                  animate={{ rotate: isTimelineOpen ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
                 >
-                  <DecisionTimeline events={displayTimeline} />
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 </motion.div>
-              )}
-            </AnimatePresence>
-          </section>
-
-          <Separator />
-
-          {/* AI Reasoning Panel */}
-          <AIReasoningPanel destination={trip.destination} />
-
-          <Separator />
-
-          {/* Local Recommendations */}
-          <LocalRecommendations />
-
-          {/* Action Buttons */}
-          {!isCancelled && (
-            <div className="flex gap-3 pt-4">
-              {!isConfirmed && (
-                <Button 
-                  className="flex-1 bg-gradient-accent hover:opacity-90 text-accent-foreground font-medium"
-                  onClick={() => onConfirm(trip.id)}
-                >
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Confirm Trip
-                </Button>
-              )}
-              <Button 
-                variant="outline"
-                className={cn(
-                  "flex-1 border-destructive/30 text-destructive",
-                  "hover:bg-destructive/10 hover:border-destructive/50"
+              </button>
+              <AnimatePresence>
+                {isTimelineOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <DecisionTimeline events={displayTimeline} />
+                  </motion.div>
                 )}
-                onClick={() => onCancel(trip.id)}
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                Cancel Trip
-              </Button>
-            </div>
-          )}
+              </AnimatePresence>
+            </section>
+
+            <Separator />
+
+            {/* AI Reasoning Panel */}
+            <AIReasoningPanel destination={trip.destination} />
+
+            <Separator />
+
+            {/* Local Recommendations */}
+            <LocalRecommendations />
+          </div>
         </div>
+
+        {/* Footer Actions - Sticky */}
+        {!isCancelled && (
+          <div className="shrink-0 flex gap-3 p-6 pt-4 border-t border-border bg-background">
+            {!isConfirmed && (
+              <Button 
+                className="flex-1 bg-gradient-accent hover:opacity-90 text-accent-foreground font-medium"
+                onClick={() => onConfirm(trip.id)}
+              >
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Confirm Trip
+              </Button>
+            )}
+            <Button 
+              variant="outline"
+              className={cn(
+                "flex-1 border-destructive/30 text-destructive",
+                "hover:bg-destructive/10 hover:border-destructive/50"
+              )}
+              onClick={() => onCancel(trip.id)}
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Cancel Trip
+            </Button>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
