@@ -189,6 +189,18 @@ export function TripPlanningModal({
 
   const estimatedTotal = (selectedFlight?.price || 0) + (selectedHotel?.totalPrice || 0) + (selectedGround?.price || 0);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
   // Reset state when modal opens
   useEffect(() => {
     if (open && event) {
@@ -290,7 +302,7 @@ export function TripPlanningModal({
   const content = createPortal(
     <AnimatePresence>
       {open && (
-        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -298,7 +310,7 @@ export function TripPlanningModal({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={handleClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
           />
           
           {/* Modal */}
@@ -307,10 +319,10 @@ export function TripPlanningModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] max-w-[95vw] max-h-[85vh] bg-background rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden"
+            className="relative w-full max-w-[720px] max-h-[calc(100vh-48px)] bg-background rounded-2xl shadow-2xl flex flex-col overflow-hidden"
           >
-            {/* Header */}
-            <div className="shrink-0 px-6 py-5 border-b border-border/40 bg-background">
+            {/* Header - Sticky */}
+            <div className="sticky top-0 z-10 shrink-0 px-6 py-5 border-b border-border/40 bg-background">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -337,8 +349,8 @@ export function TripPlanningModal({
               <p className="text-sm text-muted-foreground mt-2 truncate">{event.title}</p>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto px-6 py-6">
               {/* Planning Steps */}
               {currentStep !== "done" && (
                 <div className="space-y-3 mb-6">
@@ -630,7 +642,7 @@ export function TripPlanningModal({
               </div>
             )}
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>,
     document.body
