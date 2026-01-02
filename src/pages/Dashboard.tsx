@@ -18,6 +18,8 @@ import { findDestination, findLandmark, parseDates, parsePurpose, destinationTem
 import { TripDetailSlideOver } from "@/components/home/TripDetailSlideOver";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
+import { TripPlanningModal, type TripProposal } from "@/components/home/TripPlanningModal";
+import type { CalendarEvent } from "@/services/mockCalendarService";
 
 interface TripPlan {
   destination: string;
