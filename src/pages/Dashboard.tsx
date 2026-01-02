@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { findDestination, findLandmark, parseDates, parsePurpose, destinationTemplates, ParsedDateResult } from "@/services/tripTemplates";
 import { TripDetailSlideOver } from "@/components/home/TripDetailSlideOver";
 import { RefineModal } from "@/components/home/RefineModal";
+import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
 
 interface TripPlan {
   destination: string;
@@ -116,6 +117,7 @@ export default function Dashboard() {
   const [needsDestination, setNeedsDestination] = useState(false);
   const [isRefineOpen, setIsRefineOpen] = useState(false);
   const [showDateClarification, setShowDateClarification] = useState(false);
+  const [kpiDrawer, setKpiDrawer] = useState<{ open: boolean; type: KPIType }>({ open: false, type: "upcomingTrips" });
 
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
@@ -297,26 +299,30 @@ export default function Dashboard() {
     trip: "Seattle trip",
     tripDestination: "Seattle, WA"
   }];
-  const stats = [{
+  const stats: { icon: typeof Plane; label: string; value: string; color: string; kpiType: KPIType }[] = [{
     icon: Plane,
     label: "Upcoming trips",
     value: "2",
-    color: "text-primary"
+    color: "text-primary",
+    kpiType: "upcomingTrips"
   }, {
     icon: Clock,
     label: "Hours saved",
     value: "48",
-    color: "text-success"
+    color: "text-success",
+    kpiType: "hoursSaved"
   }, {
     icon: DollarSign,
     label: "Pending expenses",
     value: "$1,240",
-    color: "text-warning"
+    color: "text-warning",
+    kpiType: "pendingExpenses"
   }, {
     icon: MapPin,
     label: "Miles traveled",
     value: "12,450",
-    color: "text-accent"
+    color: "text-accent",
+    kpiType: "milesTraveled"
   }];
 
   // Container animation variants
@@ -651,7 +657,12 @@ export default function Dashboard() {
       {/* Stats row */}
       <ScrollReveal delay={0.25}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {stats.map((stat, i) => <AnimatedCard key={i} delay={i * 0.1}>
+          {stats.map((stat, i) => <AnimatedCard 
+              key={i} 
+              delay={i * 0.1}
+              className="cursor-pointer hover:shadow-md hover:border-primary/20 transition-all"
+              onClick={() => setKpiDrawer({ open: true, type: stat.kpiType })}
+            >
               <CardContent className="p-5">
                 <motion.div whileHover={{
               rotate: [0, -10, 10, 0]
@@ -666,6 +677,13 @@ export default function Dashboard() {
             </AnimatedCard>)}
         </div>
       </ScrollReveal>
+
+      {/* KPI Drawer */}
+      <KPIDrawer
+        open={kpiDrawer.open}
+        onOpenChange={(open) => setKpiDrawer(prev => ({ ...prev, open }))}
+        type={kpiDrawer.type}
+      />
 
       {/* Upcoming trips */}
       <ScrollReveal delay={0.3}>

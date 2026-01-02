@@ -1,8 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plane, Building2, MapPin, Calendar } from "lucide-react";
+import { Plane, Building2, MapPin, Calendar, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export interface Trip {
   id: string;
@@ -30,6 +35,7 @@ export interface Trip {
 interface TripCardProps {
   trip: Trip;
   onClick: () => void;
+  onDelete?: (tripId: string) => void;
 }
 
 const getStatusConfig = (status: string) => {
@@ -62,17 +68,26 @@ const getStatusConfig = (status: string) => {
   }
 };
 
-export function TripCard({ trip, onClick }: TripCardProps) {
+export function TripCard({ trip, onClick, onDelete }: TripCardProps) {
   const statusConfig = getStatusConfig(trip.status);
   const hasFlightDetails = trip.flight_details && Object.keys(trip.flight_details).length > 0;
   const hasHotelDetails = trip.hotel_details && Object.keys(trip.hotel_details).length > 0;
+  const isCancelled = trip.status === "cancelled";
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(trip.id);
+    }
+  };
 
   return (
     <Card 
       className={cn(
-        "group cursor-pointer border border-border/50 bg-card",
+        "group cursor-pointer border border-border/50 bg-card relative",
         "hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5",
-        "transition-all duration-300 ease-out"
+        "transition-all duration-300 ease-out",
+        isCancelled && "opacity-70"
       )}
       onClick={onClick}
     >
@@ -135,15 +150,35 @@ export function TripCard({ trip, onClick }: TripCardProps) {
             </div>
           </div>
 
-          {/* Right side - Cost */}
-          {trip.total_estimated_cost && trip.total_estimated_cost > 0 && (
-            <div className="text-right shrink-0">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Est. cost</p>
-              <p className="font-semibold text-lg text-foreground">
-                ${trip.total_estimated_cost.toLocaleString()}
-              </p>
-            </div>
-          )}
+          {/* Right side - Cost + Delete for cancelled */}
+          <div className="flex items-start gap-3">
+            {trip.total_estimated_cost && trip.total_estimated_cost > 0 && (
+              <div className="text-right shrink-0">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Est. cost</p>
+                <p className="font-semibold text-lg text-foreground">
+                  ${trip.total_estimated_cost.toLocaleString()}
+                </p>
+              </div>
+            )}
+            
+            {/* Delete button - only for cancelled trips */}
+            {isCancelled && onDelete && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    aria-label="Delete trip"
+                    onClick={handleDeleteClick}
+                    className="p-2 rounded-full text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted active:bg-destructive/10 active:text-destructive transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Delete trip</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
