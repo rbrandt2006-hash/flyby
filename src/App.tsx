@@ -15,6 +15,7 @@ import Chats from "./pages/Chats";
 import Expenses from "./pages/Expenses";
 import Settings from "./pages/Settings";
 import IntegrationManage from "./pages/IntegrationManage";
+import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ function AppRoutes() {
       <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/settings/integrations/:provider" element={<ProtectedRoute><IntegrationManage /></ProtectedRoute>} />
+      <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
