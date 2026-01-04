@@ -11,8 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTravelPreferences } from "@/hooks/useTravelPreferences";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ChangePasswordModal } from "@/components/settings/ChangePasswordModal";
+import { TwoFactorSetupModal } from "@/components/settings/TwoFactorSetupModal";
+import { AddPreferenceModal } from "@/components/settings/AddPreferenceModal";
+import { ContactSupportModal } from "@/components/settings/ContactSupportModal";
 import {
   User,
   Building2,
@@ -36,6 +41,7 @@ import {
   AlertCircle,
   RefreshCw,
   Loader2,
+  X,
 } from "lucide-react";
 
 // Nav sections configuration
@@ -125,22 +131,38 @@ function SettingsSection({ id, icon: Icon, title, description, children, isLoadi
 interface ToggleRowProps {
   label: string;
   description?: string;
-  defaultChecked?: boolean;
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
   disabled?: boolean;
 }
 
-function ToggleRow({ label, description, defaultChecked = false, disabled = false }: ToggleRowProps) {
-  const [checked, setChecked] = useState(defaultChecked);
+function ToggleRow({ label, description, checked = false, onCheckedChange, disabled = false }: ToggleRowProps) {
   return (
     <div className="flex items-center justify-between py-2">
       <div>
         <p className="font-medium text-sm">{label}</p>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </div>
-      <Switch checked={checked} onCheckedChange={setChecked} disabled={disabled} />
+      <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
     </div>
   );
 }
+
+// Seat options
+const seatOptions = [
+  { value: "window", label: "Window" },
+  { value: "aisle", label: "Aisle" },
+  { value: "middle", label: "Middle" },
+] as const;
+
+// Meal options
+const mealOptions = [
+  { value: "standard", label: "Standard" },
+  { value: "vegetarian", label: "Vegetarian" },
+  { value: "vegan", label: "Vegan" },
+  { value: "kosher", label: "Kosher" },
+  { value: "halal", label: "Halal" },
+] as const;
 
 // Integration data
 interface Integration {
@@ -169,6 +191,31 @@ export default function Settings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Modals
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [twoFactorOpen, setTwoFactorOpen] = useState(false);
+  const [addPreferenceOpen, setAddPreferenceOpen] = useState(false);
+  const [addPreferenceType, setAddPreferenceType] = useState<"airline" | "hotel" | "custom">("airline");
+  const [contactSupportOpen, setContactSupportOpen] = useState(false);
+
+  // 2FA state
+  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+
+  // Travel preferences
+  const {
+    preferences,
+    isLoading: prefsLoading,
+    isSaving: prefsSaving,
+    updateSeatPreference,
+    updateMealPreference,
+    addAirline,
+    removeAirline,
+    addHotelBrand,
+    removeHotelBrand,
+    addCustomPreference,
+    removeCustomPreference,
+  } = useTravelPreferences();
   
   const userName = user?.user_metadata?.full_name || "User";
   const userEmail = user?.email || "user@company.com";
@@ -214,8 +261,19 @@ export default function Settings() {
     toast.info(`Connecting to ${integration.name}...`);
   };
 
-  const handleDisconnectIntegration = (integration: Integration) => {
-    toast.success(`Disconnected from ${integration.name}`);
+  const handleOpenAddPreference = (type: "airline" | "hotel" | "custom") => {
+    setAddPreferenceType(type);
+    setAddPreferenceOpen(true);
+  };
+
+  const handleAddPreference = (value: string) => {
+    if (addPreferenceType === "airline") {
+      addAirline(value);
+    } else if (addPreferenceType === "hotel") {
+      addHotelBrand(value);
+    } else {
+      addCustomPreference(value);
+    }
   };
 
   return (
@@ -402,46 +460,158 @@ export default function Settings() {
             icon={Plane} 
             title="Travel Preferences" 
             description="Customize your travel experience"
-            isLoading={isLoading}
+            isLoading={isLoading || prefsLoading}
           >
+            {/* Preferred Airlines */}
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Preferred Airlines</Label>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="px-3 py-1">Delta</Badge>
-                  <Badge variant="outline" className="px-3 py-1">United</Badge>
-                  <Badge variant="outline" className="px-3 py-1">American</Badge>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">+ Add</Button>
+                  {preferences.preferredAirlines.length === 0 ? (
+                    <span className="text-sm text-muted-foreground">No airlines added</span>
+                  ) : (
+                    preferences.preferredAirlines.map((airline) => (
+                      <Badge key={airline} variant="outline" className="px-3 py-1 gap-1">
+                        {airline}
+                        <button
+                          onClick={() => removeAirline(airline)}
+                          className="ml-1 hover:text-destructive"
+                          disabled={prefsSaving}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 px-2 text-xs"
+                    onClick={() => handleOpenAddPreference("airline")}
+                    disabled={prefsSaving}
+                  >
+                    + Add
+                  </Button>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Preferred Hotels</Label>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="px-3 py-1">Marriott</Badge>
-                  <Badge variant="outline" className="px-3 py-1">Hilton</Badge>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">+ Add</Button>
+                  {preferences.preferredHotelBrands.length === 0 ? (
+                    <span className="text-sm text-muted-foreground">No hotels added</span>
+                  ) : (
+                    preferences.preferredHotelBrands.map((brand) => (
+                      <Badge key={brand} variant="outline" className="px-3 py-1 gap-1">
+                        {brand}
+                        <button
+                          onClick={() => removeHotelBrand(brand)}
+                          className="ml-1 hover:text-destructive"
+                          disabled={prefsSaving}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 px-2 text-xs"
+                    onClick={() => handleOpenAddPreference("hotel")}
+                    disabled={prefsSaving}
+                  >
+                    + Add
+                  </Button>
                 </div>
               </div>
             </div>
+            
             <Separator />
+            
+            {/* Seat & Meal Preferences */}
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Seat Preference</Label>
-                <div className="flex gap-2">
-                  <Badge className="px-3 py-1">Window</Badge>
-                  <Badge variant="outline" className="px-3 py-1">Aisle</Badge>
-                  <Badge variant="outline" className="px-3 py-1">No preference</Badge>
+                <div className="flex gap-2 flex-wrap">
+                  {seatOptions.map((option) => (
+                    <Badge
+                      key={option.value}
+                      variant={preferences.preferredSeat === option.value ? "default" : "outline"}
+                      className={cn(
+                        "px-3 py-1 cursor-pointer transition-all",
+                        preferences.preferredSeat === option.value 
+                          ? "bg-primary text-primary-foreground" 
+                          : "hover:bg-secondary"
+                      )}
+                      onClick={() => updateSeatPreference(option.value)}
+                    >
+                      {preferences.preferredSeat === option.value && (
+                        <Check className="w-3 h-3 mr-1" />
+                      )}
+                      {option.label}
+                    </Badge>
+                  ))}
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Meal Preference</Label>
-                <div className="flex gap-2">
-                  <Badge className="px-3 py-1">Standard</Badge>
-                  <Badge variant="outline" className="px-3 py-1">Vegetarian</Badge>
+                <div className="flex gap-2 flex-wrap">
+                  {mealOptions.map((option) => (
+                    <Badge
+                      key={option.value}
+                      variant={preferences.mealPreference === option.value ? "default" : "outline"}
+                      className={cn(
+                        "px-3 py-1 cursor-pointer transition-all",
+                        preferences.mealPreference === option.value 
+                          ? "bg-primary text-primary-foreground" 
+                          : "hover:bg-secondary"
+                      )}
+                      onClick={() => updateMealPreference(option.value)}
+                    >
+                      {preferences.mealPreference === option.value && (
+                        <Check className="w-3 h-3 mr-1" />
+                      )}
+                      {option.label}
+                    </Badge>
+                  ))}
                 </div>
               </div>
             </div>
+            
             <Separator />
+
+            {/* Custom Preferences */}
+            <div className="space-y-2">
+              <Label>Custom Preferences</Label>
+              <div className="flex flex-wrap gap-2">
+                {preferences.customPreferences.length === 0 ? (
+                  <span className="text-sm text-muted-foreground">No custom preferences</span>
+                ) : (
+                  preferences.customPreferences.map((pref) => (
+                    <Badge key={pref} variant="outline" className="px-3 py-1 gap-1">
+                      {pref}
+                      <button
+                        onClick={() => removeCustomPreference(pref)}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))
+                )}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 px-2 text-xs"
+                  onClick={() => handleOpenAddPreference("custom")}
+                >
+                  + Add
+                </Button>
+              </div>
+            </div>
+            
+            <Separator />
+            
             <div className="space-y-2">
               <Label>Loyalty Programs</Label>
               <div className="grid md:grid-cols-3 gap-3">
@@ -481,7 +651,7 @@ export default function Settings() {
               <ToggleRow
                 label="Auto-match expenses to trips"
                 description="Automatically link expenses to associated trips"
-                defaultChecked={true}
+                checked={true}
               />
             </div>
 
@@ -493,13 +663,13 @@ export default function Settings() {
                 Notifications
               </h4>
               <div className="space-y-1">
-                <ToggleRow label="Trip updates" description="Booking confirmations and changes" defaultChecked={true} />
+                <ToggleRow label="Trip updates" description="Booking confirmations and changes" checked={true} />
                 <Separator />
-                <ToggleRow label="Flight disruptions" description="Delays, cancellations, and gate changes" defaultChecked={true} />
+                <ToggleRow label="Flight disruptions" description="Delays, cancellations, and gate changes" checked={true} />
                 <Separator />
-                <ToggleRow label="Expense approvals" description="When expenses are approved or rejected" defaultChecked={true} />
+                <ToggleRow label="Expense approvals" description="When expenses are approved or rejected" checked={true} />
                 <Separator />
-                <ToggleRow label="Weekly summary" description="Digest of your travel activity" defaultChecked={true} />
+                <ToggleRow label="Weekly summary" description="Digest of your travel activity" checked={true} />
               </div>
             </div>
           </SettingsSection>
@@ -517,14 +687,36 @@ export default function Settings() {
                   <p className="font-medium">Password</p>
                   <p className="text-sm text-muted-foreground">Last changed 30 days ago</p>
                 </div>
-                <Button variant="outline" className="rounded-xl">Change password</Button>
+                <Button 
+                  variant="outline" 
+                  className="rounded-xl"
+                  onClick={() => setChangePasswordOpen(true)}
+                >
+                  Change password
+                </Button>
               </div>
               <Separator />
-              <ToggleRow
-                label="Two-factor authentication"
-                description="Add an extra layer of security"
-                defaultChecked={true}
-              />
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <p className="font-medium text-sm">Two-factor authentication</p>
+                  <p className="text-xs text-muted-foreground">Add an extra layer of security</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {is2FAEnabled && (
+                    <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                      Enabled
+                    </Badge>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => setTwoFactorOpen(true)}
+                  >
+                    {is2FAEnabled ? "Manage" : "Enable"}
+                  </Button>
+                </div>
+              </div>
               <Separator />
               <div>
                 <p className="font-medium mb-3">Active Sessions</p>
@@ -630,11 +822,17 @@ export default function Settings() {
             isLoading={isLoading}
           >
             <div className="space-y-2">
-              <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-secondary/30 transition-colors">
+              <button 
+                onClick={() => navigate("/help")}
+                className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-secondary/30 transition-colors"
+              >
                 <span className="font-medium">Help Center</span>
-                <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
               </button>
-              <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-secondary/30 transition-colors">
+              <button 
+                onClick={() => setContactSupportOpen(true)}
+                className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-secondary/30 transition-colors"
+              >
                 <span className="font-medium">Contact Support</span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
               </button>
@@ -651,6 +849,32 @@ export default function Settings() {
           </SettingsSection>
         </div>
       </div>
+
+      {/* Modals */}
+      <ChangePasswordModal 
+        open={changePasswordOpen} 
+        onOpenChange={setChangePasswordOpen} 
+      />
+      
+      <TwoFactorSetupModal 
+        open={twoFactorOpen} 
+        onOpenChange={setTwoFactorOpen}
+        isEnabled={is2FAEnabled}
+        onToggle={setIs2FAEnabled}
+      />
+      
+      <AddPreferenceModal
+        open={addPreferenceOpen}
+        onOpenChange={setAddPreferenceOpen}
+        type={addPreferenceType}
+        onAdd={handleAddPreference}
+        isLoading={prefsSaving}
+      />
+      
+      <ContactSupportModal
+        open={contactSupportOpen}
+        onOpenChange={setContactSupportOpen}
+      />
     </motion.div>
   );
 }
