@@ -1,12 +1,14 @@
 import { createPortal } from "react-dom";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plane, Hotel, Car, DollarSign, Check, Loader2, MapPin, Calendar, ChevronRight, Sparkles, RefreshCw } from "lucide-react";
+import { X, Plane, Hotel, Car, DollarSign, Check, Loader2, MapPin, Calendar, ChevronRight, Sparkles, RefreshCw, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { CalendarEvent } from "@/services/mockCalendarService";
+import { FlightChooserDrawer } from "@/components/trips/FlightChooserDrawer";
+import { HotelChooserDrawer } from "@/components/trips/HotelChooserDrawer";
 
 interface TripPlanningModalProps {
   open: boolean;
@@ -196,6 +198,8 @@ export function TripPlanningModal({
   const [selectedGround, setSelectedGround] = useState<GroundOption | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [refineSection, setRefineSection] = useState<"flights" | "hotels" | "ground" | null>(null);
+  const [flightDrawerOpen, setFlightDrawerOpen] = useState(false);
+  const [hotelDrawerOpen, setHotelDrawerOpen] = useState(false);
 
   const estimatedTotal = (selectedFlight?.price || 0) + (selectedHotel?.totalPrice || 0) + (selectedGround?.price || 0);
 
@@ -236,6 +240,8 @@ export function TripPlanningModal({
       setSelectedGround(null);
       setIsRefining(false);
       setRefineSection(null);
+      setFlightDrawerOpen(false);
+      setHotelDrawerOpen(false);
       
       // Start planning sequence
       runPlanningSequence();
@@ -421,7 +427,10 @@ export function TripPlanningModal({
                 <div className="space-y-4">
                   {/* Flight */}
                   {selectedFlight && (
-                    <div className="p-4 rounded-xl bg-card border border-border/60">
+                    <button
+                      onClick={() => setFlightDrawerOpen(true)}
+                      className="w-full p-4 rounded-xl bg-card border border-border/60 text-left transition-all hover:border-primary/30 hover:shadow-md group"
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3">
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -432,6 +441,9 @@ export function TripPlanningModal({
                             <p className="text-sm text-muted-foreground">
                               {selectedFlight.departTime} → {selectedFlight.arriveTime} • {selectedFlight.duration}
                             </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {selectedFlight.stops === 0 ? "Nonstop" : `${selectedFlight.stops} stop${selectedFlight.stops > 1 ? 's' : ''}`}
+                            </p>
                             <div className="flex gap-1.5 mt-2">
                               {selectedFlight.tags.map((tag) => (
                                 <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
@@ -441,20 +453,20 @@ export function TripPlanningModal({
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-semibold">${selectedFlight.price}</p>
-                          <button 
-                            onClick={() => { setIsRefining(true); setRefineSection("flights"); }}
-                            className="text-xs text-primary hover:underline mt-1"
-                          >
+                          <span className="text-xs text-primary group-hover:underline mt-1 inline-block">
                             Change
-                          </button>
+                          </span>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   )}
 
                   {/* Hotel */}
                   {selectedHotel && !isSameDayTrip && (
-                    <div className="p-4 rounded-xl bg-card border border-border/60">
+                    <button
+                      onClick={() => setHotelDrawerOpen(true)}
+                      className="w-full p-4 rounded-xl bg-card border border-border/60 text-left transition-all hover:border-primary/30 hover:shadow-md group"
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3">
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -463,8 +475,12 @@ export function TripPlanningModal({
                           <div>
                             <p className="font-medium text-foreground">{selectedHotel.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {selectedHotel.area} • {selectedHotel.distanceToVenue} to venue • ⭐ {selectedHotel.rating}
+                              {selectedHotel.area} • {selectedHotel.distanceToVenue} to venue
                             </p>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                              <span className="text-xs text-muted-foreground">{selectedHotel.rating}</span>
+                            </div>
                             <p className="text-xs text-muted-foreground mt-1">
                               ${selectedHotel.pricePerNight}/night × {nights} night{nights !== 1 ? 's' : ''} = ${selectedHotel.totalPrice}
                             </p>
@@ -477,15 +493,12 @@ export function TripPlanningModal({
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-semibold">${selectedHotel.totalPrice}</p>
-                          <button 
-                            onClick={() => { setIsRefining(true); setRefineSection("hotels"); }}
-                            className="text-xs text-primary hover:underline mt-1"
-                          >
+                          <span className="text-xs text-primary group-hover:underline mt-1 inline-block">
                             Change
-                          </button>
+                          </span>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   )}
                   
                   {/* Same-day trip - no hotel needed */}
@@ -720,5 +733,28 @@ export function TripPlanningModal({
     document.body
   );
 
-  return content;
+  return (
+    <>
+      {content}
+      
+      {/* Flight Chooser Drawer */}
+      <FlightChooserDrawer
+        open={flightDrawerOpen}
+        onOpenChange={setFlightDrawerOpen}
+        flights={flightOptions}
+        selectedFlight={selectedFlight}
+        onSelect={setSelectedFlight}
+      />
+      
+      {/* Hotel Chooser Drawer */}
+      <HotelChooserDrawer
+        open={hotelDrawerOpen}
+        onOpenChange={setHotelDrawerOpen}
+        hotels={hotelOptions}
+        selectedHotel={selectedHotel}
+        onSelect={setSelectedHotel}
+        nights={nights}
+      />
+    </>
+  );
 }
