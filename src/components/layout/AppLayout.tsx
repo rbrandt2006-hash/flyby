@@ -1,20 +1,11 @@
-import { ReactNode, useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ReactNode, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { LogOut, ChevronDown } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import IntroAnimation, { hasIntroPlayed, prefersReducedMotion } from "@/components/home/IntroAnimation";
 import { GlobalSearchDropdown } from "./GlobalSearchDropdown";
 import { NotificationDropdown } from "./NotificationDropdown";
+import { ProfileDropdown } from "./ProfileDropdown";
 
 const navItems = [
   { label: "Home", path: "/" },
@@ -26,9 +17,7 @@ const navItems = [
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const { user, signOut } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
 
   // Intro animation state - only show on initial app load
   const [showIntro, setShowIntro] = useState(() => {
@@ -39,11 +28,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return true;
     return hasIntroPlayed() || prefersReducedMotion();
   });
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
-  };
 
   const handleIntroComplete = () => {
     setShowIntro(false);
@@ -120,39 +104,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <NotificationDropdown />
 
                 {/* User Avatar Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      className="flex items-center gap-2 p-1 pr-2 rounded-full hover:bg-secondary/50 transition-colors duration-200"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
-                        {user?.email?.charAt(0).toUpperCase()}
-                      </div>
-                      <ChevronDown className="w-3 h-3 text-muted-foreground hidden sm:block" />
-                    </motion.button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <div className="px-3 py-2">
-                      <p className="text-sm font-medium">{user?.user_metadata?.full_name || "User"}</p>
-                      <p className="text-xs text-muted-foreground">{user?.email}</p>
-                    </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link to="/settings" className="cursor-pointer">
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={handleSignOut}
-                      className="text-destructive focus:text-destructive cursor-pointer"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <ProfileDropdown />
               </div>
             </div>
           </div>
