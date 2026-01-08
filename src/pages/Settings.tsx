@@ -18,6 +18,7 @@ import { ChangePasswordModal } from "@/components/settings/ChangePasswordModal";
 import { TwoFactorSetupModal } from "@/components/settings/TwoFactorSetupModal";
 import { AddPreferenceModal } from "@/components/settings/AddPreferenceModal";
 import { ContactSupportModal } from "@/components/settings/ContactSupportModal";
+import { ProductTourModal } from "@/components/settings/ProductTourModal";
 import {
   User,
   Building2,
@@ -198,6 +199,7 @@ export default function Settings() {
   const [addPreferenceOpen, setAddPreferenceOpen] = useState(false);
   const [addPreferenceType, setAddPreferenceType] = useState<"airline" | "hotel" | "custom">("airline");
   const [contactSupportOpen, setContactSupportOpen] = useState(false);
+  const [productTourOpen, setProductTourOpen] = useState(false);
 
   // 2FA state
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
@@ -836,7 +838,10 @@ export default function Settings() {
                 <span className="font-medium">Contact Support</span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
               </button>
-              <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-secondary/30 transition-colors">
+              <button 
+                onClick={() => setProductTourOpen(true)}
+                className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-secondary/30 transition-colors"
+              >
                 <span className="font-medium">Take Product Tour</span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
               </button>
@@ -874,6 +879,11 @@ export default function Settings() {
       <ContactSupportModal
         open={contactSupportOpen}
         onOpenChange={setContactSupportOpen}
+      />
+      
+      <ProductTourModal
+        open={productTourOpen}
+        onOpenChange={setProductTourOpen}
       />
     </motion.div>
   );
