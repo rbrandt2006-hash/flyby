@@ -7,13 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, AlertCircle } from "lucide-react";
-import flybyLogo from "@/assets/flyby-logo.png";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { TwoFactorVerifyStep } from "@/components/auth/TwoFactorVerifyStep";
+
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   fullName: z.string().min(2, "Name must be at least 2 characters").optional()
 });
+
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
@@ -21,25 +24,20 @@ export default function Auth() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const {
-    signIn,
-    signUp
-  } = useAuth();
+  
+  // 2FA state
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [twoFactorPhone, setTwoFactorPhone] = useState("");
+  const [twoFactorMaskedPhone, setTwoFactorMaskedPhone] = useState("");
+  
+  const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     try {
-      const data = isLogin ? {
-        email,
-        password
-      } : {
-        email,
-        password,
-        fullName
-      };
+      const data = isLogin ? { email, password } : { email, password, fullName };
       authSchema.parse(data);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -53,15 +51,42 @@ export default function Auth() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
     setLoading(true);
+
     try {
       if (isLogin) {
-        const {
-          error
-        } = await signIn(email, password);
+        // Check if 2FA is required before completing login
+        const { data: check2FA } = await supabase.functions.invoke("2fa-check-required", {
+          body: { email }
+        });
+
+        if (check2FA?.requires2FA && check2FA?.phone) {
+          // First verify password is correct
+          const { error } = await signIn(email, password);
+          if (error) {
+            toast({
+              title: "Sign in failed",
+              description: error.message,
+              variant: "destructive"
+            });
+            setLoading(false);
+            return;
+          }
+          
+          // Password correct, now require 2FA
+          setTwoFactorPhone(check2FA.phone);
+          setTwoFactorMaskedPhone(check2FA.maskedPhone);
+          setRequires2FA(true);
+          setLoading(false);
+          return;
+        }
+
+        // No 2FA required, proceed with normal login
+        const { error } = await signIn(email, password);
         if (error) {
           toast({
             title: "Sign in failed",
@@ -76,9 +101,7 @@ export default function Auth() {
           navigate("/");
         }
       } else {
-        const {
-          error
-        } = await signUp(email, password, fullName);
+        const { error } = await signUp(email, password, fullName);
         if (error) {
           toast({
             title: "Sign up failed",
@@ -97,9 +120,45 @@ export default function Auth() {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
+
+  const handle2FAVerified = () => {
+    toast({
+      title: "Welcome back!",
+      description: "You've signed in successfully."
+    });
+    navigate("/");
+  };
+
+  const handle2FACancel = async () => {
+    // Sign out since password was already verified
+    await supabase.auth.signOut();
+    setRequires2FA(false);
+    setTwoFactorPhone("");
+    setTwoFactorMaskedPhone("");
+  };
+
+  // Show 2FA verification step
+  if (requires2FA) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
+        <div className="w-full max-w-md animate-fade-in">
+          <div className="flex items-center justify-center mb-8">
+            <img alt="flyby" className="h-10 mix-blend-multiply" src="/lovable-uploads/961e595a-2d00-479f-b364-022c8127f18a.png" />
+          </div>
+          <TwoFactorVerifyStep
+            phone={twoFactorPhone}
+            maskedPhone={twoFactorMaskedPhone}
+            onVerified={handle2FAVerified}
+            onCancel={handle2FACancel}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
-        {/* Logo */}
         <div className="flex items-center justify-center mb-8">
           <img alt="flyby" className="h-10 mix-blend-multiply" src="/lovable-uploads/961e595a-2d00-479f-b364-022c8127f18a.png" />
         </div>
@@ -116,59 +175,72 @@ export default function Auth() {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && <div className="space-y-2">
+              {!isLogin && (
+                <div className="space-y-2">
                   <Label htmlFor="fullName">Full name</Label>
                   <Input id="fullName" type="text" placeholder="Alex Johnson" value={fullName} onChange={e => setFullName(e.target.value)} disabled={loading} />
-                  {errors.fullName && <p className="text-sm text-destructive flex items-center gap-1">
+                  {errors.fullName && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
                       <AlertCircle className="w-4 h-4" />
                       {errors.fullName}
-                    </p>}
-                </div>}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email address</Label>
                 <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} disabled={loading} />
-                {errors.email && <p className="text-sm text-destructive flex items-center gap-1">
+                {errors.email && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
                     {errors.email}
-                  </p>}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
                   {isLogin && (
-                    <Link 
-                      to="/forgot-password" 
-                      className="text-sm text-primary hover:underline"
-                    >
+                    <Link to="/forgot-password" className="text-sm text-primary hover:underline">
                       Forgot password?
                     </Link>
                   )}
                 </div>
                 <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} disabled={loading} />
-                {errors.password && <p className="text-sm text-destructive flex items-center gap-1">
+                {errors.password && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
                     {errors.password}
-                  </p>}
+                  </p>
+                )}
               </div>
 
               <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                {loading ? <span className="flex items-center gap-2">
+                {loading ? (
+                  <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                     {isLogin ? "Signing in..." : "Creating account..."}
-                  </span> : <span className="flex items-center gap-2">
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
                     {isLogin ? "Sign in" : "Create account"}
                     <ArrowRight className="w-4 h-4" />
-                  </span>}
+                  </span>
+                )}
               </Button>
             </form>
 
             <div className="mt-6 text-center">
-              <button type="button" onClick={() => {
-              setIsLogin(!isLogin);
-              setErrors({});
-            }} className="text-sm transition-colors text-primary">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setErrors({});
+                }}
+                className="text-sm transition-colors text-primary"
+              >
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>
             </div>
@@ -179,5 +251,6 @@ export default function Auth() {
           By continuing, you agree to Flyby's Terms of Service and Privacy Policy
         </p>
       </div>
-    </div>;
+    </div>
+  );
 }
