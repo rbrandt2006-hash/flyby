@@ -227,6 +227,33 @@ export type Database = {
           },
         ]
       }
+      pending_2fa_verifications: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          phone_number: string
+          session_token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone_number: string
+          session_token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone_number?: string
+          session_token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -237,6 +264,9 @@ export type Database = {
           id: string
           job_title: string | null
           phone: string | null
+          two_factor_enabled: boolean | null
+          two_factor_phone: string | null
+          two_factor_verified_at: string | null
           updated_at: string
           user_id: string
         }
@@ -249,6 +279,9 @@ export type Database = {
           id?: string
           job_title?: string | null
           phone?: string | null
+          two_factor_enabled?: boolean | null
+          two_factor_phone?: string | null
+          two_factor_verified_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -261,6 +294,9 @@ export type Database = {
           id?: string
           job_title?: string | null
           phone?: string | null
+          two_factor_enabled?: boolean | null
+          two_factor_phone?: string | null
+          two_factor_verified_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -427,6 +463,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      two_factor_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          error_message: string | null
+          id: string
+          ip_address: string | null
+          phone_number_masked: string | null
+          success: boolean
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          phone_number_masked?: string | null
+          success: boolean
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          phone_number_masked?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

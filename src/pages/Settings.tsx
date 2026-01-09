@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { ChangePasswordModal } from "@/components/settings/ChangePasswordModal";
 import { TwoFactorSetupModal } from "@/components/settings/TwoFactorSetupModal";
 import { AddPreferenceModal } from "@/components/settings/AddPreferenceModal";
+import { useTwoFactorAuth } from "@/hooks/useTwoFactorAuth";
 import { ContactSupportModal } from "@/components/settings/ContactSupportModal";
 import { ProductTourModal } from "@/components/settings/ProductTourModal";
 import {
@@ -201,8 +202,8 @@ export default function Settings() {
   const [contactSupportOpen, setContactSupportOpen] = useState(false);
   const [productTourOpen, setProductTourOpen] = useState(false);
 
-  // 2FA state
-  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+  // 2FA state - now using real hook
+  const { enabled: is2FAEnabled, maskedPhone: twoFactorMaskedPhone, isLoading: is2FALoading, updateStatus: update2FAStatus } = useTwoFactorAuth();
 
   // Travel preferences
   const {
@@ -700,20 +701,28 @@ export default function Settings() {
               <Separator />
               <div className="flex items-center justify-between py-2">
                 <div>
-                  <p className="font-medium text-sm">Two-factor authentication</p>
-                  <p className="text-xs text-muted-foreground">Add an extra layer of security</p>
+                  <p className="font-medium text-sm">Two-Step Verification (SMS)</p>
+                  <p className="text-xs text-muted-foreground">
+                    {is2FAEnabled && twoFactorMaskedPhone 
+                      ? `Protected with ${twoFactorMaskedPhone}` 
+                      : "Add an extra layer of security via SMS"
+                    }
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  {is2FAEnabled && (
+                  {is2FALoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  ) : is2FAEnabled ? (
                     <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                      Enabled
+                      Verified
                     </Badge>
-                  )}
+                  ) : null}
                   <Button
                     variant="outline"
                     size="sm"
                     className="rounded-xl"
                     onClick={() => setTwoFactorOpen(true)}
+                    disabled={is2FALoading}
                   >
                     {is2FAEnabled ? "Manage" : "Enable"}
                   </Button>
@@ -865,7 +874,8 @@ export default function Settings() {
         open={twoFactorOpen} 
         onOpenChange={setTwoFactorOpen}
         isEnabled={is2FAEnabled}
-        onToggle={setIs2FAEnabled}
+        maskedPhone={twoFactorMaskedPhone}
+        onStatusChange={update2FAStatus}
       />
       
       <AddPreferenceModal

@@ -1,25 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Phone, Shield, CheckCircle2 } from "lucide-react";
+import { Loader2, Phone, Shield, CheckCircle2, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TwoFactorSetupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isEnabled: boolean;
-  onToggle: (enabled: boolean) => void;
+  maskedPhone?: string | null;
+  onStatusChange: (enabled: boolean, maskedPhone: string | null) => void;
 }
 
 type Step = "phone" | "verify" | "success" | "disable";
 
-export function TwoFactorSetupModal({ open, onOpenChange, isEnabled, onToggle }: TwoFactorSetupModalProps) {
+export function TwoFactorSetupModal({ 
+  open, 
+  onOpenChange, 
+  isEnabled, 
+  maskedPhone,
+  onStatusChange 
+}: TwoFactorSetupModalProps) {
   const [step, setStep] = useState<Step>(isEnabled ? "disable" : "phone");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [resendDisabled, setResendDisabled] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Reset state when modal opens
   const handleOpenChange = (newOpen: boolean) => {
@@ -27,31 +39,64 @@ export function TwoFactorSetupModal({ open, onOpenChange, isEnabled, onToggle }:
       setStep(isEnabled ? "disable" : "phone");
       setPhoneNumber("");
       setVerificationCode("");
+      setErrorMessage(null);
+      setResendDisabled(false);
+      setResendCountdown(0);
     }
     onOpenChange(newOpen);
   };
 
-  // Validate phone number format
-  const isValidPhone = /^\+?[1-9]\d{9,14}$/.test(phoneNumber.replace(/[\s\-\(\)]/g, ""));
+  // Countdown timer for resend
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (resendCountdown === 0 && resendDisabled) {
+      setResendDisabled(false);
+    }
+  }, [resendCountdown, resendDisabled]);
 
-  const handleSendCode = async () => {
+  // Validate phone number format (E.164)
+  const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, "");
+  const isValidPhone = /^\+[1-9]\d{6,14}$/.test(cleanPhone);
+
+  const handleSendCode = useCallback(async () => {
     if (!isValidPhone) {
-      toast.error("Please enter a valid phone number");
+      toast.error("Please enter a valid phone number in E.164 format (e.g., +17135551234)");
       return;
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
+
     try {
-      // Simulate sending SMS code (in production, this would call your backend)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const { data, error } = await supabase.functions.invoke("2fa-send-sms", {
+        body: { phone: cleanPhone },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Failed to send verification code");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
       toast.success("Verification code sent to your phone");
       setStep("verify");
-    } catch (error) {
-      toast.error("Failed to send verification code");
+      
+      // Start resend countdown
+      setResendDisabled(true);
+      setResendCountdown(30);
+    } catch (error: any) {
+      console.error("Send SMS error:", error);
+      const message = error.message || "Failed to send verification code";
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [cleanPhone, isValidPhone]);
 
   const handleVerifyCode = async () => {
     if (verificationCode.length !== 6) {
@@ -60,34 +105,68 @@ export function TwoFactorSetupModal({ open, onOpenChange, isEnabled, onToggle }:
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
+
     try {
-      // Simulate verifying code (in production, this would call your backend)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // For demo, accept code "123456"
-      if (verificationCode === "123456") {
-        setStep("success");
-        onToggle(true);
-      } else {
-        toast.error("Invalid verification code. Try 123456 for demo.");
+      const { data, error } = await supabase.functions.invoke("2fa-verify-sms", {
+        body: { 
+          phone: cleanPhone, 
+          code: verificationCode,
+          enableAfterVerify: true 
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Failed to verify code");
       }
-    } catch (error) {
-      toast.error("Failed to verify code");
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      setStep("success");
+      onStatusChange(true, data.maskedPhone || null);
+      toast.success("Two-factor authentication enabled successfully!");
+    } catch (error: any) {
+      console.error("Verify code error:", error);
+      const message = error.message || "Failed to verify code";
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleResendCode = async () => {
+    if (resendDisabled) return;
+    await handleSendCode();
+  };
+
   const handleDisable2FA = async () => {
     setIsLoading(true);
+    setErrorMessage(null);
+
     try {
-      // Simulate disabling 2FA (in production, this would call your backend)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      onToggle(false);
+      const { data, error } = await supabase.functions.invoke("2fa-disable", {
+        body: {},
+      });
+
+      if (error) {
+        throw new Error(error.message || "Failed to disable 2FA");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      onStatusChange(false, null);
       toast.success("Two-factor authentication disabled");
       onOpenChange(false);
-    } catch (error) {
-      toast.error("Failed to disable 2FA");
+    } catch (error: any) {
+      console.error("Disable 2FA error:", error);
+      const message = error.message || "Failed to disable 2FA";
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -101,10 +180,10 @@ export function TwoFactorSetupModal({ open, onOpenChange, isEnabled, onToggle }:
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-primary" />
-                Enable Two-Factor Authentication
+                Enable Two-Step Verification
               </DialogTitle>
               <DialogDescription>
-                Add an extra layer of security to your account by verifying your phone number.
+                Add an extra layer of security by verifying your phone via SMS.
               </DialogDescription>
             </DialogHeader>
             
@@ -116,16 +195,26 @@ export function TwoFactorSetupModal({ open, onOpenChange, isEnabled, onToggle }:
                     id="phone"
                     type="tel"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onChange={(e) => {
+                      setPhoneNumber(e.target.value);
+                      setErrorMessage(null);
+                    }}
                     className="h-11 rounded-xl pl-10"
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="+17135551234"
                   />
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  We'll send a verification code to this number
+                  Enter your phone in E.164 format (e.g., +1 for US)
                 </p>
               </div>
+
+              {errorMessage && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                  <p className="text-sm text-destructive">{errorMessage}</p>
+                </div>
+              )}
 
               <div className="flex gap-3 pt-2">
                 <Button
@@ -172,14 +261,34 @@ export function TwoFactorSetupModal({ open, onOpenChange, isEnabled, onToggle }:
                   id="code"
                   type="text"
                   value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={(e) => {
+                    setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                    setErrorMessage(null);
+                  }}
                   className="h-11 rounded-xl text-center text-2xl tracking-widest font-mono"
                   placeholder="000000"
                   maxLength={6}
+                  autoComplete="one-time-code"
                 />
-                <p className="text-xs text-muted-foreground text-center">
-                  For demo purposes, enter 123456
-                </p>
+              </div>
+
+              {errorMessage && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                  <p className="text-sm text-destructive">{errorMessage}</p>
+                </div>
+              )}
+
+              <div className="text-center">
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={handleResendCode}
+                  disabled={resendDisabled || isLoading}
+                  className="text-sm"
+                >
+                  {resendDisabled ? `Resend code in ${resendCountdown}s` : "Resend code"}
+                </Button>
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -223,7 +332,7 @@ export function TwoFactorSetupModal({ open, onOpenChange, isEnabled, onToggle }:
             <div className="space-y-4 mt-4">
               <div className="p-4 bg-success/10 border border-success/20 rounded-xl">
                 <p className="text-sm">
-                  Your account is now protected with two-factor authentication.
+                  Your account is now protected with two-step verification.
                   You'll receive a verification code via SMS when signing in from a new device.
                 </p>
               </div>
@@ -241,19 +350,33 @@ export function TwoFactorSetupModal({ open, onOpenChange, isEnabled, onToggle }:
         {step === "disable" && (
           <>
             <DialogHeader>
-              <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
+              <DialogTitle>Disable Two-Step Verification</DialogTitle>
               <DialogDescription>
                 Are you sure you want to disable 2FA? This will make your account less secure.
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4 mt-4">
+              {maskedPhone && (
+                <div className="p-3 bg-secondary/50 rounded-xl">
+                  <p className="text-sm text-muted-foreground">Current phone:</p>
+                  <p className="font-medium">{maskedPhone}</p>
+                </div>
+              )}
+
               <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
                 <p className="text-sm text-destructive">
                   Without 2FA, your account will only be protected by your password.
                   We recommend keeping 2FA enabled for maximum security.
                 </p>
               </div>
+
+              {errorMessage && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                  <p className="text-sm text-destructive">{errorMessage}</p>
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <Button
