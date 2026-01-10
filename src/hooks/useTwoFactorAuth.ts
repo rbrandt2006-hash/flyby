@@ -33,7 +33,7 @@ export function useTwoFactorAuth() {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke("2fa-status", {
+      const { data, error } = await supabase.functions.invoke("twofa-status", {
         body: {},
       });
 
