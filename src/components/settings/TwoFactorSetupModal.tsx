@@ -70,7 +70,7 @@ export function TwoFactorSetupModal({
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("2fa-send-sms", {
+      const { data, error } = await supabase.functions.invoke("twofa-send-sms", {
         body: { phone: cleanPhone },
       });
 
@@ -108,7 +108,7 @@ export function TwoFactorSetupModal({
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("2fa-verify-sms", {
+      const { data, error } = await supabase.functions.invoke("twofa-verify-sms", {
         body: { 
           phone: cleanPhone, 
           code: verificationCode,
@@ -147,7 +147,7 @@ export function TwoFactorSetupModal({
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("2fa-disable", {
+      const { data, error } = await supabase.functions.invoke("twofa-disable", {
         body: {},
       });
 

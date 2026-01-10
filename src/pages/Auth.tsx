@@ -60,7 +60,7 @@ export default function Auth() {
     try {
       if (isLogin) {
         // Check if 2FA is required before completing login
-        const { data: check2FA } = await supabase.functions.invoke("2fa-check-required", {
+        const { data: check2FA } = await supabase.functions.invoke("twofa-check-required", {
           body: { email }
         });
 

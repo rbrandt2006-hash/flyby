@@ -44,7 +44,7 @@ export function TwoFactorVerifyStep({
     setError(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("2fa-send-sms", {
+      const { data, error } = await supabase.functions.invoke("twofa-send-sms", {
         body: { phone },
       });
 
@@ -71,7 +71,7 @@ export function TwoFactorVerifyStep({
     setError(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("2fa-verify-sms", {
+      const { data, error } = await supabase.functions.invoke("twofa-verify-sms", {
         body: { 
           phone, 
           code,
