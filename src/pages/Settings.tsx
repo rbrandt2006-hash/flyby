@@ -12,6 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTravelPreferences } from "@/hooks/useTravelPreferences";
+import { useNotificationSettings } from "@/hooks/useNotificationSettings";
+import { FunctionalToggle } from "@/components/settings/FunctionalToggle";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ChangePasswordModal } from "@/components/settings/ChangePasswordModal";
@@ -130,25 +132,7 @@ function SettingsSection({ id, icon: Icon, title, description, children, isLoadi
   );
 }
 
-interface ToggleRowProps {
-  label: string;
-  description?: string;
-  checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
-  disabled?: boolean;
-}
-
-function ToggleRow({ label, description, checked = false, onCheckedChange, disabled = false }: ToggleRowProps) {
-  return (
-    <div className="flex items-center justify-between py-2">
-      <div>
-        <p className="font-medium text-sm">{label}</p>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
-      </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
-    </div>
-  );
-}
+// ToggleRow removed - now using FunctionalToggle component
 
 // Seat options
 const seatOptions = [
@@ -219,6 +203,18 @@ export default function Settings() {
     addCustomPreference,
     removeCustomPreference,
   } = useTravelPreferences();
+
+  // Notification settings
+  const {
+    settings: notificationSettings,
+    isLoading: notifLoading,
+    isSaving: notifSaving,
+    toggleTripUpdates,
+    toggleFlightDisruptions,
+    toggleExpenseApprovals,
+    toggleWeeklySummary,
+    toggleAutoMatchExpenses,
+  } = useNotificationSettings();
   
   const userName = user?.user_metadata?.full_name || "User";
   const userEmail = user?.email || "user@company.com";
@@ -651,10 +647,14 @@ export default function Settings() {
                 </div>
                 <Badge variant="secondary" className="bg-success/10 text-success border-success/20">Connected</Badge>
               </div>
-              <ToggleRow
+              <FunctionalToggle
+                id="auto-match-expenses"
                 label="Auto-match expenses to trips"
                 description="Automatically link expenses to associated trips"
-                checked={true}
+                checked={notificationSettings.autoMatchExpenses}
+                onCheckedChange={toggleAutoMatchExpenses}
+                isSaving={notifSaving}
+                isLoading={notifLoading}
               />
             </div>
 
@@ -666,13 +666,45 @@ export default function Settings() {
                 Notifications
               </h4>
               <div className="space-y-1">
-                <ToggleRow label="Trip updates" description="Booking confirmations and changes" checked={true} />
+                <FunctionalToggle
+                  id="notify-trip-updates"
+                  label="Trip updates"
+                  description="Booking confirmations and changes"
+                  checked={notificationSettings.notifyTripUpdates}
+                  onCheckedChange={toggleTripUpdates}
+                  isSaving={notifSaving}
+                  isLoading={notifLoading}
+                />
                 <Separator />
-                <ToggleRow label="Flight disruptions" description="Delays, cancellations, and gate changes" checked={true} />
+                <FunctionalToggle
+                  id="notify-flight-disruptions"
+                  label="Flight disruptions"
+                  description="Delays, cancellations, and gate changes"
+                  checked={notificationSettings.notifyFlightDisruptions}
+                  onCheckedChange={toggleFlightDisruptions}
+                  isSaving={notifSaving}
+                  isLoading={notifLoading}
+                />
                 <Separator />
-                <ToggleRow label="Expense approvals" description="When expenses are approved or rejected" checked={true} />
+                <FunctionalToggle
+                  id="notify-expense-approvals"
+                  label="Expense approvals"
+                  description="When expenses are approved or rejected"
+                  checked={notificationSettings.notifyExpenseApprovals}
+                  onCheckedChange={toggleExpenseApprovals}
+                  isSaving={notifSaving}
+                  isLoading={notifLoading}
+                />
                 <Separator />
-                <ToggleRow label="Weekly summary" description="Digest of your travel activity" checked={true} />
+                <FunctionalToggle
+                  id="notify-weekly-summary"
+                  label="Weekly summary"
+                  description="Digest of your travel activity"
+                  checked={notificationSettings.notifyWeeklySummary}
+                  onCheckedChange={toggleWeeklySummary}
+                  isSaving={notifSaving}
+                  isLoading={notifLoading}
+                />
               </div>
             </div>
           </SettingsSection>
