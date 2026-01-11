@@ -108,7 +108,7 @@ serve(async (req) => {
 
     if (!twilioResponse.ok) {
       console.error("Twilio error:", twilioResult);
-      
+
       // Log failed attempt
       await supabaseClient.from("two_factor_audit_log").insert({
         user_id: user.id,
@@ -120,17 +120,39 @@ serve(async (req) => {
         error_message: twilioResult.message || "Failed to send SMS",
       });
 
-      // Handle specific Twilio errors
+      // NOTE: Lovable preview treats non-2xx responses as runtime errors.
+      // For expected verification failures, return 200 with a structured error payload
+      // so the frontend can render the message without a blank screen.
       if (twilioResult.code === 60203) {
         return new Response(
-          JSON.stringify({ error: "Too many attempts. Please wait before trying again." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({
+            success: false,
+            error: "Too many attempts. Please wait before trying again.",
+            code: 60203,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (twilioResult.code === 21608) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error:
+              "This phone number can’t receive SMS from your current provider account (trial accounts can only send to verified numbers). Verify the number with your SMS provider or upgrade your account.",
+            code: 21608,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       return new Response(
-        JSON.stringify({ error: twilioResult.message || "Failed to send verification code" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          success: false,
+          error: twilioResult.message || "Failed to send verification code",
+          code: twilioResult.code,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
