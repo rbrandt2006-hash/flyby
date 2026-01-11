@@ -256,6 +256,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          auto_match_expenses: boolean
           avatar_url: string | null
           company_id: string | null
           created_at: string
@@ -263,6 +264,10 @@ export type Database = {
           full_name: string | null
           id: string
           job_title: string | null
+          notify_expense_approvals: boolean
+          notify_flight_disruptions: boolean
+          notify_trip_updates: boolean
+          notify_weekly_summary: boolean
           phone: string | null
           two_factor_enabled: boolean | null
           two_factor_phone: string | null
@@ -271,6 +276,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_match_expenses?: boolean
           avatar_url?: string | null
           company_id?: string | null
           created_at?: string
@@ -278,6 +284,10 @@ export type Database = {
           full_name?: string | null
           id?: string
           job_title?: string | null
+          notify_expense_approvals?: boolean
+          notify_flight_disruptions?: boolean
+          notify_trip_updates?: boolean
+          notify_weekly_summary?: boolean
           phone?: string | null
           two_factor_enabled?: boolean | null
           two_factor_phone?: string | null
@@ -286,6 +296,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auto_match_expenses?: boolean
           avatar_url?: string | null
           company_id?: string | null
           created_at?: string
@@ -293,6 +304,10 @@ export type Database = {
           full_name?: string | null
           id?: string
           job_title?: string | null
+          notify_expense_approvals?: boolean
+          notify_flight_disruptions?: boolean
+          notify_trip_updates?: boolean
+          notify_weekly_summary?: boolean
           phone?: string | null
           two_factor_enabled?: boolean | null
           two_factor_phone?: string | null
