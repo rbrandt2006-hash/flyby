@@ -21,6 +21,7 @@ import { TwoFactorSetupModal } from "@/components/settings/TwoFactorSetupModal";
 import { AddPreferenceModal } from "@/components/settings/AddPreferenceModal";
 import { useTwoFactorAuth } from "@/hooks/useTwoFactorAuth";
 import { ContactSupportModal } from "@/components/settings/ContactSupportModal";
+import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
 import { ProductTourModal } from "@/components/settings/ProductTourModal";
 import {
   User,
@@ -407,13 +408,7 @@ export default function Settings() {
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Time zone</Label>
-                  <div className="relative">
-                    <Input id="timezone" defaultValue="America/New_York (EST)" className="h-11 rounded-xl pl-10" disabled />
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  </div>
-                </div>
+                <TimezoneSelector />
               </div>
             </div>
 
