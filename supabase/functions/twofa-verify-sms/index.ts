@@ -39,14 +39,9 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Create auth client to validate user JWT
-    const supabaseAuth = createClient(
-      supabaseUrl,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    // Validate user JWT by passing token directly
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError || !user) {
       console.error("User validation failed:", userError);
       return new Response(
