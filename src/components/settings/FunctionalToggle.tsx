@@ -1,6 +1,5 @@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FunctionalToggleProps {
@@ -42,10 +41,7 @@ export function FunctionalToggle({
           <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
         )}
       </div>
-      <div className="relative flex items-center">
-        {isSaving && (
-          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
-        )}
+      <div className="flex items-center">
         <Switch
           id={id}
           checked={checked}
