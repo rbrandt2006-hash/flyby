@@ -23,6 +23,7 @@ import { useTwoFactorAuth } from "@/hooks/useTwoFactorAuth";
 import { ContactSupportModal } from "@/components/settings/ContactSupportModal";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
 import { ProductTourModal } from "@/components/settings/ProductTourModal";
+import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
 import {
   User,
   Building2,
@@ -151,24 +152,7 @@ const mealOptions = [
   { value: "halal", label: "Halal" },
 ] as const;
 
-// Integration data
-interface Integration {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  color: string;
-  connected: boolean;
-  email?: string;
-  lastSync?: string;
-}
-
-const integrations: Integration[] = [
-  { id: "google-calendar", name: "Google Calendar", description: "Sync travel events", icon: "📅", color: "bg-red-500/10", connected: true, email: "john@acme.com", lastSync: "2 minutes ago" },
-  { id: "outlook", name: "Outlook", description: "Email and calendar sync", icon: "📧", color: "bg-blue-500/10", connected: false },
-  { id: "slack", name: "Slack", description: "Get notifications in Slack", icon: "💬", color: "bg-purple-500/10", connected: true, email: "acme-workspace", lastSync: "5 minutes ago" },
-  { id: "teams", name: "Microsoft Teams", description: "Team collaboration", icon: "👥", color: "bg-violet-500/10", connected: false },
-];
+// Integration data removed - now using IntegrationsSettings component
 
 export default function Settings() {
   const { user } = useAuth();
@@ -253,13 +237,7 @@ export default function Settings() {
     toast.success("Profile saved");
   };
 
-  const handleManageIntegration = (integrationId: string) => {
-    navigate(`/settings/integrations/${integrationId}`);
-  };
-
-  const handleConnectIntegration = (integration: Integration) => {
-    toast.info(`Connecting to ${integration.name}...`);
-  };
+  // Integration handlers removed - now using IntegrationsSettings component
 
   const handleOpenAddPreference = (type: "airline" | "hotel" | "custom") => {
     setAddPreferenceType(type);
@@ -792,64 +770,7 @@ export default function Settings() {
             description="Connect your favorite tools"
             isLoading={isLoading}
           >
-            {integrations.every(i => !i.connected) ? (
-              <div className="p-6 text-center border border-dashed rounded-xl">
-                <Puzzle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium mb-1">No integrations connected</p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Connect tools to sync travel, messages, and calendars.
-                </p>
-                <div className="flex justify-center gap-2">
-                  <Button variant="outline" size="sm">Connect Slack</Button>
-                  <Button variant="outline" size="sm">Connect Calendar</Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {integrations.map((integration) => (
-                  <div 
-                    key={integration.id}
-                    className="flex items-center justify-between p-4 border rounded-xl hover:bg-secondary/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", integration.color)}>
-                        <span className="text-lg">{integration.icon}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">{integration.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {integration.connected ? integration.email : integration.description}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {integration.connected ? (
-                        <>
-                          <Badge variant="secondary" className="bg-success/10 text-success border-success/20">Connected</Badge>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="rounded-xl"
-                            onClick={() => handleManageIntegration(integration.id)}
-                          >
-                            Manage
-                          </Button>
-                        </>
-                      ) : (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="rounded-xl"
-                          onClick={() => handleConnectIntegration(integration)}
-                        >
-                          Connect
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <IntegrationsSettings />
           </SettingsSection>
 
           {/* Product & Support */}
