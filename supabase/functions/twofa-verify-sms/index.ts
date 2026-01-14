@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface VerifySMSRequest {
-  phone: string;
+  phone?: string;
   code: string;
   enableAfterVerify?: boolean;
 }
@@ -54,9 +54,9 @@ serve(async (req) => {
     const { phone, code, enableAfterVerify = true }: VerifySMSRequest = await req.json();
 
     // Validate inputs
-    if (!phone || !code) {
+    if (!code) {
       return new Response(
-        JSON.stringify({ error: "Phone number and code are required" }),
+        JSON.stringify({ error: "Verification code is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -68,8 +68,32 @@ serve(async (req) => {
       );
     }
 
-    const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
+    // Phone is optional for login flow; if missing, use stored 2FA phone
+    let resolvedPhone = phone;
+    if (!resolvedPhone) {
+      const { data: profile, error: profileError } = await supabaseClient
+        .from("profiles")
+        .select("two_factor_phone")
+        .eq("user_id", user.id)
+        .single();
 
+      if (profileError || !profile?.two_factor_phone) {
+        return new Response(
+          JSON.stringify({ error: "No verified 2FA phone on file" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      resolvedPhone = profile.two_factor_phone;
+    }
+    if (!resolvedPhone) {
+      return new Response(
+        JSON.stringify({ error: "No verified 2FA phone on file" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const cleanPhone = resolvedPhone.replace(/[\s\-\(\)]/g, "");
     // Get Twilio credentials
     const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
     const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");

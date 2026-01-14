@@ -57,10 +57,9 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         requires2FA: profile.two_factor_enabled || false,
         maskedPhone: profile.two_factor_phone ? maskPhoneNumber(profile.two_factor_phone) : null,
-        phone: profile.two_factor_phone // Include full phone for sending SMS
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

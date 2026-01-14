@@ -27,7 +27,6 @@ export default function Auth() {
   
   // 2FA state
   const [requires2FA, setRequires2FA] = useState(false);
-  const [twoFactorPhone, setTwoFactorPhone] = useState("");
   const [twoFactorMaskedPhone, setTwoFactorMaskedPhone] = useState("");
   
   const { signIn, signUp } = useAuth();
@@ -64,7 +63,7 @@ export default function Auth() {
           body: { email }
         });
 
-        if (check2FA?.requires2FA && check2FA?.phone) {
+        if (check2FA?.requires2FA) {
           // First verify password is correct
           const { error } = await signIn(email, password);
           if (error) {
@@ -76,10 +75,9 @@ export default function Auth() {
             setLoading(false);
             return;
           }
-          
+
           // Password correct, now require 2FA
-          setTwoFactorPhone(check2FA.phone);
-          setTwoFactorMaskedPhone(check2FA.maskedPhone);
+          setTwoFactorMaskedPhone(check2FA.maskedPhone || "your phone");
           setRequires2FA(true);
           setLoading(false);
           return;
@@ -133,7 +131,6 @@ export default function Auth() {
     // Sign out since password was already verified
     await supabase.auth.signOut();
     setRequires2FA(false);
-    setTwoFactorPhone("");
     setTwoFactorMaskedPhone("");
   };
 
@@ -146,7 +143,6 @@ export default function Auth() {
             <img alt="flyby" className="h-10 mix-blend-multiply" src="/lovable-uploads/961e595a-2d00-479f-b364-022c8127f18a.png" />
           </div>
           <TwoFactorVerifyStep
-            phone={twoFactorPhone}
             maskedPhone={twoFactorMaskedPhone}
             onVerified={handle2FAVerified}
             onCancel={handle2FACancel}
