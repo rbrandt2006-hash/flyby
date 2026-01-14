@@ -26,6 +26,7 @@ import { ContactSupportModal } from "@/components/settings/ContactSupportModal";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
 import { ProductTourModal } from "@/components/settings/ProductTourModal";
 import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
+import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import {
   User,
   Building2,
@@ -50,11 +51,13 @@ import {
   RefreshCw,
   Loader2,
   X,
+  Palette,
 } from "lucide-react";
 
 // Nav sections configuration
 const navSections = [
   { id: "profile", label: "Profile & Account", icon: User },
+  { id: "appearance", label: "Appearance", icon: Palette },
   { id: "travel", label: "Travel Preferences", icon: Plane },
   { id: "security", label: "Security & Privacy", icon: Shield },
   { id: "integrations", label: "Integrations", icon: Puzzle },
@@ -432,6 +435,25 @@ export default function Settings() {
                   "Save changes"
                 )}
               </Button>
+            </div>
+          </SettingsSection>
+
+          {/* Appearance */}
+          <SettingsSection
+            id="appearance"
+            icon={Palette}
+            title="Appearance"
+            description="Customize how FlyBy looks"
+            isLoading={isLoading}
+          >
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Theme</Label>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Choose how FlyBy appears. Select a theme or let it follow your system settings.
+                </p>
+                <ThemeSelector />
+              </div>
             </div>
           </SettingsSection>
 

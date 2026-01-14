@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -23,12 +24,17 @@ import {
   LogOut,
   Users,
   Loader2,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 import { SwitchWorkspaceModal } from "./SwitchWorkspaceModal";
+import { cn } from "@/lib/utils";
 
 export function ProfileDropdown() {
   const { user, signOut } = useAuth();
   const { profile } = useUserProfileContext();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -72,6 +78,12 @@ export function ProfileDropdown() {
     .join("")
     .toUpperCase()
     .slice(0, 2);
+
+  const themeOptions = [
+    { value: "light" as const, icon: Sun, label: "Light" },
+    { value: "dark" as const, icon: Moon, label: "Dark" },
+    { value: "system" as const, icon: Monitor, label: "System" },
+  ];
 
   return (
     <>
@@ -123,6 +135,32 @@ export function ProfileDropdown() {
                   {displayRole}
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Theme Toggle */}
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              Theme
+            </p>
+            <div className="flex gap-1 p-1 bg-secondary/50 rounded-lg">
+              {themeOptions.map(({ value, icon: Icon, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setTheme(value)}
+                  title={label}
+                  className={cn(
+                    "flex-1 p-2 rounded-md transition-all duration-200 flex items-center justify-center gap-1.5",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    theme === value
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-xs font-medium">{label}</span>
+                </button>
+              ))}
             </div>
           </div>
 

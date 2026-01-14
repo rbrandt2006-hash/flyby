@@ -269,6 +269,7 @@ export type Database = {
           notify_trip_updates: boolean
           notify_weekly_summary: boolean
           phone: string | null
+          theme_preference: string | null
           timezone: string | null
           two_factor_enabled: boolean | null
           two_factor_phone: string | null
@@ -290,6 +291,7 @@ export type Database = {
           notify_trip_updates?: boolean
           notify_weekly_summary?: boolean
           phone?: string | null
+          theme_preference?: string | null
           timezone?: string | null
           two_factor_enabled?: boolean | null
           two_factor_phone?: string | null
@@ -311,6 +313,7 @@ export type Database = {
           notify_trip_updates?: boolean
           notify_weekly_summary?: boolean
           phone?: string | null
+          theme_preference?: string | null
           timezone?: string | null
           two_factor_enabled?: boolean | null
           two_factor_phone?: string | null

@@ -12,6 +12,7 @@ export interface UserProfile {
   phone: string | null;
   timezone: string | null;
   company_id: string | null;
+  theme_preference: string | null;
 }
 
 export function useUserProfile() {
