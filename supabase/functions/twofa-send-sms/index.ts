@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface SendSMSRequest {
-  phone: string;
+  phone?: string;
 }
 
 // Mask phone number for display (e.g., +1713****1234)
@@ -53,13 +53,36 @@ serve(async (req) => {
       );
     }
 
-    // Parse request body
-    const { phone }: SendSMSRequest = await req.json();
+    // Parse request body (phone optional for login flow)
+    let phone: string | undefined;
+    try {
+      const body: SendSMSRequest = await req.json();
+      phone = body?.phone;
+    } catch {
+      phone = undefined;
+    }
 
-    // Validate phone number
+    // If phone isn't provided, use the user's stored 2FA phone
+    if (!phone) {
+      const { data: profile, error: profileError } = await supabaseClient
+        .from("profiles")
+        .select("two_factor_enabled, two_factor_phone")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profileError || !profile?.two_factor_enabled || !profile?.two_factor_phone) {
+        return new Response(
+          JSON.stringify({ error: "No verified 2FA phone on file" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      phone = profile.two_factor_phone;
+    }
+
     if (!phone) {
       return new Response(
-        JSON.stringify({ error: "Phone number is required" }),
+        JSON.stringify({ error: "No verified 2FA phone on file" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

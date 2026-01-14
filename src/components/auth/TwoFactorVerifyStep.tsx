@@ -7,17 +7,15 @@ import { Loader2, Shield, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface TwoFactorVerifyStepProps {
-  phone: string;
   maskedPhone: string;
   onVerified: () => void;
   onCancel: () => void;
 }
 
-export function TwoFactorVerifyStep({ 
-  phone, 
-  maskedPhone, 
-  onVerified, 
-  onCancel 
+export function TwoFactorVerifyStep({
+  maskedPhone,
+  onVerified,
+  onCancel,
 }: TwoFactorVerifyStepProps) {
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +43,7 @@ export function TwoFactorVerifyStep({
 
     try {
       const { data, error } = await supabase.functions.invoke("twofa-send-sms", {
-        body: { phone },
+        body: {},
       });
 
       if (error) throw new Error(error.message);
@@ -72,10 +70,9 @@ export function TwoFactorVerifyStep({
 
     try {
       const { data, error } = await supabase.functions.invoke("twofa-verify-sms", {
-        body: { 
-          phone, 
+        body: {
           code,
-          enableAfterVerify: false // Don't update profile, just verify
+          enableAfterVerify: false, // Don't update profile, just verify
         },
       });
 
