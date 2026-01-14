@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import { useTravelPreferences } from "@/hooks/useTravelPreferences";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { FunctionalToggle } from "@/components/settings/FunctionalToggle";
@@ -19,6 +20,7 @@ import { toast } from "sonner";
 import { ChangePasswordModal } from "@/components/settings/ChangePasswordModal";
 import { TwoFactorSetupModal } from "@/components/settings/TwoFactorSetupModal";
 import { AddPreferenceModal } from "@/components/settings/AddPreferenceModal";
+import { AvatarUploadModal } from "@/components/settings/AvatarUploadModal";
 import { useTwoFactorAuth } from "@/hooks/useTwoFactorAuth";
 import { ContactSupportModal } from "@/components/settings/ContactSupportModal";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
@@ -156,6 +158,7 @@ const mealOptions = [
 
 export default function Settings() {
   const { user } = useAuth();
+  const { profile, updateAvatarUrl } = useUserProfileContext();
   const location = useLocation();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState("profile");
@@ -170,6 +173,7 @@ export default function Settings() {
   const [addPreferenceType, setAddPreferenceType] = useState<"airline" | "hotel" | "custom">("airline");
   const [contactSupportOpen, setContactSupportOpen] = useState(false);
   const [productTourOpen, setProductTourOpen] = useState(false);
+  const [avatarUploadOpen, setAvatarUploadOpen] = useState(false);
 
   // 2FA state - now using real hook
   const { enabled: is2FAEnabled, maskedPhone: twoFactorMaskedPhone, isLoading: is2FALoading, updateStatus: update2FAStatus } = useTwoFactorAuth();
@@ -201,8 +205,9 @@ export default function Settings() {
     toggleAutoMatchExpenses,
   } = useNotificationSettings();
   
-  const userName = user?.user_metadata?.full_name || "User";
-  const userEmail = user?.email || "user@company.com";
+  const userName = profile?.full_name || user?.user_metadata?.full_name || "User";
+  const userEmail = profile?.email || user?.email || "user@company.com";
+  const avatarUrl = profile?.avatar_url;
   const initials = userName.split(" ").map((n: string) => n[0]).join("").toUpperCase();
 
   // Handle hash navigation
@@ -351,10 +356,14 @@ export default function Settings() {
             <div className="flex items-center gap-4 pb-4">
               <div className="relative">
                 <Avatar className="w-20 h-20">
-                  <AvatarImage src={user?.user_metadata?.avatar_url} />
+                  <AvatarImage src={avatarUrl || undefined} />
                   <AvatarFallback className="text-xl bg-primary/10 text-primary">{initials}</AvatarFallback>
                 </Avatar>
-                <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors">
+                <button
+                  onClick={() => setAvatarUploadOpen(true)}
+                  aria-label="Change profile picture"
+                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
                   <Camera className="w-4 h-4" />
                 </button>
               </div>
@@ -843,6 +852,16 @@ export default function Settings() {
         open={productTourOpen}
         onOpenChange={setProductTourOpen}
       />
+      
+      {user && (
+        <AvatarUploadModal
+          open={avatarUploadOpen}
+          onOpenChange={setAvatarUploadOpen}
+          currentAvatarUrl={avatarUrl || null}
+          userId={user.id}
+          onAvatarUpdated={updateAvatarUrl}
+        />
+      )}
     </motion.div>
   );
 }

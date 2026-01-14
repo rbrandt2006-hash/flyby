@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -26,41 +26,20 @@ import {
 } from "lucide-react";
 import { SwitchWorkspaceModal } from "./SwitchWorkspaceModal";
 
-interface ProfileData {
-  full_name: string | null;
-  job_title: string | null;
-  avatar_url: string | null;
-}
-
 export function ProfileDropdown() {
   const { user, signOut } = useAuth();
+  const { profile } = useUserProfileContext();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
 
   useEffect(() => {
-    async function fetchProfile() {
-      if (!user?.id) return;
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, job_title, avatar_url")
-        .eq("user_id", user.id)
-        .single();
-
-      if (data) {
-        setProfile(data);
-      }
-
-      // Check for admin role - using simulated check for now
-      // In production, this would query a user_roles table
-      const isAdminUser = user.email?.includes("admin") || user.user_metadata?.role === "admin";
-      setIsAdmin(isAdminUser);
-    }
-
-    fetchProfile();
+    if (!user?.id) return;
+    // Check for admin role - using simulated check for now
+    // In production, this would query a user_roles table
+    const isAdminUser = user.email?.includes("admin") || user.user_metadata?.role === "admin";
+    setIsAdmin(isAdminUser);
   }, [user]);
 
   const handleSignOut = async () => {
