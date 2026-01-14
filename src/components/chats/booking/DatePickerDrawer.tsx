@@ -193,13 +193,15 @@ export function DatePickerDrawer({
               <div className="flex justify-center">
                 <Calendar
                   mode="range"
-                  selected={dateRange}
-                  onSelect={(range) => setDateRange(range || { from: undefined, to: undefined })}
+                  selected={dateRange.from ? { from: dateRange.from, to: dateRange.to } : undefined}
+                  onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
                   numberOfMonths={isMobile ? 1 : 1}
                   disabled={(date) => date < new Date()}
-                  modifiers={conferenceStart && conferenceEnd ? {
-                    conference: { from: conferenceStart, to: conferenceEnd },
-                  } : undefined}
+                  modifiers={{
+                    ...(conferenceStart && conferenceEnd ? {
+                      conference: { from: conferenceStart, to: conferenceEnd } as const,
+                    } : {}),
+                  }}
                   modifiersStyles={{
                     conference: {
                       backgroundColor: "hsl(var(--primary) / 0.15)",
