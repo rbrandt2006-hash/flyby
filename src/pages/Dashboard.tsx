@@ -430,7 +430,7 @@ export default function Dashboard() {
             }} whileTap={{
               scale: isPlanning ? 1 : 0.98
             }}>
-                <Button variant="accent" size="lg" className="shrink-0 rounded-xl shadow-glow bg-[#a2c4e0] hover:bg-[#8ab4d6] text-white disabled:opacity-70" onClick={handlePlanTrip} disabled={isPlanning}>
+                <Button variant="cta" size="lg" className="shrink-0 rounded-xl disabled:opacity-70" onClick={handlePlanTrip} disabled={isPlanning}>
                   {isPlanning ? <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Planning…
