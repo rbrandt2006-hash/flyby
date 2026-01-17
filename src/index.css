@@ -37,6 +37,12 @@
     /* Accent - Warm amber for CTAs */
     --accent: 38 92% 50%;
     --accent-foreground: 222 47% 11%;
+    
+    /* CTA Blue - Strong, saturated primary action */
+    --cta: 217 91% 60%;
+    --cta-hover: 224 76% 48%;
+    --cta-active: 226 71% 40%;
+    --cta-foreground: 0 0% 100%;
 
     /* Status colors */
     --success: 142 76% 36%;
@@ -102,6 +108,12 @@
 
     --accent: 38 85% 55%;
     --accent-foreground: 225 16% 12%;
+    
+    /* CTA Blue - Strong, saturated primary action (dark mode) */
+    --cta: 217 91% 60%;
+    --cta-hover: 217 85% 55%;
+    --cta-active: 217 80% 50%;
+    --cta-foreground: 0 0% 100%;
 
     --success: 142 60% 45%;
     --success-foreground: 0 0% 100%;
