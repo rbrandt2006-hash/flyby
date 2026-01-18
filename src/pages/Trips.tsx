@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw } from "lucide-react";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
 import { FlightSearchDialog } from "@/components/flights/FlightSearchDialog";
@@ -26,7 +26,16 @@ import { TripPlanningModal, type TripProposal } from "@/components/home/TripPlan
 
 export default function Trips() {
   const { user } = useAuth();
-  const { trips: localTrips, createTrip, updateTrip: updateLocalTrip, confirmTrip: confirmLocalTrip, cancelTrip: cancelLocalTrip, deleteTrip: deleteLocalTrip } = useTrips();
+  const { 
+    trips: localTrips, 
+    createTrip, 
+    updateTrip: updateLocalTrip, 
+    confirmTrip: confirmLocalTrip, 
+    cancelTrip: cancelLocalTrip, 
+    deleteTrip: deleteLocalTrip,
+    archiveTrip: archiveLocalTrip,
+    unarchiveTrip: unarchiveLocalTrip
+  } = useTrips();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
@@ -38,16 +47,24 @@ export default function Trips() {
   const [selectedDraft, setSelectedDraft] = useState<LocalTrip | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [tripToDelete, setTripToDelete] = useState<LocalTrip | null>(null);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [tripToArchive, setTripToArchive] = useState<LocalTrip | null>(null);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   
   // Trip planning modal state
   const [planningModalOpen, setPlanningModalOpen] = useState(false);
   const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<CalendarEvent | null>(null);
 
-  // Filter trips by status
+  // Filter trips by status - cancelled trips are separate from upcoming
   const draftTrips = localTrips.filter(t => t.status === "draft");
   const confirmedTrips = localTrips.filter(t => t.status === "confirmed");
   const cancelledTrips = localTrips.filter(t => t.status === "cancelled");
+  const archivedTrips = localTrips.filter(t => t.status === "archived");
+  
+  // Backend trips - filter out cancelled ones from upcoming
+  const upcomingBackendTrips = trips.filter(t => t.status !== "cancelled" && t.status !== "archived");
+  const cancelledBackendTrips = trips.filter(t => t.status === "cancelled");
 
   const handleNewTrip = () => {
     setBookingDialogOpen(true);
@@ -201,6 +218,27 @@ export default function Trips() {
     setDeleteConfirmOpen(true);
   };
 
+  const handleArchiveClick = (trip: LocalTrip, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setTripToArchive(trip);
+    setArchiveConfirmOpen(true);
+  };
+
+  const handleConfirmArchive = () => {
+    if (tripToArchive) {
+      archiveLocalTrip(tripToArchive.id);
+      toast.success("Trip archived");
+      setArchiveConfirmOpen(false);
+      setTripToArchive(null);
+    }
+  };
+
+  const handleUnarchive = (trip: LocalTrip, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    unarchiveLocalTrip(trip.id);
+    toast.success("Trip restored to cancelled");
+  };
+
   const handleConfirmDelete = () => {
     if (tripToDelete) {
       deleteLocalTrip(tripToDelete.id);
@@ -234,16 +272,18 @@ export default function Trips() {
     );
   }
 
-  const renderTripCard = (trip: LocalTrip, index: number) => {
+  const renderTripCard = (trip: LocalTrip, index: number, showArchiveAction = false, showUnarchiveAction = false) => {
     const statusConfig: Record<string, { label: string; className: string }> = {
       draft: { label: "Draft", className: "bg-muted text-muted-foreground border-border" },
       confirmed: { label: "Confirmed", className: "bg-success/10 text-success border-success/20" },
       cancelled: { label: "Cancelled", className: "bg-destructive/10 text-destructive border-destructive/20" },
       pending: { label: "Pending", className: "bg-warning/10 text-warning border-warning/20" },
+      archived: { label: "Archived", className: "bg-muted/50 text-muted-foreground border-border/50" },
     };
     const status = statusConfig[trip.status] || statusConfig.draft;
     const isDraft = trip.status === "draft";
     const isCancelled = trip.status === "cancelled";
+    const isArchived = trip.status === "archived";
 
     return (
       <Card 
@@ -251,8 +291,9 @@ export default function Trips() {
         className={cn(
           "transition-all duration-200 cursor-pointer",
           isDraft && "border-dashed border-2 border-border/60 bg-muted/10 hover:border-primary/30 hover:bg-muted/20",
-          isCancelled && "opacity-60 bg-muted/5",
-          !isDraft && !isCancelled && "hover:shadow-md hover:border-primary/20",
+          isCancelled && "opacity-70 bg-muted/5",
+          isArchived && "opacity-50 bg-muted/5",
+          !isDraft && !isCancelled && !isArchived && "hover:shadow-md hover:border-primary/20",
           "animate-slide-up"
         )}
         style={{ animationDelay: `${index * 50}ms` }}
@@ -290,18 +331,41 @@ export default function Trips() {
                 </div>
               )}
             </div>
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-2">
               <div className="text-right shrink-0">
                 <p className="text-xs text-muted-foreground">Est. cost</p>
                 <p className="font-medium text-foreground">
                   ${trip.estimatedCost.toLocaleString()}
                 </p>
               </div>
+              {showArchiveAction && (
+                <Button 
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                  onClick={(e) => handleArchiveClick(trip, e)}
+                  title="Archive this trip"
+                >
+                  <Archive className="w-4 h-4" />
+                </Button>
+              )}
+              {showUnarchiveAction && (
+                <Button 
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                  onClick={(e) => handleUnarchive(trip, e)}
+                  title="Restore this trip"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              )}
               <Button 
                 variant="ghost"
                 size="icon"
                 className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                 onClick={(e) => handleDeleteClick(trip, e)}
+                title="Delete permanently"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -381,7 +445,33 @@ export default function Trips() {
         </DialogContent>
       </Dialog>
 
-      {/* Trip Planning Modal */}
+      {/* Archive Confirmation Dialog */}
+      <Dialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Archive className="w-5 h-5 text-primary" />
+              Remove this canceled trip from your list?
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              This will archive the trip to <span className="font-medium text-foreground">{tripToArchive?.destination}</span>.
+              <br />
+              <span className="text-muted-foreground mt-2 block">
+                This will not affect expense records or audit history.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setArchiveConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmArchive} className="bg-primary hover:bg-primary/90">
+              <Archive className="w-4 h-4 mr-2" />
+              Remove trip
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <TripPlanningModal
         open={planningModalOpen}
         onOpenChange={setPlanningModalOpen}
@@ -400,18 +490,18 @@ export default function Trips() {
         />
       )}
 
-      {/* Confirmed/Upcoming Trips Section */}
-      {(trips.length > 0 || confirmedTrips.length > 0) && (
+      {/* Confirmed/Upcoming Trips Section - excludes cancelled and archived */}
+      {(upcomingBackendTrips.length > 0 || confirmedTrips.length > 0) && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-foreground">Upcoming Trips</h2>
             <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
-              {trips.length + confirmedTrips.length}
+              {upcomingBackendTrips.length + confirmedTrips.length}
             </Badge>
           </div>
           <div className="grid gap-4">
-            {/* Backend trips */}
-            {trips.map((trip, index) => (
+            {/* Backend trips (non-cancelled) */}
+            {upcomingBackendTrips.map((trip, index) => (
               <div 
                 key={trip.id}
                 className="animate-slide-up"
@@ -429,8 +519,8 @@ export default function Trips() {
         </div>
       )}
 
-      {/* Empty state when no trips at all */}
-      {trips.length === 0 && localTrips.length === 0 && (
+      {/* Empty state when no active trips at all */}
+      {upcomingBackendTrips.length === 0 && confirmedTrips.length === 0 && draftTrips.length === 0 && cancelledTrips.length === 0 && (
         <Card className="border-dashed border-2 border-border/50 bg-muted/20">
           <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
             <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center">
@@ -468,8 +558,8 @@ export default function Trips() {
         </div>
       )}
 
-      {/* Cancelled Trips Section */}
-      {cancelledTrips.length > 0 && (
+      {/* Cancelled Trips Section - with archive action */}
+      {(cancelledTrips.length > 0 || cancelledBackendTrips.length > 0) && (
         <div className="space-y-4">
           <button
             onClick={() => setShowCancelled(!showCancelled)}
@@ -480,11 +570,46 @@ export default function Trips() {
             ) : (
               <ChevronDown className="w-4 h-4" />
             )}
-            <h2 className="text-sm font-medium">Cancelled Trips ({cancelledTrips.length})</h2>
+            <h2 className="text-sm font-medium">
+              Cancelled Trips ({cancelledTrips.length + cancelledBackendTrips.length})
+            </h2>
           </button>
           {showCancelled && (
-            <div className="grid gap-3">
-              {cancelledTrips.map((trip, index) => renderTripCard(trip, index))}
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Cancelled trips can be archived to remove them from this list. This won't affect expense records or history.
+              </p>
+              <div className="grid gap-3">
+                {cancelledTrips.map((trip, index) => renderTripCard(trip, index, true, false))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Archived Trips Section */}
+      {archivedTrips.length > 0 && (
+        <div className="space-y-4">
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showArchived ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+            <Archive className="w-4 h-4" />
+            <h2 className="text-sm font-medium">Archived Trips ({archivedTrips.length})</h2>
+          </button>
+          {showArchived && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Archived trips are hidden from your main view. You can restore them if needed.
+              </p>
+              <div className="grid gap-3">
+                {archivedTrips.map((trip, index) => renderTripCard(trip, index, false, true))}
+              </div>
             </div>
           )}
         </div>
