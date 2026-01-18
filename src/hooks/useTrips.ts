@@ -29,7 +29,7 @@ export interface LocalTrip {
   startDate: string;
   endDate: string;
   purpose: string;
-  status: "draft" | "pending" | "confirmed" | "cancelled";
+  status: "draft" | "pending" | "confirmed" | "cancelled" | "archived";
   participants: string[];
   chatId: string | null;
   flight: {
@@ -49,6 +49,7 @@ export interface LocalTrip {
   decisions: TripDecision[];
   createdAt: string;
   updatedAt: string;
+  archivedAt?: string;
 }
 
 const STORAGE_KEY = "flyby_local_trips";
@@ -234,6 +235,20 @@ export function useTrips() {
     });
   }, [updateTrip, addTimelineEvent]);
 
+  const archiveTrip = useCallback((tripId: string) => {
+    updateTrip(tripId, { 
+      status: "archived", 
+      archivedAt: new Date().toISOString() 
+    });
+  }, [updateTrip]);
+
+  const unarchiveTrip = useCallback((tripId: string) => {
+    updateTrip(tripId, { 
+      status: "cancelled",
+      archivedAt: undefined
+    });
+  }, [updateTrip]);
+
   const deleteTrip = useCallback((tripId: string) => {
     setTrips((prev) => prev.filter((trip) => trip.id !== tripId));
   }, []);
@@ -351,6 +366,8 @@ export function useTrips() {
     getTripByDestination,
     confirmTrip,
     cancelTrip,
+    archiveTrip,
+    unarchiveTrip,
     rebookTrip,
     createTripFromRebook,
   };
