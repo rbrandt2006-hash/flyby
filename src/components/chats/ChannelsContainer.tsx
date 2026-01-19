@@ -1,7 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { Sparkles, Hash, Check } from "lucide-react";
+import { Sparkles, Hash, Check, Receipt } from "lucide-react";
 import { motion } from "framer-motion";
 
 // Slack icon component
@@ -32,6 +32,9 @@ export interface SyncedMessage {
   senderAvatar: string;
   text: string;
   createdAt: string;
+  isSystemMessage?: boolean;
+  expenseId?: string;
+  messageType?: "expense_submission" | "expense_approved" | "expense_disputed" | "expense_reimbursed" | "regular";
 }
 export interface SyncedConversation {
   id: string;
@@ -41,6 +44,8 @@ export interface SyncedConversation {
   messages: SyncedMessage[];
   hasTravelIntent: boolean;
   lastUpdated: string;
+  type?: "general" | "expense_approval";
+  expenseId?: string;
 }
 interface ChannelsContainerProps {
   conversations: SyncedConversation[];
@@ -81,7 +86,8 @@ export function ChannelsContainer({
   // Group conversations by source
   const slackConvos = conversations.filter(c => c.source === "slack");
   const teamsConvos = conversations.filter(c => c.source === "teams");
-  const internalConvos = conversations.filter(c => c.source === "flyby");
+  const expenseConvos = conversations.filter(c => c.source === "flyby" && (c.type === "expense_approval" || c.expenseId));
+  const internalConvos = conversations.filter(c => c.source === "flyby" && !c.type && !c.expenseId);
   return <div className="h-full flex flex-col bg-secondary/30 rounded-2xl border shadow-sm overflow-hidden border-[#7698cb]">
       {/* Connection Status */}
       <div className="px-4 py-3 border-b border-border/30">
@@ -122,6 +128,19 @@ export function ChannelsContainer({
               </div>
               <div className="space-y-1">
                 {teamsConvos.map(conv => <ChannelRow key={conv.id} conversation={conv} isSelected={conv.id === selectedId} onSelect={() => onSelect(conv.id)} formatTime={formatTime} getSourceIcon={getSourceIcon} />)}
+              </div>
+            </div>}
+
+          {/* Expense Approvals */}
+          {expenseConvos.length > 0 && <div>
+              <div className="flex items-center gap-2 px-2 mb-2">
+                <Receipt className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  Expense Approvals
+                </span>
+              </div>
+              <div className="space-y-1">
+                {expenseConvos.map(conv => <ChannelRow key={conv.id} conversation={conv} isSelected={conv.id === selectedId} onSelect={() => onSelect(conv.id)} formatTime={formatTime} getSourceIcon={getSourceIcon} />)}
               </div>
             </div>}
 

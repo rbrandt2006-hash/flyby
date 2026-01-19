@@ -12,6 +12,9 @@ export interface ChatMessage {
   senderId: string;
   text: string;
   createdAt: string;
+  isSystemMessage?: boolean;
+  expenseId?: string;
+  messageType?: "expense_submission" | "expense_approved" | "expense_disputed" | "expense_reimbursed" | "regular";
 }
 
 export interface Chat {
@@ -20,6 +23,9 @@ export interface Chat {
   memberIds: string[];
   messages: ChatMessage[];
   createdAt: string;
+  type?: "general" | "expense_approval";
+  expenseId?: string;
+  participantIds?: string[]; // For 1:1 chat lookup
 }
 
 // Team members data (shared with Team page)
@@ -62,6 +68,14 @@ export const teamMembers: ChatUser[] = [
   },
 ];
 
+// Supervisor lookup by name
+export const supervisorMap: Record<string, ChatUser> = {
+  "James Wilson": teamMembers[5],
+  "Sarah Chen": teamMembers[0],
+  "Marcus Johnson": teamMembers[1],
+  "Emily Watson": teamMembers[2],
+};
+
 // AI Assistant (virtual team member)
 export const aiAssistant: ChatUser = {
   id: "ai-assistant",
@@ -76,6 +90,14 @@ export const currentUser: ChatUser = {
   name: "Julia",
   role: "You",
   avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&h=100&fit=crop",
+};
+
+// System user for automated messages
+export const systemUser: ChatUser = {
+  id: "system",
+  name: "Flyby",
+  role: "System",
+  avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=system&backgroundColor=cbd5e1",
 };
 
 const STORAGE_KEY = "flyby_chats";
@@ -109,24 +131,91 @@ export function useChats() {
     saveChatsToStorage(chats);
   }, [chats]);
 
-  const createChat = useCallback((name: string, memberIds: string[]): Chat => {
+  // Find existing 1:1 chat between current user and another participant
+  const findExistingChat = useCallback((participantId: string): Chat | null => {
+    return chats.find((chat) => {
+      if (chat.participantIds) {
+        const sorted = [...chat.participantIds].sort();
+        const target = [currentUser.id, participantId].sort();
+        return sorted[0] === target[0] && sorted[1] === target[1];
+      }
+      return false;
+    }) || null;
+  }, [chats]);
+
+  // Find chat by expense ID
+  const findChatByExpenseId = useCallback((expenseId: string): Chat | null => {
+    return chats.find((chat) => chat.expenseId === expenseId) || null;
+  }, [chats]);
+
+  const createChat = useCallback((name: string, memberIds: string[], options?: {
+    type?: "general" | "expense_approval";
+    expenseId?: string;
+    participantIds?: string[];
+  }): Chat => {
     const newChat: Chat = {
       id: `chat_${Date.now()}`,
       name,
       memberIds,
       messages: [],
       createdAt: new Date().toISOString(),
+      type: options?.type || "general",
+      expenseId: options?.expenseId,
+      participantIds: options?.participantIds,
     };
     setChats((prev) => [...prev, newChat]);
     return newChat;
   }, []);
 
-  const sendMessage = useCallback((chatId: string, text: string, senderId: string = currentUser.id, autoReply: boolean = true) => {
+  // Get or create a chat for expense approval
+  const getOrCreateExpenseChat = useCallback((
+    supervisorId: string,
+    supervisorName: string,
+    expenseId: string
+  ): Chat => {
+    // First check if chat already exists for this expense
+    const existingExpenseChat = chats.find((c) => c.expenseId === expenseId);
+    if (existingExpenseChat) return existingExpenseChat;
+
+    // Check for existing 1:1 chat with supervisor
+    const existingChat = findExistingChat(supervisorId);
+    if (existingChat) {
+      // Update the chat with expense ID reference
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === existingChat.id ? { ...c, expenseId } : c
+        )
+      );
+      return existingChat;
+    }
+
+    // Create new chat
+    return createChat(`Chat with ${supervisorName}`, [supervisorId], {
+      type: "expense_approval",
+      expenseId,
+      participantIds: [currentUser.id, supervisorId],
+    });
+  }, [chats, findExistingChat, createChat]);
+
+  const sendMessage = useCallback((
+    chatId: string, 
+    text: string, 
+    senderId: string = currentUser.id, 
+    autoReply: boolean = true,
+    options?: {
+      isSystemMessage?: boolean;
+      expenseId?: string;
+      messageType?: ChatMessage["messageType"];
+    }
+  ) => {
     const newMessage: ChatMessage = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       senderId,
       text,
       createdAt: new Date().toISOString(),
+      isSystemMessage: options?.isSystemMessage,
+      expenseId: options?.expenseId,
+      messageType: options?.messageType || "regular",
     };
 
     setChats((prev) =>
@@ -137,8 +226,8 @@ export function useChats() {
       )
     );
 
-    // Auto AI reply when user sends a message
-    if (autoReply && senderId === currentUser.id) {
+    // Auto AI reply when user sends a message (only for non-system messages)
+    if (autoReply && senderId === currentUser.id && !options?.isSystemMessage) {
       setTimeout(() => {
         const aiReplies = [
           "I can help refine this itinerary or suggest cheaper alternatives.",
@@ -169,13 +258,47 @@ export function useChats() {
     return newMessage;
   }, []);
 
+  // Send system message for expense events
+  const sendExpenseSystemMessage = useCallback((
+    chatId: string,
+    expenseId: string,
+    messageType: ChatMessage["messageType"],
+    content: string
+  ) => {
+    return sendMessage(chatId, content, "system", false, {
+      isSystemMessage: true,
+      expenseId,
+      messageType,
+    });
+  }, [sendMessage]);
+
+  // Post expense status update to chat
+  const postExpenseUpdate = useCallback((
+    chatId: string,
+    expenseId: string,
+    status: "approved" | "disputed" | "reimbursed",
+    actorName: string
+  ) => {
+    const messages: Record<string, string> = {
+      approved: `✅ Expense approved by ${actorName}`,
+      disputed: `⚠️ Expense disputed by ${actorName}`,
+      reimbursed: `💰 Expense marked as reimbursed`,
+    };
+    
+    return sendExpenseSystemMessage(
+      chatId,
+      expenseId,
+      `expense_${status}` as ChatMessage["messageType"],
+      messages[status]
+    );
+  }, [sendExpenseSystemMessage]);
+
   const simulateReply = useCallback((chatId: string) => {
     const chat = chats.find((c) => c.id === chatId);
     if (!chat || chat.memberIds.length === 0) return;
 
     // Pick a random member to reply
     const randomMemberId = chat.memberIds[Math.floor(Math.random() * chat.memberIds.length)];
-    const member = teamMembers.find((m) => m.id === randomMemberId);
     
     const replies = [
       "Sounds good to me! 👍",
@@ -190,7 +313,7 @@ export function useChats() {
     const randomReply = replies[Math.floor(Math.random() * replies.length)];
     
     setTimeout(() => {
-      sendMessage(chatId, randomReply, randomMemberId);
+      sendMessage(chatId, randomReply, randomMemberId, false);
     }, 1200);
   }, [chats, sendMessage]);
 
@@ -206,8 +329,14 @@ export function useChats() {
   const getMemberById = useCallback((memberId: string) => {
     if (memberId === currentUser.id) return currentUser;
     if (memberId === aiAssistant.id) return aiAssistant;
+    if (memberId === systemUser.id) return systemUser;
     return teamMembers.find((m) => m.id === memberId) || null;
   }, []);
+
+  // Get all expense approval chats
+  const getExpenseApprovalChats = useCallback(() => {
+    return chats.filter((c) => c.type === "expense_approval" || c.expenseId);
+  }, [chats]);
 
   return {
     chats,
@@ -219,7 +348,15 @@ export function useChats() {
     getChatById,
     getLastMessage,
     getMemberById,
+    findExistingChat,
+    findChatByExpenseId,
+    getOrCreateExpenseChat,
+    sendExpenseSystemMessage,
+    postExpenseUpdate,
+    getExpenseApprovalChats,
     teamMembers,
     currentUser,
+    systemUser,
+    supervisorMap,
   };
 }

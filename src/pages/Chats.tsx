@@ -7,37 +7,49 @@ import { ConversationCanvas } from "@/components/chats/ConversationCanvas";
 import { SmartTripAssistant } from "@/components/chats/SmartTripAssistant";
 import { mockSyncedConversations, mockDetectedTrips } from "@/data/mockSyncedConversations";
 import { Button } from "@/components/ui/button";
-import { useChats, currentUser, teamMembers } from "@/hooks/useChats";
+import { useChats } from "@/hooks/useChats";
 import { toast } from "sonner";
 export default function Chats() {
   const location = useLocation();
   const {
-    chats
+    chats,
+    getMemberById,
+    systemUser
   } = useChats();
 
   // Merge synced conversations with dynamic expense approval chats
   const allConversations = useMemo(() => {
-    const expenseChats: SyncedConversation[] = chats.filter(chat => chat.name.includes("Expense Approval")).map(chat => ({
-      id: chat.id,
-      name: chat.name,
-      source: "flyby" as const,
-      channel: "expenses",
-      hasTravelIntent: false,
-      lastUpdated: chat.createdAt,
-      messages: chat.messages.map(m => {
-        const sender = m.senderId === currentUser.id ? currentUser : teamMembers.find(t => t.id === m.senderId);
-        return {
-          id: m.id,
-          senderId: m.senderId,
-          senderName: sender?.name || "Unknown",
-          senderAvatar: sender?.avatar || "",
-          text: m.text,
-          createdAt: m.createdAt
-        };
-      })
-    }));
+    // Filter chats that have expense approval or linked expense
+    const expenseChats: SyncedConversation[] = chats
+      .filter(chat => chat.type === "expense_approval" || chat.expenseId)
+      .map(chat => ({
+        id: chat.id,
+        name: chat.name,
+        source: "flyby" as const,
+        channel: "expenses",
+        hasTravelIntent: false,
+        lastUpdated: chat.messages.length > 0 
+          ? chat.messages[chat.messages.length - 1].createdAt 
+          : chat.createdAt,
+        type: chat.type,
+        expenseId: chat.expenseId,
+        messages: chat.messages.map(m => {
+          const member = getMemberById(m.senderId);
+          return {
+            id: m.id,
+            senderId: m.senderId,
+            senderName: member?.name || "Unknown",
+            senderAvatar: member?.avatar || "",
+            text: m.text,
+            createdAt: m.createdAt,
+            isSystemMessage: m.isSystemMessage,
+            expenseId: m.expenseId,
+            messageType: m.messageType,
+          };
+        })
+      }));
     return [...expenseChats, ...mockSyncedConversations];
-  }, [chats]);
+  }, [chats, getMemberById]);
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     const stateId = location.state?.openChatId || location.state?.entityId;
     if (stateId) return stateId;
