@@ -174,49 +174,88 @@ export function ConversationCanvas({ conversation, onSendMessage }: Conversation
               
               {/* Message groups by sender */}
               <div className="space-y-6">
-                {groupBySender(messages).map(({ sender, messages: senderMessages }, senderIndex) => (
-                  <motion.div
-                    key={`${sender.senderId}-${senderIndex}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: senderIndex * 0.05 }}
-                    className="flex gap-3"
-                  >
-                    <img
-                      src={sender.senderAvatar}
-                      alt={sender.senderName}
-                      className="w-9 h-9 rounded-xl object-cover shrink-0 shadow-sm"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2 mb-1">
-                        <span className="text-sm font-semibold text-foreground">
-                          {sender.senderName}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground/50">
-                          {formatMessageTime(sender.createdAt)}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        {senderMessages.map((msg, msgIndex) => (
-                          <div
-                            key={msg.id}
-                            className={cn(
-                              "text-sm text-foreground/90 leading-relaxed",
-                              msgIndex > 0 && "pt-1"
-                            )}
-                          >
-                            {highlightKeywords(msg.text)}
-                            {msgIndex > 0 && (
-                              <span className="text-[10px] text-muted-foreground/40 ml-2">
-                                {formatMessageTime(msg.createdAt)}
-                              </span>
-                            )}
+                {groupBySender(messages).map(({ sender, messages: senderMessages }, senderIndex) => {
+                  const isSystemMessage = sender.isSystemMessage;
+                  
+                  // System message rendering (for expense events)
+                  if (isSystemMessage) {
+                    return (
+                      <motion.div
+                        key={`${sender.senderId}-${senderIndex}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: senderIndex * 0.05 }}
+                        className="flex justify-center"
+                      >
+                        <div className="max-w-md w-full bg-muted/40 border border-border/50 rounded-xl px-4 py-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
+                              <svg className="w-3 h-3 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </div>
+                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                              Flyby
+                            </span>
+                            <span className="text-[10px] text-muted-foreground/50">
+                              {formatMessageTime(sender.createdAt)}
+                            </span>
                           </div>
-                        ))}
+                          <div className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
+                            {senderMessages.map((msg) => (
+                              <div key={msg.id}>{msg.text}</div>
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  }
+                  
+                  // Regular message rendering
+                  return (
+                    <motion.div
+                      key={`${sender.senderId}-${senderIndex}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: senderIndex * 0.05 }}
+                      className="flex gap-3"
+                    >
+                      <img
+                        src={sender.senderAvatar}
+                        alt={sender.senderName}
+                        className="w-9 h-9 rounded-xl object-cover shrink-0 shadow-sm"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2 mb-1">
+                          <span className="text-sm font-semibold text-foreground">
+                            {sender.senderName}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/50">
+                            {formatMessageTime(sender.createdAt)}
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          {senderMessages.map((msg, msgIndex) => (
+                            <div
+                              key={msg.id}
+                              className={cn(
+                                "text-sm text-foreground/90 leading-relaxed",
+                                msgIndex > 0 && "pt-1"
+                              )}
+                            >
+                              {highlightKeywords(msg.text)}
+                              {msgIndex > 0 && (
+                                <span className="text-[10px] text-muted-foreground/40 ml-2">
+                                  {formatMessageTime(msg.createdAt)}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </div>
             </div>
           ))}

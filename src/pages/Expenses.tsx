@@ -46,7 +46,7 @@ const itemVariants = {
 
 export default function Expenses() {
   const { expenses, addExpense, updateExpense, sendToSupervisor, toggleReimbursable, fileDispute, linkChatToExpense, totalPending, totalApproved } = useExpenses();
-  const { createChat, sendMessage } = useChats();
+  const { getOrCreateExpenseChat, sendMessage, sendExpenseSystemMessage, postExpenseUpdate, supervisorMap, findChatByExpenseId } = useChats();
   
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
@@ -64,29 +64,44 @@ export default function Expenses() {
   const handleSendToSupervisor = (supervisorName: string, note: string) => {
     if (!selectedExpense) return;
     
+    // Get supervisor info
+    const supervisor = supervisorMap[supervisorName];
+    const supervisorId = supervisor?.id || "1"; // Default to first supervisor if not found
+    
+    // Get or create chat with this supervisor for expense approval
+    const chat = getOrCreateExpenseChat(supervisorId, supervisorName, selectedExpense.id);
+    
+    // Send system message with expense details
+    const categoryLabel = selectedExpense.category.charAt(0).toUpperCase() + selectedExpense.category.slice(1);
+    const systemMessage = `📝 Julia submitted an expense for approval:\n\n**${selectedExpense.merchant}** – $${selectedExpense.amount.toFixed(2)} (${categoryLabel})\n${selectedExpense.description}`;
+    
+    sendExpenseSystemMessage(chat.id, selectedExpense.id, "expense_submission", systemMessage);
+    
+    // If user added a note, send it as a follow-up message
+    if (note.trim()) {
+      setTimeout(() => {
+        sendMessage(chat.id, note, "current", false);
+      }, 300);
+    }
+    
+    // Update expense state
     sendToSupervisor(selectedExpense.id, supervisorName);
-    
-    // Create chat thread for this expense
-    const chatName = `Expense Approval — ${selectedExpense.merchant} ($${selectedExpense.amount.toFixed(2)})`;
-    const chat = createChat(chatName, []);
     linkChatToExpense(selectedExpense.id, chat.id);
-    
-    // Add messages to the chat
-    const userMessage = `Hi ${supervisorName}, submitting this expense for approval: ${selectedExpense.merchant}, $${selectedExpense.amount.toFixed(2)}, ${selectedExpense.category}.${note ? ` Notes: ${note}` : ""}`;
-    sendMessage(chat.id, userMessage, "current", false);
     
     // Simulate supervisor response
     setTimeout(() => {
       if (selectedExpense.amount > 500 || selectedExpense.status === "flagged") {
-        sendMessage(chat.id, "Thanks for sending. Can you clarify the business purpose for this expense?", "1", false);
+        sendMessage(chat.id, "Thanks for sending. Can you clarify the business purpose for this expense?", supervisorId, false);
       } else {
-        sendMessage(chat.id, "Reviewed and approved. Thanks!", "1", false);
+        // Post approval status update
+        postExpenseUpdate(chat.id, selectedExpense.id, "approved", supervisorName);
         updateExpense(selectedExpense.id, { status: "approved" });
       }
-    }, 2000);
+    }, 2500);
     
-    toast.success("Sent to supervisor");
+    toast.success(`Expense sent to ${supervisorName} – Check Chats for updates`);
     setSelectedExpense({ ...selectedExpense, status: "submitted", supervisorSentAt: new Date().toISOString(), supervisorName });
+    setIsSendSupervisorOpen(false);
   };
 
   const handleToggleReimbursable = () => {
@@ -100,6 +115,13 @@ export default function Expenses() {
   const handleFileDispute = (reason: string, description: string) => {
     if (!selectedExpense) return;
     fileDispute(selectedExpense.id, reason, description);
+    
+    // Post dispute to existing chat if one exists
+    const existingChat = findChatByExpenseId(selectedExpense.id);
+    if (existingChat) {
+      postExpenseUpdate(existingChat.id, selectedExpense.id, "disputed", "Julia");
+    }
+    
     setSelectedExpense({ ...selectedExpense, status: "disputed", disputeReason: reason, disputeDescription: description, disputeFiledAt: new Date().toISOString() });
     toast.success("Dispute submitted");
   };
