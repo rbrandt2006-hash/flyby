@@ -46,6 +46,15 @@ export interface SyncedConversation {
   lastUpdated: string;
   type?: "general" | "expense_approval";
   expenseId?: string;
+  expenseMetadata?: {
+    merchant: string;
+    amount: number;
+    category: string;
+    description: string;
+    date: string;
+    submitterName: string;
+    submittedAt: string;
+  };
 }
 interface ChannelsContainerProps {
   conversations: SyncedConversation[];

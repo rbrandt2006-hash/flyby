@@ -17,6 +17,16 @@ export interface ChatMessage {
   messageType?: "expense_submission" | "expense_approved" | "expense_disputed" | "expense_reimbursed" | "regular";
 }
 
+export interface ExpenseMetadata {
+  merchant: string;
+  amount: number;
+  category: string;
+  description: string;
+  date: string;
+  submitterName: string;
+  submittedAt: string;
+}
+
 export interface Chat {
   id: string;
   name: string;
@@ -26,6 +36,7 @@ export interface Chat {
   type?: "general" | "expense_approval";
   expenseId?: string;
   participantIds?: string[]; // For 1:1 chat lookup
+  expenseMetadata?: ExpenseMetadata; // Store expense details for context card
 }
 
 // Team members data (shared with Team page)
@@ -152,6 +163,7 @@ export function useChats() {
     type?: "general" | "expense_approval";
     expenseId?: string;
     participantIds?: string[];
+    expenseMetadata?: ExpenseMetadata;
   }): Chat => {
     const newChat: Chat = {
       id: `chat_${Date.now()}`,
@@ -162,6 +174,7 @@ export function useChats() {
       type: options?.type || "general",
       expenseId: options?.expenseId,
       participantIds: options?.participantIds,
+      expenseMetadata: options?.expenseMetadata,
     };
     setChats((prev) => [...prev, newChat]);
     return newChat;
@@ -171,19 +184,30 @@ export function useChats() {
   const getOrCreateExpenseChat = useCallback((
     supervisorId: string,
     supervisorName: string,
-    expenseId: string
+    expenseId: string,
+    expenseMetadata?: ExpenseMetadata
   ): Chat => {
     // First check if chat already exists for this expense
     const existingExpenseChat = chats.find((c) => c.expenseId === expenseId);
-    if (existingExpenseChat) return existingExpenseChat;
+    if (existingExpenseChat) {
+      // Update expense metadata if provided
+      if (expenseMetadata && !existingExpenseChat.expenseMetadata) {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === existingExpenseChat.id ? { ...c, expenseMetadata } : c
+          )
+        );
+      }
+      return existingExpenseChat;
+    }
 
     // Check for existing 1:1 chat with supervisor
     const existingChat = findExistingChat(supervisorId);
     if (existingChat) {
-      // Update the chat with expense ID reference
+      // Update the chat with expense ID reference and metadata
       setChats((prev) =>
         prev.map((c) =>
-          c.id === existingChat.id ? { ...c, expenseId } : c
+          c.id === existingChat.id ? { ...c, expenseId, expenseMetadata, type: "expense_approval" as const } : c
         )
       );
       return existingChat;
@@ -194,8 +218,20 @@ export function useChats() {
       type: "expense_approval",
       expenseId,
       participantIds: [currentUser.id, supervisorId],
+      expenseMetadata,
     });
   }, [chats, findExistingChat, createChat]);
+
+  // Update expense status in chat metadata
+  const updateExpenseStatus = useCallback((expenseId: string, status: string) => {
+    setChats((prev) =>
+      prev.map((c) =>
+        c.expenseId === expenseId && c.expenseMetadata
+          ? { ...c, expenseMetadata: { ...c.expenseMetadata } }
+          : c
+      )
+    );
+  }, []);
 
   const sendMessage = useCallback((
     chatId: string, 
@@ -353,6 +389,7 @@ export function useChats() {
     getOrCreateExpenseChat,
     sendExpenseSystemMessage,
     postExpenseUpdate,
+    updateExpenseStatus,
     getExpenseApprovalChats,
     teamMembers,
     currentUser,

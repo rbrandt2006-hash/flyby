@@ -3,19 +3,25 @@ import { useLocation } from "react-router-dom";
 import { MessageSquare, Sparkles, RefreshCw, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChannelsContainer, SyncedConversation } from "@/components/chats/ChannelsContainer";
-import { ConversationCanvas } from "@/components/chats/ConversationCanvas";
+import { ConversationCanvas, ExpenseMetadataForContext } from "@/components/chats/ConversationCanvas";
 import { SmartTripAssistant } from "@/components/chats/SmartTripAssistant";
 import { mockSyncedConversations, mockDetectedTrips } from "@/data/mockSyncedConversations";
 import { Button } from "@/components/ui/button";
-import { useChats } from "@/hooks/useChats";
+import { useChats, ExpenseMetadata } from "@/hooks/useChats";
+import { useExpenses } from "@/hooks/useExpenses";
 import { toast } from "sonner";
+
 export default function Chats() {
   const location = useLocation();
   const {
     chats,
     getMemberById,
+    sendMessage,
+    currentUser,
     systemUser
   } = useChats();
+  
+  const { expenses, getExpenseById } = useExpenses();
 
   // Merge synced conversations with dynamic expense approval chats
   const allConversations = useMemo(() => {
@@ -33,6 +39,7 @@ export default function Chats() {
           : chat.createdAt,
         type: chat.type,
         expenseId: chat.expenseId,
+        expenseMetadata: chat.expenseMetadata,
         messages: chat.messages.map(m => {
           const member = getMemberById(m.senderId);
           return {
@@ -69,6 +76,40 @@ export default function Chats() {
   const detectedTrip = selectedId ? mockDetectedTrips[selectedId] : null;
   const travelIntentCount = allConversations.filter(c => c.hasTravelIntent).length;
 
+  // Get expense metadata for the selected conversation
+  const selectedExpenseMetadata = useMemo(() => {
+    if (!selectedConversation?.expenseId) return undefined;
+    
+    // First try to get from chat metadata
+    const chat = chats.find(c => c.id === selectedConversation.id);
+    if (chat?.expenseMetadata) {
+      return chat.expenseMetadata as ExpenseMetadataForContext;
+    }
+    
+    // Fall back to looking up the expense directly
+    const expense = getExpenseById(selectedConversation.expenseId);
+    if (expense) {
+      return {
+        merchant: expense.merchant,
+        amount: expense.amount,
+        category: expense.category,
+        description: expense.description,
+        date: expense.date,
+        submitterName: "Julia",
+        submittedAt: expense.supervisorSentAt || new Date().toISOString(),
+      } as ExpenseMetadataForContext;
+    }
+    
+    return undefined;
+  }, [selectedConversation, chats, getExpenseById]);
+
+  // Get expense status
+  const selectedExpenseStatus = useMemo(() => {
+    if (!selectedConversation?.expenseId) return undefined;
+    const expense = getExpenseById(selectedConversation.expenseId);
+    return expense?.status;
+  }, [selectedConversation, getExpenseById]);
+
   // Auto-dismiss AI status after 8 seconds
   useEffect(() => {
     if (showAIStatus) {
@@ -76,6 +117,7 @@ export default function Chats() {
       return () => clearTimeout(timer);
     }
   }, [showAIStatus]);
+  
   const handleSync = () => {
     setIsSyncing(true);
     setShowAIStatus(true);
@@ -84,8 +126,14 @@ export default function Chats() {
       toast.success("Channels synced");
     }, 2000);
   };
+  
   const handleSendMessage = (text: string) => {
-    // In a real app, this would send to Slack/Teams API
+    // For expense approval chats, actually persist the message
+    if (selectedConversation && (selectedConversation.type === "expense_approval" || selectedConversation.expenseId)) {
+      sendMessage(selectedConversation.id, text, currentUser.id, false);
+      return;
+    }
+    // For external platforms, show toast (would send to API in real app)
     toast.success(`Message sent via ${selectedConversation?.source || "Flyby"}`);
   };
 
@@ -128,7 +176,7 @@ export default function Chats() {
           }} transition={{
             duration: 0.15
           }} className="h-full">
-                <ConversationCanvas conversation={selectedConversation} onSendMessage={handleSendMessage} />
+                <ConversationCanvas conversation={selectedConversation} onSendMessage={handleSendMessage} expenseMetadata={selectedExpenseMetadata} expenseStatus={selectedExpenseStatus} />
               </motion.div> : <motion.div initial={{
             opacity: 0
           }} animate={{
