@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SyncedConversation, SyncedMessage } from "./ChannelsContainer";
-import { Send, Command, Paperclip, Smile } from "lucide-react";
+import { ExpenseContextCard } from "./ExpenseContextCard";
+import { Send, Command, Paperclip, Smile, CheckCircle, AlertTriangle, DollarSign } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Slack icon component
@@ -35,9 +36,21 @@ const TRAVEL_KEYWORDS = [
   "presentation", "pitch", "demo", "workshop", "summit", "event"
 ];
 
+export interface ExpenseMetadataForContext {
+  merchant: string;
+  amount: number;
+  category: string;
+  description: string;
+  date: string;
+  submitterName: string;
+  submittedAt: string;
+}
+
 interface ConversationCanvasProps {
   conversation: SyncedConversation;
   onSendMessage: (text: string) => void;
+  expenseMetadata?: ExpenseMetadataForContext;
+  expenseStatus?: string;
 }
 
 function highlightKeywords(text: string): React.ReactNode {
@@ -64,10 +77,48 @@ function highlightKeywords(text: string): React.ReactNode {
   });
 }
 
-export function ConversationCanvas({ conversation, onSendMessage }: ConversationCanvasProps) {
+// Get icon for different message types
+function getSystemMessageIcon(messageType?: string) {
+  switch (messageType) {
+    case "expense_approved":
+      return <CheckCircle className="w-3.5 h-3.5 text-success" />;
+    case "expense_disputed":
+      return <AlertTriangle className="w-3.5 h-3.5 text-destructive" />;
+    case "expense_reimbursed":
+      return <DollarSign className="w-3.5 h-3.5 text-primary" />;
+    default:
+      return (
+        <svg className="w-3 h-3 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+  }
+}
+
+// Get background color for system message types
+function getSystemMessageStyle(messageType?: string) {
+  switch (messageType) {
+    case "expense_approved":
+      return "bg-success/10 border-success/30";
+    case "expense_disputed":
+      return "bg-destructive/10 border-destructive/30";
+    case "expense_reimbursed":
+      return "bg-primary/10 border-primary/30";
+    default:
+      return "bg-muted/40 border-border/50";
+  }
+}
+
+export function ConversationCanvas({ 
+  conversation, 
+  onSendMessage,
+  expenseMetadata,
+  expenseStatus 
+}: ConversationCanvasProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const formatMessageTime = (dateStr: string) => {
     return format(new Date(dateStr), "h:mm a");
@@ -77,9 +128,17 @@ export function ConversationCanvas({ conversation, onSendMessage }: Conversation
     return format(new Date(dateStr), "EEEE, MMMM d");
   };
 
+  // Check if this is an expense approval conversation
+  const isExpenseChat = conversation.type === "expense_approval" || !!conversation.expenseId;
+
+  // Filter out the initial submission system message if we're showing the context card
+  const filteredMessages = isExpenseChat && expenseMetadata
+    ? conversation.messages.filter(msg => msg.messageType !== "expense_submission")
+    : conversation.messages;
+
   // Group messages by date and sender
   const groupedMessages: { date: string; messages: SyncedMessage[] }[] = [];
-  conversation.messages.forEach((msg) => {
+  filteredMessages.forEach((msg) => {
     const dateKey = format(new Date(msg.createdAt), "yyyy-MM-dd");
     const existingGroup = groupedMessages.find(g => g.date === dateKey);
     if (existingGroup) {
@@ -98,7 +157,10 @@ export function ConversationCanvas({ conversation, onSendMessage }: Conversation
         ? new Date(msg.createdAt).getTime() - new Date(lastGroup.messages[lastGroup.messages.length - 1].createdAt).getTime()
         : Infinity;
       
-      if (lastGroup && lastGroup.sender.senderId === msg.senderId && timeDiff < 300000) {
+      // Don't group system messages with other messages
+      if (msg.isSystemMessage) {
+        groups.push({ sender: msg, messages: [msg] });
+      } else if (lastGroup && !lastGroup.sender.isSystemMessage && lastGroup.sender.senderId === msg.senderId && timeDiff < 300000) {
         lastGroup.messages.push(msg);
       } else {
         groups.push({ sender: msg, messages: [msg] });
@@ -132,6 +194,11 @@ export function ConversationCanvas({ conversation, onSendMessage }: Conversation
     }
   }, [message]);
 
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [conversation.messages]);
+
   const getPlatformBadge = () => {
     if (conversation.source === "slack") {
       return (
@@ -149,12 +216,21 @@ export function ConversationCanvas({ conversation, onSendMessage }: Conversation
         </div>
       );
     }
+    if (isExpenseChat) {
+      return (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <DollarSign className="w-3.5 h-3.5 text-primary" />
+          <span>Expense discussion</span>
+        </div>
+      );
+    }
     return null;
   };
 
   const getPlaceholder = () => {
     if (conversation.source === "slack") return "Reply to Slack…";
     if (conversation.source === "teams") return "Reply to Teams…";
+    if (isExpenseChat) return "Ask a question or add context…";
     return "Send a message…";
   };
 
@@ -163,6 +239,21 @@ export function ConversationCanvas({ conversation, onSendMessage }: Conversation
       {/* Messages Area */}
       <ScrollArea className="flex-1" ref={scrollRef}>
         <div className="max-w-3xl mx-auto px-6 py-6">
+          {/* Expense Context Card - Pinned at top */}
+          {isExpenseChat && expenseMetadata && (
+            <ExpenseContextCard
+              expenseId={conversation.expenseId || ""}
+              merchant={expenseMetadata.merchant}
+              amount={expenseMetadata.amount}
+              category={expenseMetadata.category}
+              description={expenseMetadata.description}
+              date={expenseMetadata.date}
+              status={expenseStatus}
+              submittedAt={expenseMetadata.submittedAt}
+              submitterName={expenseMetadata.submitterName}
+            />
+          )}
+
           {groupedMessages.map(({ date, messages }, groupIndex) => (
             <div key={date} className={cn(groupIndex > 0 && "mt-8")}>
               {/* Date separator - subtle */}
@@ -173,7 +264,7 @@ export function ConversationCanvas({ conversation, onSendMessage }: Conversation
               </div>
               
               {/* Message groups by sender */}
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {groupBySender(messages).map(({ sender, messages: senderMessages }, senderIndex) => {
                   const isSystemMessage = sender.isSystemMessage;
                   
@@ -181,18 +272,19 @@ export function ConversationCanvas({ conversation, onSendMessage }: Conversation
                   if (isSystemMessage) {
                     return (
                       <motion.div
-                        key={`${sender.senderId}-${senderIndex}`}
+                        key={`${sender.senderId}-${senderIndex}-${sender.id}`}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.2, delay: senderIndex * 0.05 }}
                         className="flex justify-center"
                       >
-                        <div className="max-w-md w-full bg-muted/40 border border-border/50 rounded-xl px-4 py-3">
+                        <div className={cn(
+                          "max-w-md w-full border rounded-xl px-4 py-3",
+                          getSystemMessageStyle(sender.messageType)
+                        )}>
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                              <svg className="w-3 h-3 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
+                            <div className="w-5 h-5 rounded-full bg-background/80 flex items-center justify-center">
+                              {getSystemMessageIcon(sender.messageType)}
                             </div>
                             <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                               Flyby
@@ -214,7 +306,7 @@ export function ConversationCanvas({ conversation, onSendMessage }: Conversation
                   // Regular message rendering
                   return (
                     <motion.div
-                      key={`${sender.senderId}-${senderIndex}`}
+                      key={`${sender.senderId}-${senderIndex}-${sender.id}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2, delay: senderIndex * 0.05 }}
@@ -259,6 +351,16 @@ export function ConversationCanvas({ conversation, onSendMessage }: Conversation
               </div>
             </div>
           ))}
+          
+          {/* Empty state for expense chats with no messages yet */}
+          {isExpenseChat && filteredMessages.length === 0 && expenseMetadata && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-sm">No messages yet. Start the conversation below.</p>
+            </div>
+          )}
+          
+          {/* Scroll anchor */}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 

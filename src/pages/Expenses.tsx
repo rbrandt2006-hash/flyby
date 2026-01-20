@@ -66,10 +66,21 @@ export default function Expenses() {
     
     // Get supervisor info
     const supervisor = supervisorMap[supervisorName];
-    const supervisorId = supervisor?.id || "1"; // Default to first supervisor if not found
+    const supervisorId = supervisor?.id || "1";
+    
+    // Create expense metadata for the context card
+    const expenseMetadata = {
+      merchant: selectedExpense.merchant,
+      amount: selectedExpense.amount,
+      category: selectedExpense.category,
+      description: selectedExpense.description,
+      date: selectedExpense.date,
+      submitterName: "Julia",
+      submittedAt: new Date().toISOString(),
+    };
     
     // Get or create chat with this supervisor for expense approval
-    const chat = getOrCreateExpenseChat(supervisorId, supervisorName, selectedExpense.id);
+    const chat = getOrCreateExpenseChat(supervisorId, supervisorName, selectedExpense.id, expenseMetadata);
     
     // Send system message with expense details
     const categoryLabel = selectedExpense.category.charAt(0).toUpperCase() + selectedExpense.category.slice(1);
