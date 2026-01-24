@@ -72,7 +72,7 @@ export default function Chats() {
       setSelectedId(stateId);
     }
   }, [location.state, allConversations]);
-  const selectedConversation = allConversations.find(c => c.id === selectedId);
+  const selectedConversation = allConversations.find(c => c.id === selectedId) as SyncedConversation | undefined;
   const detectedTrip = selectedId ? mockDetectedTrips[selectedId] : null;
   const travelIntentCount = allConversations.filter(c => c.hasTravelIntent).length;
 
