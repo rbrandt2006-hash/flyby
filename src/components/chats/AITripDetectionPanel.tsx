@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Plane, Building2, Calendar, DollarSign, ChevronRight, Check, Pencil, X, ArrowLeft } from "lucide-react";
+import { Sparkles, Plane, Building2, Calendar, DollarSign, ChevronRight, Check, Pencil, X, ArrowLeft, Star, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FlightSelectorDrawer } from "./booking/FlightSelectorDrawer";
+import { HotelBrowserDrawer } from "./booking/HotelBrowserDrawer";
+import { DatePickerDrawer } from "./booking/DatePickerDrawer";
+import { HotelPhotoCarousel } from "./booking/HotelPhotoCarousel";
+import { mockFlightOptions, mockHotelOptions } from "./booking/mockBookingData";
+import type { FlightOption, SeatOption, HotelOption } from "./booking/types";
 
 interface DetectedTrip {
   destination: string;
@@ -25,6 +31,20 @@ interface DetectedTrip {
   reasoning: string;
 }
 
+interface TripState {
+  selected: {
+    flight: FlightOption | null;
+    seat: SeatOption | null;
+    hotel: HotelOption | null;
+    startDate: Date | null;
+    endDate: Date | null;
+  };
+  options: {
+    flights: FlightOption[];
+    hotels: HotelOption[];
+  };
+}
+
 interface AITripDetectionPanelProps {
   detectedTrip: DetectedTrip | null;
   onReviewTrip: () => void;
@@ -33,8 +53,48 @@ interface AITripDetectionPanelProps {
 
 export function AITripDetectionPanel({ detectedTrip, onReviewTrip, onClose }: AITripDetectionPanelProps) {
   const [showReviewPanel, setShowReviewPanel] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  
+  // Drawer states
+  const [flightDrawerOpen, setFlightDrawerOpen] = useState(false);
+  const [hotelDrawerOpen, setHotelDrawerOpen] = useState(false);
+  const [dateDrawerOpen, setDateDrawerOpen] = useState(false);
+
+  // Trip state with selections and options
+  const [tripState, setTripState] = useState<TripState>(() => ({
+    selected: {
+      flight: null,
+      seat: null,
+      hotel: null,
+      startDate: null,
+      endDate: null,
+    },
+    options: {
+      flights: mockFlightOptions,
+      hotels: mockHotelOptions,
+    },
+  }));
+
+  // Calculate nights
+  const nights = useMemo(() => {
+    if (tripState.selected.startDate && tripState.selected.endDate) {
+      const diffTime = Math.abs(tripState.selected.endDate.getTime() - tripState.selected.startDate.getTime());
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+    return detectedTrip?.hotel.nights || 3;
+  }, [tripState.selected.startDate, tripState.selected.endDate, detectedTrip]);
+
+  // Calculate total cost
+  const totalCost = useMemo(() => {
+    const flightPrice = tripState.selected.flight?.price || detectedTrip?.flight.price || 0;
+    const seatPrice = tripState.selected.seat?.price || 0;
+    const hotelPrice = tripState.selected.hotel 
+      ? tripState.selected.hotel.pricePerNight * nights
+      : (detectedTrip?.hotel.pricePerNight || 0) * nights;
+    return flightPrice + seatPrice + hotelPrice;
+  }, [tripState.selected, nights, detectedTrip]);
 
   if (!detectedTrip) return null;
 
@@ -44,6 +104,61 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip, onClose }: AI
       setIsConfirming(false);
       setConfirmed(true);
     }, 1500);
+  };
+
+  const handleFlightSelect = (flight: FlightOption, seat: SeatOption | null) => {
+    setTripState(prev => ({
+      ...prev,
+      selected: {
+        ...prev.selected,
+        flight,
+        seat,
+      },
+    }));
+  };
+
+  const handleHotelSelect = (hotel: HotelOption) => {
+    setTripState(prev => ({
+      ...prev,
+      selected: {
+        ...prev.selected,
+        hotel,
+      },
+    }));
+  };
+
+  const handleDatesSelect = (startDate: Date, endDate: Date) => {
+    setTripState(prev => ({
+      ...prev,
+      selected: {
+        ...prev.selected,
+        startDate,
+        endDate,
+      },
+    }));
+  };
+
+  const toggleEditMode = () => {
+    setIsEditing(!isEditing);
+  };
+
+  // Get display values (selected or default)
+  const displayFlight = tripState.selected.flight || {
+    airline: detectedTrip.flight.airline,
+    departTime: detectedTrip.flight.departure,
+    arriveTime: detectedTrip.flight.arrival,
+    price: detectedTrip.flight.price,
+    stops: 0,
+    duration: "3h 45m",
+  };
+
+  const displayHotel = tripState.selected.hotel || {
+    name: detectedTrip.hotel.name,
+    area: detectedTrip.hotel.location,
+    pricePerNight: detectedTrip.hotel.pricePerNight,
+    rating: 4.5,
+    images: [],
+    reviewCount: 0,
   };
 
   return (
@@ -136,14 +251,26 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip, onClose }: AI
             className="flex flex-col h-full"
           >
             {/* Header */}
-            <div className="px-4 py-3 border-b border-border/40 flex items-center gap-2">
-              <button 
-                onClick={() => setShowReviewPanel(false)}
-                className="p-1 rounded hover:bg-muted transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4 text-muted-foreground" />
-              </button>
-              <span className="text-xs font-medium text-foreground">Review booking</span>
+            <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => { setShowReviewPanel(false); setIsEditing(false); }}
+                  className="p-1 rounded hover:bg-muted transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <span className="text-xs font-medium text-foreground">Review booking</span>
+              </div>
+              {!confirmed && (
+                <Button
+                  variant={isEditing ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                  onClick={toggleEditMode}
+                >
+                  {isEditing ? "Done" : "Edit"}
+                </Button>
+              )}
             </div>
 
             {/* Scrollable content */}
@@ -164,36 +291,98 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip, onClose }: AI
                 </motion.div>
               ) : (
                 <div className="space-y-3">
-                  <EditableSection
+                  {/* Flight Card */}
+                  <EditableCard
                     icon={<Plane className="w-3.5 h-3.5" />}
                     title="Flight"
-                    details={[
-                      detectedTrip.flight.airline,
-                      `${detectedTrip.flight.departure} → ${detectedTrip.flight.arrival}`,
-                      `$${detectedTrip.flight.price}`
-                    ]}
-                  />
-                  <EditableSection
+                    isEditing={isEditing}
+                    onChangeClick={() => setFlightDrawerOpen(true)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs font-medium text-foreground">{displayFlight.airline}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {displayFlight.departTime} → {displayFlight.arriveTime}
+                        </p>
+                        {tripState.selected.flight && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {tripState.selected.flight.duration} • {tripState.selected.flight.stops === 0 ? "Nonstop" : `${tripState.selected.flight.stops} stop`}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-sm font-semibold text-primary">${displayFlight.price}</span>
+                    </div>
+                    {tripState.selected.seat && (
+                      <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground">Seat {tripState.selected.seat.id}</span>
+                        {tripState.selected.seat.price > 0 && (
+                          <span className="font-medium">+${tripState.selected.seat.price}</span>
+                        )}
+                      </div>
+                    )}
+                  </EditableCard>
+
+                  {/* Hotel Card */}
+                  <EditableCard
                     icon={<Building2 className="w-3.5 h-3.5" />}
                     title="Hotel"
-                    details={[
-                      detectedTrip.hotel.name,
-                      detectedTrip.hotel.location,
-                      `$${detectedTrip.hotel.pricePerNight}/night × ${detectedTrip.hotel.nights}`
-                    ]}
-                  />
-                  <EditableSection
+                    isEditing={isEditing}
+                    onChangeClick={() => setHotelDrawerOpen(true)}
+                  >
+                    {/* Photo carousel for selected hotel */}
+                    {tripState.selected.hotel && tripState.selected.hotel.images.length > 0 && (
+                      <div className="mb-3 -mx-3 -mt-3">
+                        <HotelPhotoCarousel
+                          images={tripState.selected.hotel.images}
+                          hotelName={tripState.selected.hotel.name}
+                          compact
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs font-medium text-foreground">{displayHotel.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <MapPin className="w-3 h-3 text-muted-foreground/60" />
+                          <p className="text-[11px] text-muted-foreground">{displayHotel.area}</p>
+                        </div>
+                        {tripState.selected.hotel && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                            <span className="text-[10px] text-muted-foreground">
+                              {tripState.selected.hotel.rating} ({tripState.selected.hotel.reviewCount.toLocaleString()} reviews)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-semibold text-primary">${displayHotel.pricePerNight * nights}</span>
+                        <p className="text-[10px] text-muted-foreground">${displayHotel.pricePerNight}/night</p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">{nights} night{nights !== 1 ? 's' : ''}</p>
+                  </EditableCard>
+
+                  {/* Dates Card */}
+                  <EditableCard
                     icon={<Calendar className="w-3.5 h-3.5" />}
                     title="Dates"
-                    details={[detectedTrip.dates]}
-                  />
+                    isEditing={isEditing}
+                    onChangeClick={() => setDateDrawerOpen(true)}
+                  >
+                    <p className="text-xs text-foreground">{detectedTrip.dates}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{nights} night{nights !== 1 ? 's' : ''}</p>
+                  </EditableCard>
 
                   {/* Total */}
                   <div className="pt-3 border-t border-border/40 mt-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Total</span>
-                      <span className="text-sm font-semibold">${detectedTrip.totalCost.toLocaleString()}</span>
+                      <span className="text-xs text-muted-foreground">Estimated Total</span>
+                      <span className="text-base font-bold">${totalCost.toLocaleString()}</span>
                     </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Flight + {nights} nights hotel{tripState.selected.seat ? ' + seat' : ''}
+                    </p>
                   </div>
                 </div>
               )}
@@ -202,68 +391,103 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip, onClose }: AI
             {/* Footer Actions */}
             {!confirmed && (
               <div className="p-4 border-t border-border/40">
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="flex-1 h-9 text-xs gap-1.5"
-                    onClick={() => setShowReviewPanel(false)}
-                  >
-                    <Pencil className="w-3 h-3" />
-                    Edit
-                  </Button>
-                  <Button 
-                    size="sm"
-                    className="flex-1 h-9 text-xs gap-1.5"
-                    onClick={handleConfirm}
-                    disabled={isConfirming}
-                  >
-                    {isConfirming ? (
-                      <>
-                        <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                        Booking...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-3 h-3" />
-                        Confirm
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <Button 
+                  size="sm"
+                  className="w-full h-9 text-xs gap-1.5"
+                  onClick={handleConfirm}
+                  disabled={isConfirming || isEditing}
+                >
+                  {isConfirming ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                      Booking...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3 h-3" />
+                      Confirm booking
+                    </>
+                  )}
+                </Button>
               </div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Flight Selector Drawer */}
+      <FlightSelectorDrawer
+        open={flightDrawerOpen}
+        onOpenChange={setFlightDrawerOpen}
+        flights={tripState.options.flights}
+        selectedFlight={tripState.selected.flight}
+        selectedSeat={tripState.selected.seat}
+        onSelect={handleFlightSelect}
+        basePrice={detectedTrip.flight.price}
+      />
+
+      {/* Hotel Browser Drawer */}
+      <HotelBrowserDrawer
+        open={hotelDrawerOpen}
+        onOpenChange={setHotelDrawerOpen}
+        hotels={tripState.options.hotels}
+        selectedHotel={tripState.selected.hotel}
+        onSelect={handleHotelSelect}
+        nights={nights}
+        venueName={detectedTrip.destination}
+      />
+
+      {/* Date Picker Drawer */}
+      <DatePickerDrawer
+        open={dateDrawerOpen}
+        onOpenChange={setDateDrawerOpen}
+        startDate={tripState.selected.startDate}
+        endDate={tripState.selected.endDate}
+        onSelect={handleDatesSelect}
+      />
     </div>
   );
 }
 
-function EditableSection({ 
-  icon, 
-  title, 
-  details 
-}: { 
-  icon: React.ReactNode; 
-  title: string; 
-  details: string[];
-}) {
+interface EditableCardProps {
+  icon: React.ReactNode;
+  title: string;
+  isEditing: boolean;
+  onChangeClick: () => void;
+  children: React.ReactNode;
+}
+
+function EditableCard({ icon, title, isEditing, onChangeClick, children }: EditableCardProps) {
   return (
-    <div className="p-3 rounded-lg bg-card border border-border/60 hover:border-border transition-colors cursor-pointer group">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-2.5">
+    <div 
+      className={cn(
+        "p-3 rounded-lg bg-card border border-border/60 transition-all",
+        isEditing && "hover:border-primary/30 cursor-pointer"
+      )}
+      onClick={isEditing ? onChangeClick : undefined}
+    >
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-md bg-muted/70 flex items-center justify-center shrink-0 text-muted-foreground">
             {icon}
           </div>
-          <div>
-            <p className="text-xs font-medium text-foreground">{title}</p>
-            {details.map((detail, i) => (
-              <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">{detail}</p>
-            ))}
-          </div>
+          <p className="text-xs font-medium text-foreground">{title}</p>
         </div>
-        <Pencil className="w-3 h-3 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+        {isEditing && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onChangeClick();
+            }}
+            className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/70 hover:bg-muted text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Pencil className="w-3 h-3" />
+            Change
+          </button>
+        )}
+      </div>
+      <div className="pl-9">
+        {children}
       </div>
     </div>
   );
