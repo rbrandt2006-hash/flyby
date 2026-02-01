@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.twofa-check-required]
 verify_jwt = false
+
+[functions.search-travel]
+verify_jwt = false
