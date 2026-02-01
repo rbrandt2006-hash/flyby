@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plane, Hotel, Car, Check, ChevronDown, Star, Clock, DollarSign, MapPin, Fuel } from "lucide-react";
+import { X, Plane, Hotel, Car, Check, ChevronDown, Star, Clock, DollarSign, MapPin, Fuel, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
+import { SearchTabContent } from "./SearchTabContent";
+import type { SearchFlightResult, SearchHotelResult, SearchGroundResult } from "@/hooks/useTravelSearch";
 
 interface FlightOption {
   id: string;
@@ -284,7 +286,11 @@ export function RefineModal({
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
               {/* Controls row - Sticky */}
               <div className="shrink-0 px-6 py-4 flex items-center justify-between border-b border-border/50 bg-background">
-                <TabsList className="grid grid-cols-3 w-auto">
+                <TabsList className="grid grid-cols-4 w-auto">
+                  <TabsTrigger value="search" className="gap-2">
+                    <Search className="w-4 h-4" />
+                    Search
+                  </TabsTrigger>
                   <TabsTrigger value="flights" className="gap-2">
                     <Plane className="w-4 h-4" />
                     Flights
@@ -299,22 +305,77 @@ export function RefineModal({
                   </TabsTrigger>
                 </TabsList>
                 
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recommended">Recommended</SelectItem>
-                    <SelectItem value="cheapest">Cheapest</SelectItem>
-                    {activeTab === "flights" && <SelectItem value="fastest">Fastest</SelectItem>}
-                    {activeTab === "hotels" && <SelectItem value="closest">Closest</SelectItem>}
-                  </SelectContent>
-                </Select>
+                {activeTab !== "search" && (
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recommended">Recommended</SelectItem>
+                      <SelectItem value="cheapest">Cheapest</SelectItem>
+                      {activeTab === "flights" && <SelectItem value="fastest">Fastest</SelectItem>}
+                      {activeTab === "hotels" && <SelectItem value="closest">Closest</SelectItem>}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               
               {/* Scrollable content area - THIS is the scroll container */}
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
                 <div className="mx-auto w-full max-w-[760px] px-6 py-5">
+                {/* Search Tab Content */}
+                <TabsContent value="search" className="mt-0">
+                  <SearchTabContent
+                    activeCategory="search"
+                    destination={destination}
+                    onSelectFlight={(flight) => {
+                      // Convert SearchFlightResult to FlightOption
+                      const converted: FlightOption = {
+                        id: flight.id,
+                        airline: flight.airline,
+                        departTime: flight.departTime,
+                        returnTime: flight.arriveTime,
+                        price: flight.price,
+                        duration: flight.duration,
+                        stops: flight.stops,
+                        tags: flight.tags,
+                      };
+                      setSelectedFlight(converted);
+                      setActiveTab("flights");
+                    }}
+                    onSelectHotel={(hotel) => {
+                      // Convert SearchHotelResult to HotelOption
+                      const converted: HotelOption = {
+                        id: hotel.id,
+                        name: hotel.name,
+                        location: hotel.area,
+                        pricePerNight: hotel.pricePerNight,
+                        rating: hotel.rating,
+                        distance: hotel.distanceToVenue,
+                        tags: hotel.tags,
+                      };
+                      setSelectedHotel(converted);
+                      setActiveTab("hotels");
+                    }}
+                    onSelectGround={(ground) => {
+                      // Convert SearchGroundResult to GroundOption
+                      const converted: GroundOption = {
+                        id: ground.id,
+                        type: ground.type,
+                        provider: ground.provider,
+                        price: ground.price,
+                        description: ground.description,
+                        tags: ground.tags,
+                      };
+                      setSelectedGround(converted);
+                      setActiveTab("ground");
+                    }}
+                    selectedFlightId={selectedFlight?.id}
+                    selectedHotelId={selectedHotel?.id}
+                    selectedGroundId={selectedGround?.id}
+                  />
+                </TabsContent>
+
                 <TabsContent value="flights" className="mt-0 space-y-3">
                   {sortedFlights.map((flight) => (
                     <motion.div
