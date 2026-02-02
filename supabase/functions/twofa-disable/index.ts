@@ -1,44 +1,72 @@
+/**
+ * 2FA Disable Endpoint
+ * 
+ * Disables 2FA for the authenticated user.
+ * 
+ * Security features:
+ * - JWT authentication required
+ * - Rate limiting
+ * - Audit logging for all disable attempts
+ * 
+ * @see SECURITY.md for configuration details
+ */
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import {
+  getCorsHeaders,
+  checkRateLimit,
+  getClientIP,
+  rateLimitedResponse,
+  errorResponse,
+  successResponse,
+  createAuditLog,
+  logAudit,
+} from "../_shared/security.ts";
+import { RATE_LIMITS } from "../_shared/rate-limits.ts";
 
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
+  const clientIP = getClientIP(req);
+
   try {
-    // Get authorization header
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // ========================================================================
+    // RATE LIMITING
+    // ========================================================================
+    const rateLimitResult = checkRateLimit(clientIP, RATE_LIMITS.API_DEFAULT);
+    if (!rateLimitResult.allowed) {
+      return rateLimitedResponse(req, rateLimitResult);
     }
 
-    // Initialize Supabase clients
+    // ========================================================================
+    // AUTHENTICATION
+    // ========================================================================
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return errorResponse(req, 401, "Missing authorization header");
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Validate user JWT by passing token directly
-    const token = authHeader.replace('Bearer ', '');
+    // Validate user JWT
+    const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
     if (userError || !user) {
-      console.error("User validation failed:", userError);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      logAudit(createAuditLog(req, "twofa_disable_unauthorized", undefined, false));
+      return errorResponse(req, 401, "Unauthorized");
     }
 
-    // Get current 2FA status
+    // ========================================================================
+    // CHECK CURRENT 2FA STATUS
+    // ========================================================================
     const { data: profile } = await supabaseClient
       .from("profiles")
       .select("two_factor_enabled, two_factor_phone")
@@ -46,13 +74,12 @@ serve(async (req) => {
       .single();
 
     if (!profile?.two_factor_enabled) {
-      return new Response(
-        JSON.stringify({ error: "2FA is not enabled" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return errorResponse(req, 400, "2FA is not enabled");
     }
 
-    // Disable 2FA
+    // ========================================================================
+    // DISABLE 2FA
+    // ========================================================================
     const { error: updateError } = await supabaseClient
       .from("profiles")
       .update({
@@ -63,35 +90,33 @@ serve(async (req) => {
       .eq("user_id", user.id);
 
     if (updateError) {
-      console.error("Failed to disable 2FA:", updateError);
-      return new Response(
-        JSON.stringify({ error: "Failed to disable 2FA" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("[2FA Disable] Failed to update profile:", updateError.message);
+      return errorResponse(req, 500, "Failed to disable 2FA");
     }
 
-    // Log disable action
+    // ========================================================================
+    // AUDIT LOGGING
+    // ========================================================================
     await supabaseClient.from("two_factor_audit_log").insert({
       user_id: user.id,
       action: "disable_2fa",
       phone_number_masked: null,
-      ip_address: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip"),
+      ip_address: clientIP,
       user_agent: req.headers.get("user-agent"),
       success: true,
     });
 
-    console.log(`2FA disabled for user ${user.id}`);
+    logAudit(createAuditLog(req, "twofa_disable_success", user.id, true));
+    console.log(`[2FA] Disabled for user ${user.id}`);
 
-    return new Response(
-      JSON.stringify({ success: true, message: "Two-factor authentication disabled" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return successResponse(req, {
+      success: true,
+      message: "Two-factor authentication disabled",
+    });
 
   } catch (error) {
-    console.error("2FA disable error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("[2FA Disable] Unexpected error:", error instanceof Error ? error.message : "Unknown error");
+    logAudit(createAuditLog(req, "twofa_disable_error", undefined, false));
+    return errorResponse(req, 500, "Internal server error");
   }
 });

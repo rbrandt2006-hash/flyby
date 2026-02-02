@@ -8,14 +8,38 @@
     <meta name="author" content="flyby" />
     <link rel="icon" href="/favicon.png" type="image/png" />
 
+    <!-- Open Graph -->
     <meta property="og:title" content="flyby - AI-Powered Corporate Travel Platform" />
     <meta property="og:description" content="flyby predicts, plans, and manages business travel automatically. Reduce manual booking, prevent disruptions, and automate expense tracking." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@flyby" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <!-- Security Headers (client-side meta tags) -->
+    <!-- Note: Server-side headers are preferred for production. These are fallbacks. -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    
+    <!-- Content Security Policy -->
+    <!-- Allows: self, inline styles/scripts (for Vite HMR), images from https, fonts -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      img-src 'self' data: blob: https: http://localhost:*;
+      font-src 'self' https://fonts.gstatic.com;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.elevenlabs.io https://verify.twilio.com;
+      frame-ancestors 'none';
+      form-action 'self';
+      base-uri 'self';
+      object-src 'none';
+    " />
   </head>
 
   <body>
