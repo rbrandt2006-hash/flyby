@@ -9,7 +9,7 @@ import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
 import { FlightSearchDialog } from "@/components/flights/FlightSearchDialog";
 import { TripCard, type Trip } from "@/components/trips/TripCard";
-import { TripDetailPanel } from "@/components/trips/TripDetailPanel";
+import { TripEditDrawer } from "@/components/trips/TripEditDrawer";
 import { toast } from "sonner";
 import { 
   fetchCalendarEvents, 
@@ -417,7 +417,7 @@ export default function Trips() {
         onTripCreated={handleTripCreated}
       />
 
-      <TripDetailPanel
+      <TripEditDrawer
         trip={selectedTrip}
         open={detailPanelOpen}
         onOpenChange={setDetailPanelOpen}
