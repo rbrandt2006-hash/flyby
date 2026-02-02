@@ -38,11 +38,11 @@
     --accent: 38 92% 50%;
     --accent-foreground: 222 47% 11%;
     
-    /* CTA Blue - Strong, saturated primary action */
-    --cta: 217 91% 60%;
-    --cta-hover: 224 76% 48%;
-    --cta-active: 226 71% 40%;
-    --cta-foreground: 0 0% 100%;
+    /* CTA Blue - Light blue primary action */
+    --cta: 209 52% 81%;
+    --cta-hover: 209 52% 75%;
+    --cta-active: 209 52% 70%;
+    --cta-foreground: 222 47% 11%;
 
     /* Status colors */
     --success: 142 76% 36%;
