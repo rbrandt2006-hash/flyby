@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { format } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -322,22 +323,48 @@ export default function Dashboard() {
     return "Good evening";
   };
 
-  // Mock data for demo
-  const upcomingTrips = [{
-    id: "home-1",
-    destination: "San Francisco, CA",
-    dates: "Jan 8-10, 2025",
-    status: "approved" as const,
-    purpose: "Client meeting",
-    estimatedCost: 1850
-  }, {
-    id: "home-2",
-    destination: "Seattle, WA",
-    dates: "Jan 15-17, 2025",
-    status: "pending" as const,
-    purpose: "Team offsite",
-    estimatedCost: 2100
-  }];
+  // Get trips from the hook - use real trips + demo fallback
+  const { trips: localTrips } = useTrips();
+  
+  // Create demo trips for display if no real trips exist
+  const upcomingTrips = useMemo(() => {
+    // Filter to only upcoming/active trips (not archived or cancelled)
+    const activeLocalTrips = localTrips.filter(t => 
+      t.status === 'draft' || t.status === 'pending' || t.status === 'confirmed'
+    );
+    
+    if (activeLocalTrips.length > 0) {
+      // Map local trips to display format
+      return activeLocalTrips.slice(0, 4).map(t => ({
+        id: t.id,
+        destination: t.destination,
+        dates: `${format(new Date(t.startDate), 'MMM d')}-${format(new Date(t.endDate), 'd, yyyy')}`,
+        status: t.status === 'confirmed' ? 'approved' as const : t.status === 'pending' ? 'pending' as const : 'draft' as const,
+        purpose: t.purpose,
+        estimatedCost: t.estimatedCost
+      }));
+    }
+    
+    // Demo fallback trips with stable IDs
+    return [
+      {
+        id: "demo_trip_sf_2025",
+        destination: "San Francisco, CA",
+        dates: "Jan 8-10, 2025",
+        status: "approved" as const,
+        purpose: "Client meeting",
+        estimatedCost: 1850
+      },
+      {
+        id: "demo_trip_seattle_2025",
+        destination: "Seattle, WA",
+        dates: "Jan 15-17, 2025",
+        status: "pending" as const,
+        purpose: "Team offsite",
+        estimatedCost: 2100
+      }
+    ];
+  }, [localTrips]);
   const calendarSuggestions = [{
     id: 1,
     event: "Q1 Planning Meeting",

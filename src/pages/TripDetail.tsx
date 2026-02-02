@@ -100,17 +100,71 @@ export default function TripDetail() {
     return Math.max(1, differenceInDays(new Date(trip.endDate), new Date(trip.startDate)));
   }, [trip]);
 
+  // Demo trips fallback data (must match Dashboard demo IDs)
+  const demoTrips: Record<string, TripData> = {
+    "demo_trip_sf_2025": {
+      id: "demo_trip_sf_2025",
+      destination: "San Francisco, CA",
+      startDate: "2025-01-08T00:00:00.000Z",
+      endDate: "2025-01-10T00:00:00.000Z",
+      status: "confirmed",
+      purpose: "Client meeting",
+      estimatedCost: 1850,
+      flight: {
+        airline: "United Airlines",
+        flightNumber: "UA 1234",
+        departTime: "7:00 AM",
+        returnTime: "6:30 PM"
+      },
+      hotel: {
+        name: "The Westin St. Francis",
+        location: "Union Square"
+      },
+      groundTransport: "Uber / Lyft"
+    },
+    "demo_trip_seattle_2025": {
+      id: "demo_trip_seattle_2025",
+      destination: "Seattle, WA",
+      startDate: "2025-01-15T00:00:00.000Z",
+      endDate: "2025-01-17T00:00:00.000Z",
+      status: "pending",
+      purpose: "Team offsite",
+      estimatedCost: 2100,
+      flight: {
+        airline: "Alaska Airlines",
+        flightNumber: "AS 567",
+        departTime: "8:30 AM",
+        returnTime: "5:00 PM"
+      },
+      hotel: {
+        name: "The Fairmont Olympic",
+        location: "Downtown Seattle"
+      },
+      groundTransport: "Light Rail + Uber"
+    }
+  };
+
   // Load trip data
   useEffect(() => {
     const loadTrip = async () => {
       setIsLoading(true);
       
+      // Debug logging in dev mode
+      if (import.meta.env.DEV) {
+        console.log('[TripDetail] Loading trip with ID:', tripId);
+        console.log('[TripDetail] Local trips count:', localTrips.length);
+        console.log('[TripDetail] Local trip IDs:', localTrips.map(t => t.id));
+      }
+      
       // Simulate loading delay for smooth skeleton display
       await new Promise(r => setTimeout(r, 300));
       
-      // First check local trips
+      // First check local trips from useTrips hook
       const localTrip = localTrips.find(t => t.id === tripId);
       if (localTrip) {
+        if (import.meta.env.DEV) {
+          console.log('[TripDetail] Found trip in local storage:', localTrip.id);
+        }
         setTrip({
           id: localTrip.id,
           destination: localTrip.destination,
@@ -127,8 +181,21 @@ export default function TripDetail() {
         return;
       }
       
-      // Fallback to backend trips
-      if (user) {
+      // Check demo trips
+      if (tripId && demoTrips[tripId]) {
+        if (import.meta.env.DEV) {
+          console.log('[TripDetail] Found demo trip:', tripId);
+        }
+        setTrip(demoTrips[tripId]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Fallback to backend trips (Supabase)
+      if (user && tripId) {
+        if (import.meta.env.DEV) {
+          console.log('[TripDetail] Fetching trip from Supabase:', tripId);
+        }
         const { data, error } = await supabase
           .from("trips")
           .select("*")
@@ -136,6 +203,9 @@ export default function TripDetail() {
           .single();
         
         if (!error && data) {
+          if (import.meta.env.DEV) {
+            console.log('[TripDetail] Found trip in Supabase:', data.id);
+          }
           setTrip({
             id: data.id,
             destination: data.destination,
@@ -148,7 +218,15 @@ export default function TripDetail() {
             hotel: data.hotel_details as TripData["hotel"],
             groundTransport: data.ground_transport as string | undefined,
           });
+          setIsLoading(false);
+          return;
+        } else if (import.meta.env.DEV && error) {
+          console.log('[TripDetail] Supabase error:', error.message);
         }
+      }
+      
+      if (import.meta.env.DEV) {
+        console.log('[TripDetail] Trip not found anywhere for ID:', tripId);
       }
       
       setIsLoading(false);
