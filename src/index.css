@@ -77,6 +77,11 @@
     --gradient-hero: linear-gradient(180deg, hsl(220 20% 98%) 0%, hsl(220 14% 96%) 100%);
     --gradient-cinematic: linear-gradient(180deg, hsl(220 20% 99%) 0%, hsl(220 20% 96%) 50%, hsl(220 14% 94%) 100%);
     
+    /* Teal action color */
+    --teal: 185 15% 47%;
+    --teal-hover: 185 15% 42%;
+    --teal-foreground: 0 0% 100%;
+    
     --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(222 47% 11% / 0.08), 0 2px 4px -1px hsl(222 47% 11% / 0.04);
     --shadow-lg: 0 10px 15px -3px hsl(222 47% 11% / 0.08), 0 4px 6px -2px hsl(222 47% 11% / 0.04);
