@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, Car, X, Brain, ChevronRight } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, Car, X, Brain, ChevronRight, Mic, Square, Check, Edit2 } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
+import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import AnimatedCard from "@/components/home/AnimatedCard";
 import AlertCard from "@/components/home/AlertCard";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
@@ -137,6 +138,48 @@ export default function Dashboard() {
   });
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
+
+  // Voice recording hook
+  const handleTranscriptReady = useCallback((transcript: string) => {
+    setTripInput(transcript);
+  }, []);
+
+  const voiceRecording = useVoiceRecording({
+    onTranscriptReady: handleTranscriptReady,
+    maxDuration: 60,
+  });
+
+  // Handle confirming the transcript and planning the trip
+  const handleConfirmVoice = useCallback(async () => {
+    voiceRecording.confirmTranscript();
+    // Auto-trigger planning
+    setError(null);
+    setInputError(null);
+    setNeedsDestination(false);
+    if (!tripInput.trim()) {
+      setInputError("Please describe your trip first");
+      return;
+    }
+    setIsPlanning(true);
+    setPlanResult(null);
+    try {
+      const result = await generateTripPlan(tripInput);
+      if ("needsDestination" in result) {
+        setNeedsDestination(true);
+      } else {
+        setPlanResult(result);
+      }
+    } catch (err) {
+      setError("Failed to generate trip plan. Please try again.");
+    } finally {
+      setIsPlanning(false);
+    }
+  }, [tripInput, voiceRecording]);
+
+  const handleEditVoice = useCallback(() => {
+    // Keep the transcript in the input but dismiss the ready state
+    voiceRecording.confirmTranscript();
+  }, [voiceRecording]);
   const handlePlanTrip = async () => {
     setError(null);
     setInputError(null);
@@ -432,22 +475,103 @@ export default function Dashboard() {
                 duration: 0.2
               }} className={`w-full h-12 px-4 rounded-xl border ${inputError ? 'border-destructive' : 'border-border'} bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200`} />
               </div>
+              {/* Mic button with states */}
               <motion.div whileHover={{
-              scale: isPlanning ? 1 : 1.02
-            }} whileTap={{
-              scale: isPlanning ? 1 : 0.98
-            }}>
-                <Button variant="cta" size="lg" className="shrink-0 rounded-xl disabled:opacity-70 text-white" onClick={handlePlanTrip} disabled={isPlanning}>
-                  {isPlanning ? <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Planning…
-                    </> : <>
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Plan trip
-                    </>}
-                </Button>
+                scale: voiceRecording.state === 'processing' || isPlanning ? 1 : 1.02
+              }} whileTap={{
+                scale: voiceRecording.state === 'processing' || isPlanning ? 1 : 0.98
+              }}>
+                {voiceRecording.state === 'idle' && !isPlanning && (
+                  <Button 
+                    variant="cta" 
+                    size="lg" 
+                    className="shrink-0 rounded-xl text-white"
+                    onClick={voiceRecording.startRecording}
+                  >
+                    <Mic className="w-4 h-4 mr-2" />
+                    Record
+                  </Button>
+                )}
+
+                {voiceRecording.state === 'recording' && (
+                  <Button 
+                    variant="destructive" 
+                    size="lg" 
+                    className="shrink-0 rounded-xl gap-2"
+                    onClick={voiceRecording.stopRecording}
+                  >
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className="w-3 h-3 rounded-full bg-white"
+                    />
+                    <span>Stop</span>
+                    <span className="text-xs opacity-80">{voiceRecording.formattedTime}</span>
+                  </Button>
+                )}
+
+                {voiceRecording.state === 'processing' && (
+                  <Button 
+                    variant="cta" 
+                    size="lg" 
+                    className="shrink-0 rounded-xl text-white" 
+                    disabled
+                  >
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Transcribing…
+                  </Button>
+                )}
+
+                {isPlanning && voiceRecording.state === 'idle' && (
+                  <Button variant="cta" size="lg" className="shrink-0 rounded-xl disabled:opacity-70 text-white" disabled>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Planning…
+                  </Button>
+                )}
               </motion.div>
             </div>
+
+            {/* Voice transcript confirmation */}
+            <AnimatePresence>
+              {voiceRecording.state === 'ready' && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="p-4 bg-muted/50 rounded-xl border border-border space-y-3"
+                >
+                  <p className="text-sm text-muted-foreground">Use this request?</p>
+                  <p className="text-sm font-medium text-foreground">"{voiceRecording.transcript}"</p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleConfirmVoice}
+                      className="gap-1"
+                    >
+                      <Check className="w-3 h-3" />
+                      Confirm
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleEditVoice}
+                      className="gap-1"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={voiceRecording.cancelRecording}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
             
             {/* Input error message */}
             <AnimatePresence>
