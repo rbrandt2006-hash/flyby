@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Pencil, Plane, Building2, Car, Calendar, MapPin, DollarSign, Clock, Users, FileText, Receipt, ChevronRight } from "lucide-react";
+import { ArrowLeft, Pencil, Plane, Building2, Car, Calendar, MapPin, DollarSign, Clock, Users, FileText, Receipt, ChevronRight, Check, X, Save, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { useTrips, type LocalTrip } from "@/hooks/useTrips";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,8 +15,10 @@ import { cn } from "@/lib/utils";
 import { TripFlightPicker } from "@/components/trips/TripFlightPicker";
 import { TripHotelPicker } from "@/components/trips/TripHotelPicker";
 import { TripDatePicker } from "@/components/trips/TripDatePicker";
+import { HotelDetailModal, type HotelInfo } from "@/components/trips/HotelDetailModal";
 import { mockFlightOptions, mockHotelOptions } from "@/components/chats/booking/mockBookingData";
 import type { FlightOption, HotelOption, SeatOption } from "@/components/chats/booking/types";
+import { toast } from "sonner";
 
 type TabType = "overview" | "itinerary" | "expenses";
 
@@ -36,8 +39,15 @@ interface TripData {
   hotel?: {
     name?: string;
     location?: string;
+    address?: string;
     checkIn?: string;
     checkOut?: string;
+    pricePerNight?: number;
+    rating?: number;
+    amenities?: string[];
+    images?: string[];
+    description?: string;
+    reviewCount?: number;
   };
   groundTransport?: string;
 }
@@ -93,6 +103,11 @@ export default function TripDetail() {
   const [selectedFlight, setSelectedFlight] = useState<FlightOption | null>(null);
   const [selectedSeat, setSelectedSeat] = useState<SeatOption | null>(null);
   const [selectedHotel, setSelectedHotel] = useState<HotelOption | null>(null);
+  const [hotelModalOpen, setHotelModalOpen] = useState(false);
+  
+  // Edit mode state
+  const [editedTrip, setEditedTrip] = useState<TripData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Calculate nights
   const nights = useMemo(() => {
@@ -118,7 +133,20 @@ export default function TripDetail() {
       },
       hotel: {
         name: "The Westin St. Francis",
-        location: "Union Square"
+        location: "Union Square",
+        address: "335 Powell St, San Francisco, CA 94102",
+        pricePerNight: 289,
+        rating: 4.5,
+        amenities: ["Free Wi-Fi", "Gym", "Restaurant", "Bar", "Room Service"],
+        images: [
+          "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop",
+          "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&h=500&fit=crop",
+          "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=500&fit=crop",
+          "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&h=500&fit=crop",
+          "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800&h=500&fit=crop",
+        ],
+        description: "Experience luxury in the heart of San Francisco. The Westin St. Francis offers world-class amenities and unparalleled views of Union Square.",
+        reviewCount: 2847
       },
       groundTransport: "Uber / Lyft"
     },
@@ -138,7 +166,20 @@ export default function TripDetail() {
       },
       hotel: {
         name: "The Fairmont Olympic",
-        location: "Downtown Seattle"
+        location: "Downtown Seattle",
+        address: "411 University St, Seattle, WA 98101",
+        pricePerNight: 349,
+        rating: 4.7,
+        amenities: ["Free Wi-Fi", "Pool", "Spa", "Gym", "Restaurant", "Valet Parking"],
+        images: [
+          "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=500&fit=crop",
+          "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=500&fit=crop",
+          "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800&h=500&fit=crop",
+          "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&h=500&fit=crop",
+          "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?w=800&h=500&fit=crop",
+        ],
+        description: "A historic landmark in the heart of downtown Seattle. The Fairmont Olympic combines timeless elegance with modern luxury.",
+        reviewCount: 1923
       },
       groundTransport: "Light Rail + Uber"
     }
@@ -279,6 +320,86 @@ export default function TripDetail() {
     setDatePickerOpen(false);
   };
 
+  // Handle starting edit mode
+  const handleStartEdit = useCallback(() => {
+    if (trip) {
+      setEditedTrip({ ...trip });
+      setIsEditing(true);
+    }
+  }, [trip]);
+
+  // Handle cancelling edit
+  const handleCancelEdit = useCallback(() => {
+    setEditedTrip(null);
+    setIsEditing(false);
+  }, []);
+
+  // Handle saving edits
+  const handleSaveEdit = useCallback(async () => {
+    if (!editedTrip || !trip) return;
+    
+    setIsSaving(true);
+    try {
+      // Calculate new estimated cost based on hotel price changes
+      let newEstimatedCost = editedTrip.estimatedCost;
+      
+      // Update the trip state
+      setTrip(editedTrip);
+      
+      // If it's a local trip, update it in the store
+      if (localTrips.find(t => t.id === trip.id)) {
+        updateTrip(trip.id, {
+          destination: editedTrip.destination,
+          startDate: editedTrip.startDate,
+          endDate: editedTrip.endDate,
+          purpose: editedTrip.purpose,
+          estimatedCost: newEstimatedCost,
+          flight: editedTrip.flight ? {
+            airline: editedTrip.flight.airline || "",
+            departTime: editedTrip.flight.departTime || "",
+            returnTime: editedTrip.flight.returnTime || "",
+          } : null,
+          hotel: editedTrip.hotel ? {
+            name: editedTrip.hotel.name || "",
+            location: editedTrip.hotel.location || "",
+          } : null,
+          groundTransport: editedTrip.groundTransport || null,
+        });
+      }
+      
+      toast.success("Trip updated successfully");
+      setIsEditing(false);
+      setEditedTrip(null);
+    } catch (error) {
+      toast.error("Failed to save changes");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [editedTrip, trip, localTrips, updateTrip]);
+
+  // Handle hotel card click to open details modal
+  const handleHotelCardClick = useCallback(() => {
+    if (!isEditing) {
+      setHotelModalOpen(true);
+    }
+  }, [isEditing]);
+
+  // Convert trip hotel to HotelInfo for modal
+  const hotelInfoForModal: HotelInfo | null = useMemo(() => {
+    if (!trip?.hotel) return null;
+    return {
+      name: trip.hotel.name || "Hotel",
+      location: trip.hotel.location,
+      address: trip.hotel.address,
+      rating: trip.hotel.rating,
+      pricePerNight: trip.hotel.pricePerNight,
+      amenities: trip.hotel.amenities,
+      images: trip.hotel.images,
+      description: trip.hotel.description,
+      reviewCount: trip.hotel.reviewCount,
+    };
+  }, [trip?.hotel]);
+
   const status = trip ? (statusConfig[trip.status] || statusConfig.draft) : statusConfig.draft;
 
   const tabs: { id: TabType; label: string }[] = [
@@ -335,17 +456,56 @@ export default function TripDetail() {
               ) : null}
             </div>
             
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsEditing(!isEditing)}
-              className={cn(
-                "rounded-full",
-                isEditing && "bg-primary/10 text-primary"
+            {/* Edit/Save/Cancel buttons */}
+            <div className="flex items-center gap-2">
+              {isEditing ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancelEdit}
+                    disabled={isSaving}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleSaveEdit}
+                    disabled={isSaving}
+                    className="gap-1"
+                  >
+                    {isSaving ? (
+                      <>
+                        <motion.div 
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                        />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save
+                      </>
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleStartEdit}
+                  className="rounded-full hover:bg-muted hover:text-primary transition-colors"
+                  aria-label="Edit trip"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
               )}
-            >
-              <Pencil className="w-4 h-4" />
-            </Button>
+            </div>
           </div>
         </motion.header>
 
@@ -454,35 +614,78 @@ export default function TripDetail() {
                       </CardContent>
                     </Card>
 
-                    {/* Hotel Card */}
-                    <Card className="border border-border/50 group">
+                    {/* Hotel Card - Clickable with thumbnail */}
+                    <Card 
+                      className={cn(
+                        "border border-border/50 group transition-all",
+                        !isEditing && "cursor-pointer hover:border-primary/30 hover:shadow-md"
+                      )}
+                      onClick={handleHotelCardClick}
+                    >
                       <CardContent className="p-5">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                              <Building2 className="w-5 h-5 text-amber-500" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-foreground">
-                                {trip.hotel?.name || "No hotel selected"}
-                              </p>
-                              {trip.hotel?.location && (
-                                <p className="text-sm text-muted-foreground">
-                                  {trip.hotel.location}
+                        <div className="flex items-start gap-4">
+                          {/* Hotel thumbnail image */}
+                          <div className="w-20 h-20 rounded-xl overflow-hidden bg-muted shrink-0">
+                            {trip.hotel?.images?.[0] ? (
+                              <img 
+                                src={trip.hotel.images[0]} 
+                                alt={trip.hotel.name || "Hotel"} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&h=200&fit=crop";
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-amber-500/10">
+                                <Building2 className="w-8 h-8 text-amber-500/60" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Hotel info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-medium text-foreground truncate">
+                                  {trip.hotel?.name || "No hotel selected"}
                                 </p>
+                                {trip.hotel?.location && (
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {trip.hotel.location}
+                                  </p>
+                                )}
+                                {trip.hotel?.rating && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <span className="text-xs text-amber-500">★</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {trip.hotel.rating.toFixed(1)}
+                                    </span>
+                                    {trip.hotel?.pricePerNight && (
+                                      <span className="text-xs text-muted-foreground ml-2">
+                                        ${trip.hotel.pricePerNight}/night
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {isEditing ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setHotelPickerOpen(true);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                >
+                                  Change
+                                </Button>
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                               )}
                             </div>
                           </div>
-                          {isEditing && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setHotelPickerOpen(true)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              Change
-                            </Button>
-                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -682,6 +885,17 @@ export default function TripDetail() {
           endDate={trip ? new Date(trip.endDate) : new Date()}
           onSelect={handleDateSelect}
         />
+        
+        {/* Hotel Detail Modal */}
+        {hotelInfoForModal && (
+          <HotelDetailModal
+            hotel={hotelInfoForModal}
+            isOpen={hotelModalOpen}
+            onClose={() => setHotelModalOpen(false)}
+            onChangeHotel={() => setHotelPickerOpen(true)}
+            nights={nights}
+          />
+        )}
       </motion.div>
     </AnimatePresence>
   );

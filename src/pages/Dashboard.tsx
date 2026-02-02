@@ -489,34 +489,44 @@ export default function Dashboard() {
             {(showLearnedBadge || preferenceLabels.length > 0) && <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} className="mt-2" />}
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-3">
+            {/* Input + Record + Plan trip buttons row */}
+            <div className="flex gap-2 sm:gap-3">
+              {/* Text input field */}
               <div className="flex-1 relative">
-                <motion.input type="text" placeholder='Try: "Book me a flight to NYC next Tuesday for a client pitch near Times Square"' value={tripInput} onChange={e => {
-                setTripInput(e.target.value);
-                if (inputError) setInputError(null);
-              }} onKeyDown={e => {
-                if (e.key === 'Enter' && !isPlanning) handlePlanTrip();
-              }} whileFocus={{
-                scale: 1.01
-              }} transition={{
-                duration: 0.2
-              }} className={`w-full h-12 px-4 rounded-xl border ${inputError ? 'border-destructive' : 'border-border'} bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200`} />
+                <motion.input 
+                  type="text" 
+                  placeholder='Try: "Book me a flight to NYC next Tuesday for a client pitch near Times Square"' 
+                  value={tripInput} 
+                  onChange={e => {
+                    setTripInput(e.target.value);
+                    if (inputError) setInputError(null);
+                  }} 
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !isPlanning && voiceRecording.state === 'idle') handlePlanTrip();
+                  }} 
+                  whileFocus={{ scale: 1.01 }} 
+                  transition={{ duration: 0.2 }} 
+                  disabled={voiceRecording.state !== 'idle'}
+                  className={`w-full h-12 px-4 rounded-xl border ${inputError ? 'border-destructive' : 'border-border'} bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200 disabled:opacity-60`} 
+                />
               </div>
-              {/* Mic button with states */}
-              <motion.div whileHover={{
-                scale: voiceRecording.state === 'processing' || isPlanning ? 1 : 1.02
-              }} whileTap={{
-                scale: voiceRecording.state === 'processing' || isPlanning ? 1 : 0.98
-              }}>
-                {voiceRecording.state === 'idle' && !isPlanning && (
+              
+              {/* Record button (secondary) */}
+              <motion.div 
+                whileHover={{ scale: voiceRecording.state === 'processing' ? 1 : 1.02 }} 
+                whileTap={{ scale: voiceRecording.state === 'processing' ? 1 : 0.98 }}
+              >
+                {voiceRecording.state === 'idle' && (
                   <Button 
-                    variant="cta" 
+                    variant="outline" 
                     size="lg" 
-                    className="shrink-0 rounded-xl text-white"
+                    className="shrink-0 rounded-xl h-12 gap-2 border-2 hover:bg-muted hover:border-primary/30 transition-all"
                     onClick={voiceRecording.startRecording}
+                    disabled={isPlanning}
+                    aria-label="Record voice"
                   >
-                    <Mic className="w-4 h-4 mr-2" />
-                    Record
+                    <Mic className="w-4 h-4" />
+                    <span className="hidden sm:inline">Record</span>
                   </Button>
                 )}
 
@@ -524,37 +534,58 @@ export default function Dashboard() {
                   <Button 
                     variant="destructive" 
                     size="lg" 
-                    className="shrink-0 rounded-xl gap-2"
+                    className="shrink-0 rounded-xl h-12 gap-2"
                     onClick={voiceRecording.stopRecording}
+                    aria-label="Stop recording"
                   >
                     <motion.div
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="w-3 h-3 rounded-full bg-white"
+                      animate={{ scale: [1, 1.3, 1] }}
+                      transition={{ duration: 0.8, repeat: Infinity }}
+                      className="w-2.5 h-2.5 rounded-full bg-white"
                     />
-                    <span>Stop</span>
-                    <span className="text-xs opacity-80">{voiceRecording.formattedTime}</span>
+                    <Square className="w-3 h-3" />
+                    <span className="text-xs font-mono">{voiceRecording.formattedTime}</span>
                   </Button>
                 )}
 
                 {voiceRecording.state === 'processing' && (
                   <Button 
-                    variant="cta" 
+                    variant="outline" 
                     size="lg" 
-                    className="shrink-0 rounded-xl text-white" 
+                    className="shrink-0 rounded-xl h-12" 
                     disabled
                   >
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Transcribing…
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="hidden sm:inline ml-2">Transcribing…</span>
                   </Button>
                 )}
-
-                {isPlanning && voiceRecording.state === 'idle' && (
-                  <Button variant="cta" size="lg" className="shrink-0 rounded-xl disabled:opacity-70 text-white" disabled>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Planning…
-                  </Button>
-                )}
+              </motion.div>
+              
+              {/* Plan trip button (primary CTA) */}
+              <motion.div 
+                whileHover={{ scale: isPlanning || voiceRecording.state !== 'idle' ? 1 : 1.02 }} 
+                whileTap={{ scale: isPlanning || voiceRecording.state !== 'idle' ? 1 : 0.98 }}
+              >
+                <Button 
+                  variant="cta" 
+                  size="lg" 
+                  className="shrink-0 rounded-xl h-12 text-white gap-2"
+                  onClick={handlePlanTrip}
+                  disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
+                  aria-label="Plan trip"
+                >
+                  {isPlanning ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="hidden sm:inline">Planning…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Plan trip</span>
+                    </>
+                  )}
+                </Button>
               </motion.div>
             </div>
 
