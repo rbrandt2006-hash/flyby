@@ -534,7 +534,7 @@ export default function Trips() {
             </div>
             <Button 
               onClick={handleNewTrip}
-              className="mt-2 bg-gradient-accent hover:opacity-90 text-accent-foreground"
+              className="mt-2 bg-[hsl(var(--teal))] hover:bg-[hsl(var(--teal-hover))] text-[hsl(var(--teal-foreground))]"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Trip
