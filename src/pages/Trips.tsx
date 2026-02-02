@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { TripPlanningModal, type TripProposal } from "@/components/home/TripPlanningModal";
 
 export default function Trips() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { 
     trips: localTrips, 
@@ -176,8 +178,7 @@ export default function Trips() {
   };
 
   const handleTripClick = (trip: Trip) => {
-    setSelectedTrip(trip);
-    setDetailPanelOpen(true);
+    navigate(`/trips/${trip.id}`);
   };
 
   const handleConfirmTripFromPanel = async (tripId: string) => {
@@ -298,9 +299,7 @@ export default function Trips() {
         )}
         style={{ animationDelay: `${index * 50}ms` }}
         onClick={() => {
-          if (isDraft) {
-            setSelectedDraft(trip);
-          }
+          navigate(`/trips/${trip.id}`);
         }}
       >
         <CardContent className="p-4">
