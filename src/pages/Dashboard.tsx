@@ -20,7 +20,6 @@ import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
 import { TripPlanningModal, type TripProposal } from "@/components/home/TripPlanningModal";
 import type { CalendarEvent } from "@/services/mockCalendarService";
-
 interface TripPlan {
   destination: string;
   dates: string;
@@ -49,14 +48,17 @@ interface TripPlan {
 }
 
 // Generate trip plan based on parsed destination
-const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true }> => {
+const generateTripPlan = async (prompt: string): Promise<TripPlan | {
+  needsDestination: true;
+}> => {
   await new Promise(r => setTimeout(r, 900));
 
   // Find matching destination
   const template = findDestination(prompt);
-  
   if (!template) {
-    return { needsDestination: true };
+    return {
+      needsDestination: true
+    };
   }
 
   // Parse dates with new parser
@@ -71,7 +73,7 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   // Pick random airline and hotel from template
   const airline = template.airlines[Math.floor(Math.random() * template.airlines.length)];
   const hotelData = template.hotels.find(h => h.locations.includes(landmark)) || template.hotels[0];
-  
+
   // Calculate confidence based on how much info was detected
   let confidence = 70;
   if (!dateResult.assumed) confidence += 15;
@@ -80,7 +82,6 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
 
   // Vary cost slightly
   const costVariation = Math.floor(Math.random() * 300) - 150;
-
   return {
     destination: template.city,
     dates: dateResult.dates,
@@ -101,16 +102,25 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
     groundTransport: template.groundTransport,
     estimatedCost: template.baseCost + costVariation,
     confidenceLevel: Math.min(98, confidence),
-    originalPrompt: prompt,
+    originalPrompt: prompt
   };
 };
 export default function Dashboard() {
-  const { user } = useAuth();
+  const {
+    user
+  } = useAuth();
   const navigate = useNavigate();
-  const { createTrip } = useTrips();
-  const { createChat } = useChats();
-  const { getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
-  
+  const {
+    createTrip
+  } = useTrips();
+  const {
+    createChat
+  } = useChats();
+  const {
+    getActivePreferenceLabels,
+    hasLearnedPreferences,
+    recordBookingChoice
+  } = usePreferences();
   const [tripInput, setTripInput] = useState("");
   const [isPlanning, setIsPlanning] = useState(false);
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
@@ -119,16 +129,19 @@ export default function Dashboard() {
   const [needsDestination, setNeedsDestination] = useState(false);
   const [isRefineOpen, setIsRefineOpen] = useState(false);
   const [showDateClarification, setShowDateClarification] = useState(false);
-  const [kpiDrawer, setKpiDrawer] = useState<{ open: boolean; type: KPIType }>({ open: false, type: "upcomingTrips" });
-
+  const [kpiDrawer, setKpiDrawer] = useState<{
+    open: boolean;
+    type: KPIType;
+  }>({
+    open: false,
+    type: "upcomingTrips"
+  });
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
-
   const handlePlanTrip = async () => {
     setError(null);
     setInputError(null);
     setNeedsDestination(false);
-
     if (!tripInput.trim()) {
       setInputError("Please describe your trip first");
       return;
@@ -148,8 +161,11 @@ export default function Dashboard() {
       setIsPlanning(false);
     }
   };
-  
-  const handleCalendarSuggestion = async (suggestion: { event: string; location: string; date: string }) => {
+  const handleCalendarSuggestion = async (suggestion: {
+    event: string;
+    location: string;
+    date: string;
+  }) => {
     const prompt = `Trip to ${suggestion.location} for ${suggestion.event} on ${suggestion.date}`;
     setTripInput(prompt);
     setError(null);
@@ -170,15 +186,20 @@ export default function Dashboard() {
       setIsPlanning(false);
     }
   };
-  
   const handleRefine = () => {
     // Open refine modal instead of clearing the plan
     setIsRefineOpen(true);
   };
-  
   const handleRefineSave = (selections: {
-    flight: { airline: string; departTime: string; returnTime: string };
-    hotel: { name: string; location: string };
+    flight: {
+      airline: string;
+      departTime: string;
+      returnTime: string;
+    };
+    hotel: {
+      name: string;
+      location: string;
+    };
     groundTransport: string;
     estimatedCost: number;
   }) => {
@@ -188,12 +209,11 @@ export default function Dashboard() {
         flight: selections.flight,
         hotel: selections.hotel,
         groundTransport: selections.groundTransport,
-        estimatedCost: selections.estimatedCost,
+        estimatedCost: selections.estimatedCost
       });
       toast.success("Trip options updated");
     }
   };
-  
   const handleSelectCity = (city: string) => {
     const newPrompt = `${tripInput} to ${city}`;
     setTripInput(newPrompt);
@@ -207,7 +227,6 @@ export default function Dashboard() {
       }
     }).finally(() => setIsPlanning(false));
   };
-
   const handleSaveDraft = () => {
     if (!planResult) return;
 
@@ -226,27 +245,26 @@ export default function Dashboard() {
       hotel: planResult.hotel,
       groundTransport: planResult.groundTransport,
       estimatedCost: planResult.estimatedCost,
-      confidenceLevel: planResult.confidenceLevel,
+      confidenceLevel: planResult.confidenceLevel
     });
 
     // Auto-create a chat for this trip
     createChat(`${planResult.destination} Trip`, []);
-    
+
     // Record preference learning (early flight = depart before 10am)
-    const isEarly = planResult.flight.departTime.includes("AM") && 
-      parseInt(planResult.flight.departTime) < 10;
+    const isEarly = planResult.flight.departTime.includes("AM") && parseInt(planResult.flight.departTime) < 10;
     recordBookingChoice({
       isEarlyFlight: isEarly,
       isDirect: true,
-      isBudgetOption: planResult.estimatedCost < 2000,
+      isBudgetOption: planResult.estimatedCost < 2000
     });
 
     // Show toast and navigate
     toast.success("Draft saved — you can find it under Draft Trips", {
       action: {
         label: "View Trips",
-        onClick: () => navigate("/trips"),
-      },
+        onClick: () => navigate("/trips")
+      }
     });
 
     // Clear state and navigate to trips
@@ -263,7 +281,6 @@ export default function Dashboard() {
     purpose: string;
     estimatedCost?: number;
   } | null>(null);
-
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -279,14 +296,14 @@ export default function Dashboard() {
     dates: "Jan 8-10, 2025",
     status: "approved" as const,
     purpose: "Client meeting",
-    estimatedCost: 1850,
+    estimatedCost: 1850
   }, {
     id: "home-2",
     destination: "Seattle, WA",
     dates: "Jan 15-17, 2025",
     status: "pending" as const,
     purpose: "Team offsite",
-    estimatedCost: 2100,
+    estimatedCost: 2100
   }];
   const calendarSuggestions = [{
     id: 1,
@@ -301,7 +318,13 @@ export default function Dashboard() {
     trip: "Seattle trip",
     tripDestination: "Seattle, WA"
   }];
-  const stats: { icon: typeof Plane; label: string; value: string; color: string; kpiType: KPIType }[] = [{
+  const stats: {
+    icon: typeof Plane;
+    label: string;
+    value: string;
+    color: string;
+    kpiType: KPIType;
+  }[] = [{
     icon: Plane,
     label: "Upcoming trips",
     value: "2",
@@ -403,13 +426,7 @@ export default function Dashboard() {
             <CardDescription>Describe your travel needs in natural language</CardDescription>
             
             {/* Learned preferences indicator */}
-            {(showLearnedBadge || preferenceLabels.length > 0) && (
-              <PreferencesIndicator 
-                labels={preferenceLabels}
-                showLearnedBadge={showLearnedBadge}
-                className="mt-2"
-              />
-            )}
+            {(showLearnedBadge || preferenceLabels.length > 0) && <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} className="mt-2" />}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-3">
@@ -435,7 +452,7 @@ export default function Dashboard() {
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Planning…
                     </> : <>
-                      <Sparkles className="w-4 h-4 mr-2" />
+                      <Sparkles className="w-4 h-4 mr-2 text-white" />
                       Plan trip
                     </>}
                 </Button>
@@ -461,31 +478,25 @@ export default function Dashboard() {
             
             {/* City selection prompt */}
             <AnimatePresence>
-              {needsDestination && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-3"
-                >
+              {needsDestination && <motion.div initial={{
+              opacity: 0,
+              y: -10
+            }} animate={{
+              opacity: 1,
+              y: 0
+            }} exit={{
+              opacity: 0,
+              y: -10
+            }} className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     Which city are you traveling to?
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {["New York City", "Washington, DC", "Chicago", "San Francisco", "Los Angeles", "Seattle", "Austin", "Boston"].map(city => (
-                      <Button
-                        key={city}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSelectCity(city)}
-                        className="hover:bg-primary/10 hover:border-primary/30"
-                      >
+                    {["New York City", "Washington, DC", "Chicago", "San Francisco", "Los Angeles", "Seattle", "Austin", "Boston"].map(city => <Button key={city} variant="outline" size="sm" onClick={() => handleSelectCity(city)} className="hover:bg-primary/10 hover:border-primary/30">
                         {city}
-                      </Button>
-                    ))}
+                      </Button>)}
                   </div>
-                </motion.div>
-              )}
+                </motion.div>}
             </AnimatePresence>
           </CardContent>
         </Card>
@@ -547,16 +558,12 @@ export default function Dashboard() {
                 <div className="flex flex-col gap-1 mt-2">
                   <CardDescription className="text-base font-medium text-foreground">
                     {planResult.destination} • {planResult.dates}
-                    {planResult.datesAssumed && !planResult.datesConfirmed && (
-                      <span className="ml-2 text-xs text-muted-foreground italic">
+                    {planResult.datesAssumed && !planResult.datesConfirmed && <span className="ml-2 text-xs text-muted-foreground italic">
                         (Suggested dates — tap to adjust)
-                      </span>
-                    )}
-                    {planResult.datesConfirmed && (
-                      <span className="ml-2 text-xs text-success italic">
+                      </span>}
+                    {planResult.datesConfirmed && <span className="ml-2 text-xs text-success italic">
                         Dates confirmed
-                      </span>
-                    )}
+                      </span>}
                   </CardDescription>
                   <p className="text-xs text-muted-foreground truncate max-w-md">
                     Generated from: "{planResult.originalPrompt.slice(0, 60)}{planResult.originalPrompt.length > 60 ? '…' : ''}"
@@ -641,13 +648,7 @@ export default function Dashboard() {
           }} whileTap={{
             scale: 0.98
           }}>
-                  <Button 
-                    variant="default" 
-                    size="sm" 
-                    className="rounded-xl"
-                    disabled={isPlanning}
-                    onClick={() => handleCalendarSuggestion(suggestion)}
-                  >
+                  <Button variant="default" size="sm" className="rounded-xl" disabled={isPlanning} onClick={() => handleCalendarSuggestion(suggestion)}>
                     {isPlanning ? "Planning..." : "Prepare travel options"}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -659,12 +660,10 @@ export default function Dashboard() {
       {/* Stats row */}
       <ScrollReveal delay={0.25}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {stats.map((stat, i) => <AnimatedCard 
-              key={i} 
-              delay={i * 0.1}
-              className="cursor-pointer hover:shadow-md hover:border-primary/20 transition-all"
-              onClick={() => setKpiDrawer({ open: true, type: stat.kpiType })}
-            >
+          {stats.map((stat, i) => <AnimatedCard key={i} delay={i * 0.1} className="cursor-pointer hover:shadow-md hover:border-primary/20 transition-all" onClick={() => setKpiDrawer({
+          open: true,
+          type: stat.kpiType
+        })}>
               <CardContent className="p-5">
                 <motion.div whileHover={{
               rotate: [0, -10, 10, 0]
@@ -681,11 +680,10 @@ export default function Dashboard() {
       </ScrollReveal>
 
       {/* KPI Drawer */}
-      <KPIDrawer
-        open={kpiDrawer.open}
-        onOpenChange={(open) => setKpiDrawer(prev => ({ ...prev, open }))}
-        type={kpiDrawer.type}
-      />
+      <KPIDrawer open={kpiDrawer.open} onOpenChange={open => setKpiDrawer(prev => ({
+      ...prev,
+      open
+    }))} type={kpiDrawer.type} />
 
       {/* Upcoming trips */}
       <ScrollReveal delay={0.3}>
@@ -702,12 +700,7 @@ export default function Dashboard() {
           </motion.div>
         </div>
         <div className="grid md:grid-cols-2 gap-4">
-          {upcomingTrips.map((trip, index) => <AnimatedCard 
-              key={trip.id} 
-              delay={index * 0.1}
-              className="cursor-pointer group hover:shadow-md hover:border-primary/20 transition-all duration-200"
-              onClick={() => setSelectedHomeTrip(trip)}
-            >
+          {upcomingTrips.map((trip, index) => <AnimatedCard key={trip.id} delay={index * 0.1} className="cursor-pointer group hover:shadow-md hover:border-primary/20 transition-all duration-200" onClick={() => setSelectedHomeTrip(trip)}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -743,33 +736,15 @@ export default function Dashboard() {
       </ScrollReveal>
 
       {/* Trip Detail Slide-Over */}
-      <TripDetailSlideOver
-        trip={selectedHomeTrip}
-        open={!!selectedHomeTrip}
-        onOpenChange={(open) => !open && setSelectedHomeTrip(null)}
-        onConfirm={() => {
-          setSelectedHomeTrip(null);
-          toast.success("Trip confirmed");
-        }}
-        onCancel={() => {
-          setSelectedHomeTrip(null);
-          toast.success("Trip cancelled");
-        }}
-      />
+      <TripDetailSlideOver trip={selectedHomeTrip} open={!!selectedHomeTrip} onOpenChange={open => !open && setSelectedHomeTrip(null)} onConfirm={() => {
+      setSelectedHomeTrip(null);
+      toast.success("Trip confirmed");
+    }} onCancel={() => {
+      setSelectedHomeTrip(null);
+      toast.success("Trip cancelled");
+    }} />
 
       {/* Refine Modal */}
-      {planResult && (
-        <RefineModal
-          open={isRefineOpen}
-          onOpenChange={setIsRefineOpen}
-          destination={planResult.destination}
-          dates={planResult.dates}
-          currentFlight={planResult.flight}
-          currentHotel={planResult.hotel}
-          currentGroundTransport={planResult.groundTransport}
-          currentCost={planResult.estimatedCost}
-          onSave={handleRefineSave}
-        />
-      )}
+      {planResult && <RefineModal open={isRefineOpen} onOpenChange={setIsRefineOpen} destination={planResult.destination} dates={planResult.dates} currentFlight={planResult.flight} currentHotel={planResult.hotel} currentGroundTransport={planResult.groundTransport} currentCost={planResult.estimatedCost} onSave={handleRefineSave} />}
     </motion.div>;
 }
