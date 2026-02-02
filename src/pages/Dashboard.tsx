@@ -15,7 +15,6 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { findDestination, findLandmark, parseDates, parsePurpose, destinationTemplates, ParsedDateResult } from "@/services/tripTemplates";
-import { TripDetailSlideOver } from "@/components/home/TripDetailSlideOver";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
 import { TripPlanningModal, type TripProposal } from "@/components/home/TripPlanningModal";
@@ -272,15 +271,6 @@ export default function Dashboard() {
     setTripInput("");
     navigate("/trips");
   };
-  // State for trip detail slide-over
-  const [selectedHomeTrip, setSelectedHomeTrip] = useState<{
-    id: string;
-    destination: string;
-    dates: string;
-    status: "approved" | "pending" | "cancelled" | "draft";
-    purpose: string;
-    estimatedCost?: number;
-  } | null>(null);
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -700,7 +690,7 @@ export default function Dashboard() {
           </motion.div>
         </div>
         <div className="grid md:grid-cols-2 gap-4">
-          {upcomingTrips.map((trip, index) => <AnimatedCard key={trip.id} delay={index * 0.1} className="cursor-pointer group hover:shadow-md hover:border-primary/20 transition-all duration-200" onClick={() => setSelectedHomeTrip(trip)}>
+          {upcomingTrips.map((trip, index) => <AnimatedCard key={trip.id} delay={index * 0.1} className="cursor-pointer group hover:shadow-md hover:border-primary/20 transition-all duration-200" onClick={() => navigate(`/trips/${trip.id}`)}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -734,15 +724,6 @@ export default function Dashboard() {
             </AnimatedCard>)}
         </div>
       </ScrollReveal>
-
-      {/* Trip Detail Slide-Over */}
-      <TripDetailSlideOver trip={selectedHomeTrip} open={!!selectedHomeTrip} onOpenChange={open => !open && setSelectedHomeTrip(null)} onConfirm={() => {
-      setSelectedHomeTrip(null);
-      toast.success("Trip confirmed");
-    }} onCancel={() => {
-      setSelectedHomeTrip(null);
-      toast.success("Trip cancelled");
-    }} />
 
       {/* Refine Modal */}
       {planResult && <RefineModal open={isRefineOpen} onOpenChange={setIsRefineOpen} destination={planResult.destination} dates={planResult.dates} currentFlight={planResult.flight} currentHotel={planResult.hotel} currentGroundTransport={planResult.groundTransport} currentCost={planResult.estimatedCost} onSave={handleRefineSave} />}
