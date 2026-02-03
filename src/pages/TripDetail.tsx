@@ -19,6 +19,7 @@ import { HotelDetailModal, type HotelInfo } from "@/components/trips/HotelDetail
 import type { HotelOption as FullHotelOption } from "@/components/chats/booking/types";
 import { generateFlightOptions } from "@/services/mockFlightGenerator";
 import { getAllGroundTransportOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
+import { getHotelsForDestination } from "@/services/mockHotelService";
 import { toast } from "sonner";
 
 type TabType = "overview" | "itinerary" | "expenses";
@@ -63,75 +64,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   archived: { label: "Archived", className: "bg-muted/50 text-muted-foreground border-border/50" },
 };
 
-// Hotel options generator
-const generateHotelOptions = (destination: string, nights: number = 2): FullHotelOption[] => [
-  {
-    id: "h1",
-    name: "The Westin",
-    area: "Downtown",
-    pricePerNight: 245,
-    totalPrice: 245 * nights,
-    rating: 4.5,
-    distanceToVenue: "0.3 mi",
-    tags: ["Recommended", "Closest", "Policy compliant"],
-    images: [
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800&h=500&fit=crop",
-    ],
-    amenities: ["Free Wi-Fi", "Gym", "Restaurant", "Valet parking"],
-    description: "Experience luxury in the heart of the city.",
-    reviewCount: 2847,
-    cancellationPolicy: "Free cancellation until 24h before check-in",
-    roomTypes: ["Standard King", "Deluxe Queen", "Executive Suite"],
-  },
-  {
-    id: "h2",
-    name: "Marriott Downtown",
-    area: "Financial District",
-    pricePerNight: 289,
-    totalPrice: 289 * nights,
-    rating: 4.3,
-    distanceToVenue: "0.5 mi",
-    tags: ["Premium", "Best amenities"],
-    images: [
-      "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?w=800&h=500&fit=crop",
-    ],
-    amenities: ["Free Wi-Fi", "Pool", "Spa", "Gym", "Restaurant"],
-    description: "Modern comfort in the business district.",
-    reviewCount: 1923,
-    cancellationPolicy: "Free cancellation until 48h before check-in",
-    roomTypes: ["Standard Double", "Club King", "Junior Suite"],
-  },
-  {
-    id: "h3",
-    name: "Hyatt Regency",
-    area: "Convention Center",
-    pricePerNight: 199,
-    totalPrice: 199 * nights,
-    rating: 4.2,
-    distanceToVenue: "0.8 mi",
-    tags: ["Best value"],
-    images: [
-      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&h=500&fit=crop",
-    ],
-    amenities: ["Free Wi-Fi", "Gym", "Business center"],
-    description: "Great value with excellent location.",
-    reviewCount: 1456,
-    cancellationPolicy: "Free cancellation until 24h before check-in",
-    roomTypes: ["Standard Room", "Regency Club"],
-  },
-];
+// Hotel options now use imported getHotelsForDestination from mockHotelService
 
 // Skeleton loader component
 function TripDetailSkeleton() {
@@ -193,7 +126,7 @@ export default function TripDetail() {
 
   const hotelOptions = useMemo(() => {
     if (!trip?.destination) return [];
-    return generateHotelOptions(trip.destination, nights);
+    return getHotelsForDestination({ destination: trip.destination, nights });
   }, [trip?.destination, nights]);
 
   const groundOptions = useMemo(() => getAllGroundTransportOptions(), []);
