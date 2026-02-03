@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { CalendarEvent } from "@/services/mockCalendarService";
 import { FlightChooserDrawer } from "@/components/trips/FlightChooserDrawer";
-import { HotelChooserDrawer } from "@/components/trips/HotelChooserDrawer";
+import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
+import type { HotelOption as FullHotelOption } from "@/components/chats/booking/types";
 
 interface TripPlanningModalProps {
   open: boolean;
@@ -23,7 +24,7 @@ export interface TripProposal {
   dates: string;
   purpose: string;
   flight: FlightOption;
-  hotel: HotelOption;
+  hotel: FullHotelOption;
   ground: GroundOption;
   estimatedCost: number;
 }
@@ -41,16 +42,7 @@ interface FlightOption {
   tags: string[];
 }
 
-interface HotelOption {
-  id: string;
-  name: string;
-  area: string;
-  pricePerNight: number;
-  totalPrice: number;
-  rating: number;
-  distanceToVenue: string;
-  tags: string[];
-}
+// Using FullHotelOption from types for extended hotel data
 
 interface GroundOption {
   id: string;
@@ -112,7 +104,7 @@ const generateFlightOptions = (destination: string): FlightOption[] => [
   },
 ];
 
-const generateHotelOptions = (destination: string, nights: number = 2): HotelOption[] => [
+const generateHotelOptions = (destination: string, nights: number = 2): FullHotelOption[] => [
   {
     id: "h1",
     name: "The Westin",
@@ -122,6 +114,18 @@ const generateHotelOptions = (destination: string, nights: number = 2): HotelOpt
     rating: 4.5,
     distanceToVenue: "0.3 mi",
     tags: ["Recommended", "Closest", "Policy compliant"],
+    images: [
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&h=500&fit=crop",
+    ],
+    amenities: ["Free Wi-Fi", "Gym", "Pool", "Breakfast included", "Parking", "Restaurant"],
+    reviewCount: 2847,
+    description: "Experience luxury in the heart of downtown. The Westin offers stunning city views, world-class amenities, and is steps away from major business centers and attractions.",
+    cancellationPolicy: "Free cancellation until 24 hours before check-in",
+    roomTypes: ["King Room", "Double Queen", "Executive Suite", "Presidential Suite"],
   },
   {
     id: "h2",
@@ -132,6 +136,18 @@ const generateHotelOptions = (destination: string, nights: number = 2): HotelOpt
     rating: 4.3,
     distanceToVenue: "0.8 mi",
     tags: ["Best value"],
+    images: [
+      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&h=500&fit=crop",
+    ],
+    amenities: ["Free Wi-Fi", "Gym", "Business center", "Restaurant", "Parking"],
+    reviewCount: 1923,
+    description: "Modern comfort meets convenience at the Marriott. Ideal for business travelers with excellent meeting facilities and a prime Financial District location.",
+    cancellationPolicy: "Free cancellation until 48 hours before check-in",
+    roomTypes: ["Standard King", "Standard Double", "Junior Suite"],
   },
   {
     id: "h3",
@@ -142,6 +158,18 @@ const generateHotelOptions = (destination: string, nights: number = 2): HotelOpt
     rating: 4.1,
     distanceToVenue: "1.2 mi",
     tags: ["Cheapest"],
+    images: [
+      "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800&h=500&fit=crop",
+    ],
+    amenities: ["Free Wi-Fi", "Breakfast included", "Parking", "Fitness center"],
+    reviewCount: 1456,
+    description: "Affordable elegance at the Hilton Garden Inn. Enjoy complimentary breakfast and easy access to the Convention Center for your business needs.",
+    cancellationPolicy: "Free cancellation until 24 hours before check-in",
+    roomTypes: ["Standard Room", "Deluxe King", "Suite"],
   },
   {
     id: "h4",
@@ -152,6 +180,18 @@ const generateHotelOptions = (destination: string, nights: number = 2): HotelOpt
     rating: 4.4,
     distanceToVenue: "0.5 mi",
     tags: ["Executive preferred"],
+    images: [
+      "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1587213811864-46e59f6873b1?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&h=500&fit=crop",
+    ],
+    amenities: ["Free Wi-Fi", "Gym", "Pool", "Spa", "Restaurant", "Valet parking"],
+    reviewCount: 2134,
+    description: "Elevate your stay at the Hyatt Regency. Premium accommodations with executive amenities, perfect for the discerning business traveler.",
+    cancellationPolicy: "Free cancellation until 72 hours before check-in",
+    roomTypes: ["Regency King", "Regency Double", "Executive Suite", "Club Access Room"],
   },
 ];
 
@@ -191,10 +231,10 @@ export function TripPlanningModal({
 }: TripPlanningModalProps) {
   const [currentStep, setCurrentStep] = useState<PlanningStep>("reading");
   const [flightOptions, setFlightOptions] = useState<FlightOption[]>([]);
-  const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([]);
+  const [hotelOptions, setHotelOptions] = useState<FullHotelOption[]>([]);
   const [groundOptions, setGroundOptions] = useState<GroundOption[]>([]);
   const [selectedFlight, setSelectedFlight] = useState<FlightOption | null>(null);
-  const [selectedHotel, setSelectedHotel] = useState<HotelOption | null>(null);
+  const [selectedHotel, setSelectedHotel] = useState<FullHotelOption | null>(null);
   const [selectedGround, setSelectedGround] = useState<GroundOption | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [refineSection, setRefineSection] = useState<"flights" | "hotels" | "ground" | null>(null);
@@ -746,14 +786,15 @@ export function TripPlanningModal({
         onSelect={setSelectedFlight}
       />
       
-      {/* Hotel Chooser Drawer */}
-      <HotelChooserDrawer
+      {/* Hotel Selection Full-Screen Page */}
+      <HotelSelectionPage
         open={hotelDrawerOpen}
-        onOpenChange={setHotelDrawerOpen}
+        onClose={() => setHotelDrawerOpen(false)}
         hotels={hotelOptions}
         selectedHotel={selectedHotel}
         onSelect={setSelectedHotel}
         nights={nights}
+        venueName={event?.location}
       />
     </>
   );
