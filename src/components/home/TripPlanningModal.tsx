@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plane, Hotel, Car, DollarSign, Check, Loader2, MapPin, Calendar, ChevronRight, Sparkles, RefreshCw, Star } from "lucide-react";
+import { X, Plane, Hotel, Car, DollarSign, Check, Loader2, MapPin, Calendar, ChevronRight, Sparkles, RefreshCw, Star, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -9,8 +9,10 @@ import { toast } from "sonner";
 import type { CalendarEvent } from "@/services/mockCalendarService";
 import { FlightSelectionPage, type FlightOption } from "@/components/trips/FlightSelectionPage";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
+import { GroundTransportSelectionPage } from "@/components/trips/GroundTransportSelectionPage";
 import type { HotelOption as FullHotelOption } from "@/components/chats/booking/types";
 import { generateFlightOptions } from "@/services/mockFlightGenerator";
+import { generateUberOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
 
 interface TripPlanningModalProps {
   open: boolean;
@@ -26,20 +28,11 @@ export interface TripProposal {
   purpose: string;
   flight: FlightOption;
   hotel: FullHotelOption;
-  ground: GroundOption;
+  ground: GroundTransportOption | null;
   estimatedCost: number;
 }
 
-// Using FlightOption from FlightSelectionPage and FullHotelOption from types
-
-interface GroundOption {
-  id: string;
-  type: "rideshare" | "rental" | "public";
-  provider: string;
-  estimate: string;
-  price: number;
-  tags: string[];
-}
+// Using FlightOption from FlightSelectionPage, FullHotelOption from types, and GroundTransportOption from service
 
 type PlanningStep = "reading" | "flights" | "hotels" | "ground" | "calculating" | "done";
 
@@ -143,32 +136,7 @@ const generateHotelOptions = (destination: string, nights: number = 2): FullHote
   },
 ];
 
-const generateGroundOptions = (): GroundOption[] => [
-  {
-    id: "g1",
-    type: "rideshare",
-    provider: "Uber",
-    estimate: "$35-45 each way",
-    price: 80,
-    tags: ["Recommended"],
-  },
-  {
-    id: "g2",
-    type: "rental",
-    provider: "Hertz",
-    estimate: "$65/day",
-    price: 130,
-    tags: [],
-  },
-  {
-    id: "g3",
-    type: "public",
-    provider: "Public Transit",
-    estimate: "$15 round trip",
-    price: 15,
-    tags: ["Cheapest"],
-  },
-];
+// Ground options now use imported generateUberOptions
 
 export function TripPlanningModal({ 
   open, 
@@ -180,14 +148,15 @@ export function TripPlanningModal({
   const [currentStep, setCurrentStep] = useState<PlanningStep>("reading");
   const [flightOptions, setFlightOptions] = useState<FlightOption[]>([]);
   const [hotelOptions, setHotelOptions] = useState<FullHotelOption[]>([]);
-  const [groundOptions, setGroundOptions] = useState<GroundOption[]>([]);
+  const [groundOptions, setGroundOptions] = useState<GroundTransportOption[]>([]);
   const [selectedFlight, setSelectedFlight] = useState<FlightOption | null>(null);
   const [selectedHotel, setSelectedHotel] = useState<FullHotelOption | null>(null);
-  const [selectedGround, setSelectedGround] = useState<GroundOption | null>(null);
+  const [selectedGround, setSelectedGround] = useState<GroundTransportOption | null>(null);
   const [isRefining, setIsRefining] = useState(false);
   const [refineSection, setRefineSection] = useState<"flights" | "hotels" | "ground" | null>(null);
   const [flightDrawerOpen, setFlightDrawerOpen] = useState(false);
   const [hotelDrawerOpen, setHotelDrawerOpen] = useState(false);
+  const [groundDrawerOpen, setGroundDrawerOpen] = useState(false);
 
   const estimatedTotal = (selectedFlight?.price || 0) + (selectedHotel?.totalPrice || 0) + (selectedGround?.price || 0);
 
@@ -260,7 +229,7 @@ export function TripPlanningModal({
     
     // Step 4: Ground
     await new Promise(r => setTimeout(r, 800));
-    const ground = generateGroundOptions();
+    const ground = generateUberOptions();
     setGroundOptions(ground);
     setSelectedGround(ground[0]);
     setCurrentStep("calculating");
@@ -275,7 +244,7 @@ export function TripPlanningModal({
   };
 
   const handleConfirm = () => {
-    if (!selectedFlight || !selectedHotel || !selectedGround || !event) return;
+    if (!selectedFlight || !selectedHotel || !event) return;
     
     const tripData: TripProposal = {
       destination: event.location || "",
@@ -292,7 +261,7 @@ export function TripPlanningModal({
   };
 
   const handleSaveDraft = () => {
-    if (!selectedFlight || !selectedHotel || !selectedGround || !event) return;
+    if (!selectedFlight || !selectedHotel || !event) return;
     
     const tripData: TripProposal = {
       destination: event.location || "",
@@ -506,17 +475,18 @@ export function TripPlanningModal({
                     </div>
                   )}
 
-                  {/* Ground */}
-                  {selectedGround && (
-                    <div className="p-4 rounded-xl bg-card border border-border/60">
+                  {/* Ground Transport */}
+                  {selectedGround ? (
+                    <div className="p-4 rounded-xl bg-card border border-border/60 group">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <Car className="w-5 h-5 text-primary" />
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-xl">
+                            {selectedGround.icon}
                           </div>
                           <div>
-                            <p className="font-medium text-foreground">{selectedGround.provider}</p>
-                            <p className="text-sm text-muted-foreground">{selectedGround.estimate}</p>
+                            <p className="font-medium text-foreground">{selectedGround.rideType}</p>
+                            <p className="text-sm text-muted-foreground">{selectedGround.provider} • {selectedGround.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{selectedGround.eta} • {selectedGround.seats} seats</p>
                             <div className="flex gap-1.5 mt-2">
                               {selectedGround.tags.map((tag) => (
                                 <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
@@ -526,15 +496,40 @@ export function TripPlanningModal({
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-semibold">${selectedGround.price}</p>
-                          <button 
-                            onClick={() => { setIsRefining(true); setRefineSection("ground"); }}
-                            className="text-xs text-primary hover:underline mt-1"
-                          >
-                            Change
-                          </button>
+                          <div className="flex items-center gap-2 mt-1">
+                            <button 
+                              onClick={() => setGroundDrawerOpen(true)}
+                              className="text-xs text-primary hover:underline"
+                            >
+                              Change
+                            </button>
+                            <span className="text-muted-foreground">•</span>
+                            <button 
+                              onClick={() => setSelectedGround(null)}
+                              className="text-xs text-destructive hover:underline flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Remove
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  ) : (
+                    <button
+                      onClick={() => setGroundDrawerOpen(true)}
+                      className="w-full p-4 rounded-xl border-2 border-dashed border-border/60 hover:border-primary/30 transition-all text-left group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Plus className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">Add ground transport</p>
+                          <p className="text-sm text-muted-foreground">Uber, rental car, or public transit</p>
+                        </div>
+                      </div>
+                    </button>
                   )}
 
                   {/* Total with breakdown */}
@@ -663,32 +658,12 @@ export function TripPlanningModal({
                   )}
 
                   {refineSection === "ground" && (
-                    <div className="space-y-3">
-                      {groundOptions.map((ground) => (
-                        <button
-                          key={ground.id}
-                          onClick={() => { setSelectedGround(ground); setIsRefining(false); setRefineSection(null); }}
-                          className={cn(
-                            "w-full p-4 rounded-xl border text-left transition-all",
-                            selectedGround?.id === ground.id 
-                              ? "bg-primary/5 border-primary/30" 
-                              : "bg-card border-border/60 hover:border-primary/20"
-                          )}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <p className="font-medium">{ground.provider}</p>
-                              <p className="text-sm text-muted-foreground">{ground.estimate}</p>
-                              <div className="flex gap-1.5 mt-2">
-                                {ground.tags.map((tag) => (
-                                  <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
-                                ))}
-                              </div>
-                            </div>
-                            <p className="text-lg font-semibold">${ground.price}</p>
-                          </div>
-                        </button>
-                      ))}
+                    <div className="text-center py-8">
+                      <Car className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                      <p className="text-muted-foreground mb-4">Use the full-screen selector for ground transport</p>
+                      <Button onClick={() => { setGroundDrawerOpen(true); setIsRefining(false); setRefineSection(null); }}>
+                        Open Ground Transport
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -725,7 +700,7 @@ export function TripPlanningModal({
     <>
       {content}
       
-      {/* Flight Chooser Drawer */}
+      {/* Flight Selection Full-Screen Page */}
       <FlightSelectionPage
         open={flightDrawerOpen}
         onClose={() => setFlightDrawerOpen(false)}
@@ -745,6 +720,15 @@ export function TripPlanningModal({
         onSelect={setSelectedHotel}
         nights={nights}
         venueName={event?.location}
+      />
+
+      {/* Ground Transport Selection Full-Screen Page */}
+      <GroundTransportSelectionPage
+        open={groundDrawerOpen}
+        onClose={() => setGroundDrawerOpen(false)}
+        options={groundOptions}
+        selectedOption={selectedGround}
+        onSelect={setSelectedGround}
       />
     </>
   );
