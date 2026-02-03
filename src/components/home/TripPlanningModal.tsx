@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { CalendarEvent } from "@/services/mockCalendarService";
-import { FlightChooserDrawer } from "@/components/trips/FlightChooserDrawer";
+import { FlightSelectionPage, type FlightOption } from "@/components/trips/FlightSelectionPage";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import type { HotelOption as FullHotelOption } from "@/components/chats/booking/types";
+import { generateFlightOptions } from "@/services/mockFlightGenerator";
 
 interface TripPlanningModalProps {
   open: boolean;
@@ -29,20 +30,7 @@ export interface TripProposal {
   estimatedCost: number;
 }
 
-interface FlightOption {
-  id: string;
-  airline: string;
-  departTime: string;
-  arriveTime: string;
-  returnDepartTime: string;
-  returnArriveTime: string;
-  price: number;
-  stops: number;
-  duration: string;
-  tags: string[];
-}
-
-// Using FullHotelOption from types for extended hotel data
+// Using FlightOption from FlightSelectionPage and FullHotelOption from types
 
 interface GroundOption {
   id: string;
@@ -63,47 +51,7 @@ const stepLabels: Record<PlanningStep, string> = {
   calculating: "Calculating total cost…",
   done: "Done!",
 };
-
-// Mock data generators
-const generateFlightOptions = (destination: string): FlightOption[] => [
-  {
-    id: "f1",
-    airline: "Delta",
-    departTime: "7:45 AM",
-    arriveTime: "11:30 AM",
-    returnDepartTime: "5:30 PM",
-    returnArriveTime: "9:15 PM",
-    price: 487,
-    stops: 0,
-    duration: "3h 45m",
-    tags: ["Recommended", "Nonstop"],
-  },
-  {
-    id: "f2",
-    airline: "United",
-    departTime: "9:15 AM",
-    arriveTime: "1:45 PM",
-    returnDepartTime: "6:00 PM",
-    returnArriveTime: "10:30 PM",
-    price: 412,
-    stops: 1,
-    duration: "4h 30m",
-    tags: ["Cheapest"],
-  },
-  {
-    id: "f3",
-    airline: "American",
-    departTime: "6:00 AM",
-    arriveTime: "9:30 AM",
-    returnDepartTime: "4:00 PM",
-    returnArriveTime: "7:30 PM",
-    price: 523,
-    stops: 0,
-    duration: "3h 30m",
-    tags: ["Fastest"],
-  },
-];
-
+// Hotel options generator (flights use imported generateFlightOptions)
 const generateHotelOptions = (destination: string, nights: number = 2): FullHotelOption[] => [
   {
     id: "h1",
@@ -298,7 +246,7 @@ export function TripPlanningModal({
     
     // Step 2: Flights
     await new Promise(r => setTimeout(r, 1200));
-    const flights = generateFlightOptions(event?.location || "");
+    const flights = generateFlightOptions({ destination: event?.location || "SFO", numFlights: 20 });
     setFlightOptions(flights);
     setSelectedFlight(flights[0]);
     setCurrentStep("hotels");
@@ -778,12 +726,14 @@ export function TripPlanningModal({
       {content}
       
       {/* Flight Chooser Drawer */}
-      <FlightChooserDrawer
+      <FlightSelectionPage
         open={flightDrawerOpen}
-        onOpenChange={setFlightDrawerOpen}
+        onClose={() => setFlightDrawerOpen(false)}
         flights={flightOptions}
         selectedFlight={selectedFlight}
         onSelect={setSelectedFlight}
+        origin="ORD"
+        destination={event?.location}
       />
       
       {/* Hotel Selection Full-Screen Page */}

@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Plane, Building2, Calendar, DollarSign, ChevronRight, Check, Pencil, X, ArrowLeft, Star, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FlightSelectorDrawer } from "./booking/FlightSelectorDrawer";
+import { FlightSelectionPage, type FlightOption } from "@/components/trips/FlightSelectionPage";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { DatePickerDrawer } from "./booking/DatePickerDrawer";
 import { HotelPhotoCarousel } from "./booking/HotelPhotoCarousel";
-import { mockFlightOptions, mockHotelOptions } from "./booking/mockBookingData";
-import type { FlightOption, SeatOption, HotelOption } from "./booking/types";
+import { mockHotelOptions } from "./booking/mockBookingData";
+import { staticFlightOptions } from "@/services/mockFlightGenerator";
+import type { SeatOption, HotelOption } from "./booking/types";
 
 interface DetectedTrip {
   destination: string;
@@ -72,7 +73,7 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip, onClose }: AI
       endDate: null,
     },
     options: {
-      flights: mockFlightOptions,
+      flights: staticFlightOptions,
       hotels: mockHotelOptions,
     },
   }));
@@ -106,13 +107,13 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip, onClose }: AI
     }, 1500);
   };
 
-  const handleFlightSelect = (flight: FlightOption, seat: SeatOption | null) => {
+  const handleFlightSelect = (flight: FlightOption) => {
     setTripState(prev => ({
       ...prev,
       selected: {
         ...prev.selected,
         flight,
-        seat,
+        seat: null, // Reset seat when flight changes
       },
     }));
   };
@@ -415,15 +416,15 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip, onClose }: AI
         )}
       </AnimatePresence>
 
-      {/* Flight Selector Drawer */}
-      <FlightSelectorDrawer
+      {/* Flight Selection Full-Screen Page */}
+      <FlightSelectionPage
         open={flightDrawerOpen}
-        onOpenChange={setFlightDrawerOpen}
+        onClose={() => setFlightDrawerOpen(false)}
         flights={tripState.options.flights}
         selectedFlight={tripState.selected.flight}
-        selectedSeat={tripState.selected.seat}
         onSelect={handleFlightSelect}
-        basePrice={detectedTrip.flight.price}
+        origin="ORD"
+        destination={detectedTrip.destination}
       />
 
       {/* Hotel Selection Full-Screen Page */}
