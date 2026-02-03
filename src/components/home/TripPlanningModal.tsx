@@ -12,7 +12,7 @@ import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { GroundTransportSelectionPage } from "@/components/trips/GroundTransportSelectionPage";
 import type { HotelOption as FullHotelOption } from "@/components/chats/booking/types";
 import { generateFlightOptions } from "@/services/mockFlightGenerator";
-import { generateUberOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
+import { getAllGroundTransportOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
 
 interface TripPlanningModalProps {
   open: boolean;
@@ -227,11 +227,13 @@ export function TripPlanningModal({
     setSelectedHotel(hotels[0]);
     setCurrentStep("ground");
     
-    // Step 4: Ground
+    // Step 4: Ground (load all transport options: rideshare, rental, transit)
     await new Promise(r => setTimeout(r, 800));
-    const ground = generateUberOptions();
+    const ground = getAllGroundTransportOptions();
     setGroundOptions(ground);
-    setSelectedGround(ground[0]);
+    // Default to best value rideshare option
+    const defaultRideshare = ground.find(g => g.type === "rideshare" && g.tags.includes("Best value")) || ground[0];
+    setSelectedGround(defaultRideshare);
     setCurrentStep("calculating");
     
     // Step 5: Done
