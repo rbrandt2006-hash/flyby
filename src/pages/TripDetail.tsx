@@ -16,6 +16,7 @@ import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { GroundTransportSelectionPage } from "@/components/trips/GroundTransportSelectionPage";
 import { TripDateSelectionPage } from "@/components/trips/TripDateSelectionPage";
 import { HotelDetailModal, type HotelInfo } from "@/components/trips/HotelDetailModal";
+import { ItineraryEditor } from "@/components/itinerary/ItineraryEditor";
 import type { HotelOption as FullHotelOption } from "@/components/chats/booking/types";
 import { generateFlightOptions } from "@/services/mockFlightGenerator";
 import { getAllGroundTransportOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
@@ -910,44 +911,28 @@ export default function TripDetail() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
-                    className="space-y-4"
                   >
-                    <Card className="border border-border/50">
-                      <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          Day-by-Day Schedule
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {Array.from({ length: nights + 1 }).map((_, i) => {
-                          const dayDate = new Date(trip.startDate);
-                          dayDate.setDate(dayDate.getDate() + i);
-                          return (
-                            <div key={i} className="flex items-start gap-4 p-4 bg-muted/30 rounded-xl">
-                              <div className="w-12 h-12 rounded-xl bg-primary/10 flex flex-col items-center justify-center shrink-0">
-                                <span className="text-xs text-muted-foreground">{format(dayDate, "EEE")}</span>
-                                <span className="text-lg font-bold text-primary">{format(dayDate, "d")}</span>
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-medium text-foreground">
-                                  {i === 0 ? "Arrival Day" : i === nights ? "Departure Day" : `Day ${i + 1}`}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {i === 0 
-                                    ? `Arrive in ${trip.destination}, check into ${trip.hotel?.name || "hotel"}`
-                                    : i === nights
-                                    ? "Check out and return flight"
-                                    : "Meetings and activities"
-                                  }
-                                </p>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                            </div>
-                          );
-                        })}
-                      </CardContent>
-                    </Card>
+                    <ItineraryEditor
+                      tripId={trip.id}
+                      startDate={new Date(trip.startDate)}
+                      endDate={new Date(trip.endDate)}
+                      destination={trip.destination}
+                      tripData={{
+                        destination: trip.destination,
+                        flight: trip.flight ? {
+                          airline: trip.flight.airline,
+                          flightNumber: trip.flight.flightNumber,
+                          departTime: trip.flight.departTime,
+                          returnTime: trip.flight.returnTime,
+                        } : undefined,
+                        hotel: trip.hotel ? {
+                          name: trip.hotel.name,
+                          location: trip.hotel.location,
+                        } : undefined,
+                      }}
+                      isEditing={isEditing}
+                      onSave={handleSaveChanges}
+                    />
                   </motion.div>
                 )}
 
