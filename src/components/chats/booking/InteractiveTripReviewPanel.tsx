@@ -17,11 +17,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays, parse } from "date-fns";
-import type { FlightOption, SeatOption, HotelOption, DetectedTripData } from "./types";
-import { FlightSelectorDrawer } from "./FlightSelectorDrawer";
+import type { SeatOption, HotelOption, DetectedTripData } from "./types";
+import { FlightSelectionPage, type FlightOption } from "@/components/trips/FlightSelectionPage";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { DatePickerDrawer } from "./DatePickerDrawer";
-import { mockFlightOptions, mockHotelOptions } from "./mockBookingData";
+import { mockHotelOptions } from "./mockBookingData";
+import { staticFlightOptions } from "@/services/mockFlightGenerator";
 
 interface InteractiveTripReviewPanelProps {
   detectedTrip: DetectedTripData | null;
@@ -50,7 +51,7 @@ export function InteractiveTripReviewPanel({ detectedTrip, onReviewTrip }: Inter
   // Initialize booking state from detected trip
   useEffect(() => {
     if (detectedTrip && !selectedFlight) {
-      const initialFlight = mockFlightOptions.find(f => f.airline === detectedTrip.flight.airline) || mockFlightOptions[0];
+      const initialFlight = staticFlightOptions.find(f => f.airline === detectedTrip.flight.airline) || staticFlightOptions[0];
       setSelectedFlight(initialFlight);
       
       const initialHotel = mockHotelOptions.find(h => h.name.includes(detectedTrip.hotel.name.split(' ')[0])) || mockHotelOptions[0];
@@ -110,9 +111,9 @@ export function InteractiveTripReviewPanel({ detectedTrip, onReviewTrip }: Inter
     setConfirmed(false);
   };
 
-  const handleFlightSelect = (flight: FlightOption, seat: SeatOption | null) => {
+  const handleFlightSelect = (flight: FlightOption) => {
     setSelectedFlight(flight);
-    setSelectedSeat(seat);
+    setSelectedSeat(null); // Reset seat when flight changes
   };
 
   const handleHotelSelect = (hotel: HotelOption) => {
@@ -377,14 +378,14 @@ export function InteractiveTripReviewPanel({ detectedTrip, onReviewTrip }: Inter
       <AnimatePresence>{!isExpanded && CollapsedPill}</AnimatePresence>
       {ExpandedPanel}
       
-      <FlightSelectorDrawer
+      <FlightSelectionPage
         open={flightDrawerOpen}
-        onOpenChange={setFlightDrawerOpen}
-        flights={mockFlightOptions}
+        onClose={() => setFlightDrawerOpen(false)}
+        flights={staticFlightOptions}
         selectedFlight={selectedFlight}
-        selectedSeat={selectedSeat}
         onSelect={handleFlightSelect}
-        basePrice={detectedTrip.flight.price}
+        origin="ORD"
+        destination={detectedTrip.destination}
       />
       
       <HotelSelectionPage
