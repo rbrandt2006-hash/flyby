@@ -395,7 +395,7 @@ export default function Trips() {
           <Button 
             onClick={handleNewTrip}
             className="hover:opacity-90 text-white font-medium transition-smooth"
-            style={{ backgroundColor: '#a3c5e0' }}
+            style={{ backgroundColor: '#9aafe6' }}
           >
             <Plus className="w-4 h-4 mr-2" />
             New Trip
@@ -533,7 +533,8 @@ export default function Trips() {
             </div>
             <Button 
               onClick={handleNewTrip}
-              className="mt-2 bg-[hsl(var(--teal))] hover:bg-[hsl(var(--teal-hover))] text-[hsl(var(--teal-foreground))]"
+              className="mt-2 hover:opacity-90 text-white font-medium"
+              style={{ backgroundColor: '#9aafe6' }}
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Trip
