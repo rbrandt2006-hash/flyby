@@ -13,6 +13,7 @@ import { GroundTransportSelectionPage } from "@/components/trips/GroundTransport
 import type { HotelOption as FullHotelOption } from "@/components/chats/booking/types";
 import { generateFlightOptions } from "@/services/mockFlightGenerator";
 import { getAllGroundTransportOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
+import { getHotelsForDestination } from "@/services/mockHotelService";
 
 interface TripPlanningModalProps {
   open: boolean;
@@ -44,97 +45,7 @@ const stepLabels: Record<PlanningStep, string> = {
   calculating: "Calculating total cost…",
   done: "Done!",
 };
-// Hotel options generator (flights use imported generateFlightOptions)
-const generateHotelOptions = (destination: string, nights: number = 2): FullHotelOption[] => [
-  {
-    id: "h1",
-    name: "The Westin",
-    area: "Downtown",
-    pricePerNight: 245,
-    totalPrice: 245 * nights,
-    rating: 4.5,
-    distanceToVenue: "0.3 mi",
-    tags: ["Recommended", "Closest", "Policy compliant"],
-    images: [
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&h=500&fit=crop",
-    ],
-    amenities: ["Free Wi-Fi", "Gym", "Pool", "Breakfast included", "Parking", "Restaurant"],
-    reviewCount: 2847,
-    description: "Experience luxury in the heart of downtown. The Westin offers stunning city views, world-class amenities, and is steps away from major business centers and attractions.",
-    cancellationPolicy: "Free cancellation until 24 hours before check-in",
-    roomTypes: ["King Room", "Double Queen", "Executive Suite", "Presidential Suite"],
-  },
-  {
-    id: "h2",
-    name: "Marriott",
-    area: "Financial District",
-    pricePerNight: 189,
-    totalPrice: 189 * nights,
-    rating: 4.3,
-    distanceToVenue: "0.8 mi",
-    tags: ["Best value"],
-    images: [
-      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&h=500&fit=crop",
-    ],
-    amenities: ["Free Wi-Fi", "Gym", "Business center", "Restaurant", "Parking"],
-    reviewCount: 1923,
-    description: "Modern comfort meets convenience at the Marriott. Ideal for business travelers with excellent meeting facilities and a prime Financial District location.",
-    cancellationPolicy: "Free cancellation until 48 hours before check-in",
-    roomTypes: ["Standard King", "Standard Double", "Junior Suite"],
-  },
-  {
-    id: "h3",
-    name: "Hilton Garden Inn",
-    area: "Convention Center",
-    pricePerNight: 165,
-    totalPrice: 165 * nights,
-    rating: 4.1,
-    distanceToVenue: "1.2 mi",
-    tags: ["Cheapest"],
-    images: [
-      "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800&h=500&fit=crop",
-    ],
-    amenities: ["Free Wi-Fi", "Breakfast included", "Parking", "Fitness center"],
-    reviewCount: 1456,
-    description: "Affordable elegance at the Hilton Garden Inn. Enjoy complimentary breakfast and easy access to the Convention Center for your business needs.",
-    cancellationPolicy: "Free cancellation until 24 hours before check-in",
-    roomTypes: ["Standard Room", "Deluxe King", "Suite"],
-  },
-  {
-    id: "h4",
-    name: "Hyatt Regency",
-    area: "Business District",
-    pricePerNight: 219,
-    totalPrice: 219 * nights,
-    rating: 4.4,
-    distanceToVenue: "0.5 mi",
-    tags: ["Executive preferred"],
-    images: [
-      "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1587213811864-46e59f6873b1?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&h=500&fit=crop",
-    ],
-    amenities: ["Free Wi-Fi", "Gym", "Pool", "Spa", "Restaurant", "Valet parking"],
-    reviewCount: 2134,
-    description: "Elevate your stay at the Hyatt Regency. Premium accommodations with executive amenities, perfect for the discerning business traveler.",
-    cancellationPolicy: "Free cancellation until 72 hours before check-in",
-    roomTypes: ["Regency King", "Regency Double", "Executive Suite", "Club Access Room"],
-  },
-];
+// Hotel options now use imported getHotelsForDestination from mockHotelService
 
 // Ground options now use imported generateUberOptions
 
@@ -220,9 +131,12 @@ export function TripPlanningModal({
     setSelectedFlight(flights[0]);
     setCurrentStep("hotels");
     
-    // Step 3: Hotels
+    // Step 3: Hotels (destination-specific)
     await new Promise(r => setTimeout(r, 1000));
-    const hotels = generateHotelOptions(event?.location || "", tripNights);
+    const hotels = getHotelsForDestination({ 
+      destination: event?.location || "", 
+      nights: tripNights 
+    });
     setHotelOptions(hotels);
     setSelectedHotel(hotels[0]);
     setCurrentStep("ground");
