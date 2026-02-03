@@ -567,9 +567,9 @@ export default function Dashboard() {
                 whileTap={{ scale: isPlanning || voiceRecording.state !== 'idle' ? 1 : 0.98 }}
               >
                 <Button 
-                  variant="cta" 
                   size="lg" 
-                  className="shrink-0 rounded-xl h-12 text-white gap-2"
+                  className="shrink-0 rounded-xl h-12 text-white gap-2 hover:opacity-90"
+                  style={{ backgroundColor: '#9aafe6' }}
                   onClick={handlePlanTrip}
                   disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
                   aria-label="Plan trip"
