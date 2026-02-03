@@ -1,23 +1,24 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Pencil, Plane, Building2, Car, Calendar, MapPin, DollarSign, Clock, Users, FileText, Receipt, ChevronRight, Check, X, Save, Image } from "lucide-react";
+import { ArrowLeft, Pencil, Plane, Building2, Car, Calendar, MapPin, DollarSign, Clock, Users, FileText, Receipt, ChevronRight, Check, X, Save, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 import { useTrips, type LocalTrip } from "@/hooks/useTrips";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
-import { TripFlightPicker } from "@/components/trips/TripFlightPicker";
-import { TripHotelPicker } from "@/components/trips/TripHotelPicker";
-import { TripDatePicker } from "@/components/trips/TripDatePicker";
+import { FlightSelectionPage, type FlightOption } from "@/components/trips/FlightSelectionPage";
+import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
+import { GroundTransportSelectionPage } from "@/components/trips/GroundTransportSelectionPage";
+import { TripDateSelectionPage } from "@/components/trips/TripDateSelectionPage";
 import { HotelDetailModal, type HotelInfo } from "@/components/trips/HotelDetailModal";
-import { mockFlightOptions, mockHotelOptions } from "@/components/chats/booking/mockBookingData";
-import type { FlightOption, HotelOption, SeatOption } from "@/components/chats/booking/types";
+import type { HotelOption as FullHotelOption } from "@/components/chats/booking/types";
+import { generateFlightOptions } from "@/services/mockFlightGenerator";
+import { getAllGroundTransportOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
 import { toast } from "sonner";
 
 type TabType = "overview" | "itinerary" | "expenses";
@@ -35,6 +36,7 @@ interface TripData {
     flightNumber?: string;
     departTime?: string;
     returnTime?: string;
+    price?: number;
   };
   hotel?: {
     name?: string;
@@ -50,6 +52,7 @@ interface TripData {
     reviewCount?: number;
   };
   groundTransport?: string;
+  groundTransportPrice?: number;
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -60,20 +63,85 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   archived: { label: "Archived", className: "bg-muted/50 text-muted-foreground border-border/50" },
 };
 
+// Hotel options generator
+const generateHotelOptions = (destination: string, nights: number = 2): FullHotelOption[] => [
+  {
+    id: "h1",
+    name: "The Westin",
+    area: "Downtown",
+    pricePerNight: 245,
+    totalPrice: 245 * nights,
+    rating: 4.5,
+    distanceToVenue: "0.3 mi",
+    tags: ["Recommended", "Closest", "Policy compliant"],
+    images: [
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800&h=500&fit=crop",
+    ],
+    amenities: ["Free Wi-Fi", "Gym", "Restaurant", "Valet parking"],
+    description: "Experience luxury in the heart of the city.",
+    reviewCount: 2847,
+    cancellationPolicy: "Free cancellation until 24h before check-in",
+    roomTypes: ["Standard King", "Deluxe Queen", "Executive Suite"],
+  },
+  {
+    id: "h2",
+    name: "Marriott Downtown",
+    area: "Financial District",
+    pricePerNight: 289,
+    totalPrice: 289 * nights,
+    rating: 4.3,
+    distanceToVenue: "0.5 mi",
+    tags: ["Premium", "Best amenities"],
+    images: [
+      "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?w=800&h=500&fit=crop",
+    ],
+    amenities: ["Free Wi-Fi", "Pool", "Spa", "Gym", "Restaurant"],
+    description: "Modern comfort in the business district.",
+    reviewCount: 1923,
+    cancellationPolicy: "Free cancellation until 48h before check-in",
+    roomTypes: ["Standard Double", "Club King", "Junior Suite"],
+  },
+  {
+    id: "h3",
+    name: "Hyatt Regency",
+    area: "Convention Center",
+    pricePerNight: 199,
+    totalPrice: 199 * nights,
+    rating: 4.2,
+    distanceToVenue: "0.8 mi",
+    tags: ["Best value"],
+    images: [
+      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=800&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&h=500&fit=crop",
+    ],
+    amenities: ["Free Wi-Fi", "Gym", "Business center"],
+    description: "Great value with excellent location.",
+    reviewCount: 1456,
+    cancellationPolicy: "Free cancellation until 24h before check-in",
+    roomTypes: ["Standard Room", "Regency Club"],
+  },
+];
+
 // Skeleton loader component
 function TripDetailSkeleton() {
   return (
     <div className="space-y-6 p-6">
-      {/* Header skeleton */}
       <div className="space-y-3">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-5 w-32" />
       </div>
-      
-      {/* Tabs skeleton */}
       <Skeleton className="h-10 w-full max-w-sm" />
-      
-      {/* Content cards skeleton */}
       <div className="grid gap-4">
         <Skeleton className="h-32 w-full rounded-xl" />
         <Skeleton className="h-32 w-full rounded-xl" />
@@ -94,28 +162,43 @@ export default function TripDetail() {
   const [trip, setTrip] = useState<TripData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   
-  // Picker states
-  const [flightPickerOpen, setFlightPickerOpen] = useState(false);
-  const [hotelPickerOpen, setHotelPickerOpen] = useState(false);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  // Full-screen selector states
+  const [flightSelectorOpen, setFlightSelectorOpen] = useState(false);
+  const [hotelSelectorOpen, setHotelSelectorOpen] = useState(false);
+  const [dateSelectorOpen, setDateSelectorOpen] = useState(false);
+  const [groundSelectorOpen, setGroundSelectorOpen] = useState(false);
   
-  // Selected options for pickers
+  // Selected options
   const [selectedFlight, setSelectedFlight] = useState<FlightOption | null>(null);
-  const [selectedSeat, setSelectedSeat] = useState<SeatOption | null>(null);
-  const [selectedHotel, setSelectedHotel] = useState<HotelOption | null>(null);
+  const [selectedHotel, setSelectedHotel] = useState<FullHotelOption | null>(null);
+  const [selectedGround, setSelectedGround] = useState<GroundTransportOption | null>(null);
+  
+  // Hotel detail modal (for non-edit mode viewing)
   const [hotelModalOpen, setHotelModalOpen] = useState(false);
   
-  // Edit mode state
-  const [editedTrip, setEditedTrip] = useState<TripData | null>(null);
+  // Saving state
   const [isSaving, setIsSaving] = useState(false);
 
   // Calculate nights
   const nights = useMemo(() => {
-    if (!trip) return 4;
+    if (!trip) return 2;
     return Math.max(1, differenceInDays(new Date(trip.endDate), new Date(trip.startDate)));
   }, [trip]);
 
-  // Demo trips fallback data (must match Dashboard demo IDs)
+  // Generate options based on trip destination
+  const flightOptions = useMemo(() => {
+    if (!trip?.destination) return [];
+    return generateFlightOptions({ destination: trip.destination.split(",")[0] || "SFO" });
+  }, [trip?.destination]);
+
+  const hotelOptions = useMemo(() => {
+    if (!trip?.destination) return [];
+    return generateHotelOptions(trip.destination, nights);
+  }, [trip?.destination, nights]);
+
+  const groundOptions = useMemo(() => getAllGroundTransportOptions(), []);
+
+  // Demo trips fallback data
   const demoTrips: Record<string, TripData> = {
     "demo_trip_sf_2025": {
       id: "demo_trip_sf_2025",
@@ -129,7 +212,8 @@ export default function TripDetail() {
         airline: "United Airlines",
         flightNumber: "UA 1234",
         departTime: "7:00 AM",
-        returnTime: "6:30 PM"
+        returnTime: "6:30 PM",
+        price: 450
       },
       hotel: {
         name: "The Westin St. Francis",
@@ -145,10 +229,11 @@ export default function TripDetail() {
           "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&h=500&fit=crop",
           "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800&h=500&fit=crop",
         ],
-        description: "Experience luxury in the heart of San Francisco. The Westin St. Francis offers world-class amenities and unparalleled views of Union Square.",
+        description: "Experience luxury in the heart of San Francisco.",
         reviewCount: 2847
       },
-      groundTransport: "Uber / Lyft"
+      groundTransport: "UberX",
+      groundTransportPrice: 38
     },
     "demo_trip_seattle_2025": {
       id: "demo_trip_seattle_2025",
@@ -162,7 +247,8 @@ export default function TripDetail() {
         airline: "Alaska Airlines",
         flightNumber: "AS 567",
         departTime: "8:30 AM",
-        returnTime: "5:00 PM"
+        returnTime: "5:00 PM",
+        price: 380
       },
       hotel: {
         name: "The Fairmont Olympic",
@@ -178,10 +264,11 @@ export default function TripDetail() {
           "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&h=500&fit=crop",
           "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?w=800&h=500&fit=crop",
         ],
-        description: "A historic landmark in the heart of downtown Seattle. The Fairmont Olympic combines timeless elegance with modern luxury.",
+        description: "A historic landmark in downtown Seattle.",
         reviewCount: 1923
       },
-      groundTransport: "Light Rail + Uber"
+      groundTransport: "Light Rail",
+      groundTransportPrice: 3
     }
   };
 
@@ -189,23 +276,11 @@ export default function TripDetail() {
   useEffect(() => {
     const loadTrip = async () => {
       setIsLoading(true);
-      
-      // Debug logging in dev mode
-      if (import.meta.env.DEV) {
-        console.log('[TripDetail] Loading trip with ID:', tripId);
-        console.log('[TripDetail] Local trips count:', localTrips.length);
-        console.log('[TripDetail] Local trip IDs:', localTrips.map(t => t.id));
-      }
-      
-      // Simulate loading delay for smooth skeleton display
       await new Promise(r => setTimeout(r, 300));
       
-      // First check local trips from useTrips hook
+      // Check local trips
       const localTrip = localTrips.find(t => t.id === tripId);
       if (localTrip) {
-        if (import.meta.env.DEV) {
-          console.log('[TripDetail] Found trip in local storage:', localTrip.id);
-        }
         setTrip({
           id: localTrip.id,
           destination: localTrip.destination,
@@ -214,9 +289,9 @@ export default function TripDetail() {
           status: localTrip.status,
           purpose: localTrip.purpose,
           estimatedCost: localTrip.estimatedCost,
-          flight: localTrip.flight,
-          hotel: localTrip.hotel,
-          groundTransport: localTrip.groundTransport,
+          flight: localTrip.flight ? { ...localTrip.flight } : undefined,
+          hotel: localTrip.hotel ? { ...localTrip.hotel } : undefined,
+          groundTransport: localTrip.groundTransport || undefined,
         });
         setIsLoading(false);
         return;
@@ -224,19 +299,13 @@ export default function TripDetail() {
       
       // Check demo trips
       if (tripId && demoTrips[tripId]) {
-        if (import.meta.env.DEV) {
-          console.log('[TripDetail] Found demo trip:', tripId);
-        }
         setTrip(demoTrips[tripId]);
         setIsLoading(false);
         return;
       }
       
-      // Fallback to backend trips (Supabase)
+      // Fallback to Supabase
       if (user && tripId) {
-        if (import.meta.env.DEV) {
-          console.log('[TripDetail] Fetching trip from Supabase:', tripId);
-        }
         const { data, error } = await supabase
           .from("trips")
           .select("*")
@@ -244,9 +313,6 @@ export default function TripDetail() {
           .single();
         
         if (!error && data) {
-          if (import.meta.env.DEV) {
-            console.log('[TripDetail] Found trip in Supabase:', data.id);
-          }
           setTrip({
             id: data.id,
             destination: data.destination,
@@ -261,13 +327,7 @@ export default function TripDetail() {
           });
           setIsLoading(false);
           return;
-        } else if (import.meta.env.DEV && error) {
-          console.log('[TripDetail] Supabase error:', error.message);
         }
-      }
-      
-      if (import.meta.env.DEV) {
-        console.log('[TripDetail] Trip not found anywhere for ID:', tripId);
       }
       
       setIsLoading(false);
@@ -280,107 +340,181 @@ export default function TripDetail() {
     navigate(-1);
   };
 
-  const handleFlightSelect = (flight: FlightOption, seat: SeatOption | null) => {
+  // Calculate estimated cost
+  const calculateEstimatedCost = useCallback((
+    flightPrice?: number,
+    hotelPricePerNight?: number,
+    groundPrice?: number,
+    tripNights?: number
+  ): number => {
+    const flightCost = flightPrice || trip?.flight?.price || 400;
+    const hotelCost = (hotelPricePerNight || trip?.hotel?.pricePerNight || 250) * (tripNights || nights);
+    const groundCost = groundPrice || trip?.groundTransportPrice || 40;
+    return flightCost + hotelCost + groundCost;
+  }, [trip, nights]);
+
+  // Handle flight selection
+  const handleFlightSelect = useCallback((flight: FlightOption) => {
     setSelectedFlight(flight);
-    setSelectedSeat(seat);
-    if (trip) {
-      setTrip(prev => prev ? {
+    setTrip(prev => {
+      if (!prev) return null;
+      const newCost = calculateEstimatedCost(flight.price, prev.hotel?.pricePerNight, prev.groundTransportPrice);
+      return {
         ...prev,
         flight: { 
-          airline: flight.airline, 
+          airline: flight.airline,
+          flightNumber: flight.flightNumber,
           departTime: flight.departTime, 
-          returnTime: flight.arriveTime 
+          returnTime: flight.arriveTime,
+          price: flight.price
         },
-        estimatedCost: prev.estimatedCost + flight.price - (selectedFlight?.price || 400)
-      } : null);
-    }
-    setFlightPickerOpen(false);
-  };
+        estimatedCost: newCost
+      };
+    });
+    setFlightSelectorOpen(false);
+    toast.success(`Flight updated to ${flight.airline}`);
+  }, [calculateEstimatedCost]);
 
-  const handleHotelSelect = (hotel: HotelOption) => {
+  // Handle hotel selection
+  const handleHotelSelect = useCallback((hotel: FullHotelOption) => {
     setSelectedHotel(hotel);
-    if (trip) {
-      setTrip(prev => prev ? {
+    setTrip(prev => {
+      if (!prev) return null;
+      const newCost = calculateEstimatedCost(prev.flight?.price, hotel.pricePerNight, prev.groundTransportPrice);
+      return {
         ...prev,
-        hotel: { name: hotel.name, location: hotel.area },
-        estimatedCost: prev.estimatedCost + (hotel.pricePerNight * nights) - (selectedHotel?.pricePerNight ? selectedHotel.pricePerNight * nights : 600)
-      } : null);
-    }
-    setHotelPickerOpen(false);
-  };
+        hotel: { 
+          name: hotel.name, 
+          location: hotel.area,
+          pricePerNight: hotel.pricePerNight,
+          rating: hotel.rating,
+          images: hotel.images,
+          amenities: hotel.amenities,
+          description: hotel.description,
+          reviewCount: hotel.reviewCount,
+        },
+        estimatedCost: newCost
+      };
+    });
+    setHotelSelectorOpen(false);
+    toast.success(`Hotel updated to ${hotel.name}`);
+  }, [calculateEstimatedCost]);
 
-  const handleDateSelect = (start: Date, end: Date) => {
-    if (trip) {
-      setTrip(prev => prev ? {
+  // Handle date selection
+  const handleDateSelect = useCallback((start: Date, end: Date) => {
+    const newNights = Math.max(1, differenceInDays(end, start));
+    setTrip(prev => {
+      if (!prev) return null;
+      const newCost = calculateEstimatedCost(prev.flight?.price, prev.hotel?.pricePerNight, prev.groundTransportPrice, newNights);
+      return {
         ...prev,
         startDate: start.toISOString(),
         endDate: end.toISOString(),
-      } : null);
-    }
-    setDatePickerOpen(false);
-  };
+        estimatedCost: newCost
+      };
+    });
+    setDateSelectorOpen(false);
+    toast.success("Travel dates updated");
+  }, [calculateEstimatedCost]);
 
-  // Handle starting edit mode
-  const handleStartEdit = useCallback(() => {
-    if (trip) {
-      setEditedTrip({ ...trip });
-      setIsEditing(true);
-    }
-  }, [trip]);
+  // Handle ground transport selection
+  const handleGroundSelect = useCallback((option: GroundTransportOption) => {
+    setSelectedGround(option);
+    setTrip(prev => {
+      if (!prev) return null;
+      const newCost = calculateEstimatedCost(prev.flight?.price, prev.hotel?.pricePerNight, option.price);
+      return {
+        ...prev,
+        groundTransport: `${option.provider} ${option.rideType}`,
+        groundTransportPrice: option.price,
+        estimatedCost: newCost
+      };
+    });
+    setGroundSelectorOpen(false);
+    toast.success(`Ground transport updated to ${option.rideType}`);
+  }, [calculateEstimatedCost]);
 
-  // Handle cancelling edit
-  const handleCancelEdit = useCallback(() => {
-    setEditedTrip(null);
-    setIsEditing(false);
+  // Handle removing ground transport
+  const handleRemoveGround = useCallback(() => {
+    setSelectedGround(null);
+    setTrip(prev => {
+      if (!prev) return null;
+      const newCost = calculateEstimatedCost(prev.flight?.price, prev.hotel?.pricePerNight, 0);
+      return {
+        ...prev,
+        groundTransport: undefined,
+        groundTransportPrice: undefined,
+        estimatedCost: newCost
+      };
+    });
+    toast.success("Ground transport removed");
+  }, [calculateEstimatedCost]);
+
+  // Toggle edit mode
+  const handleToggleEdit = useCallback(() => {
+    setIsEditing(prev => !prev);
   }, []);
 
-  // Handle saving edits
-  const handleSaveEdit = useCallback(async () => {
-    if (!editedTrip || !trip) return;
+  // Save changes
+  const handleSaveChanges = useCallback(async () => {
+    if (!trip) return;
     
     setIsSaving(true);
     try {
-      // Calculate new estimated cost based on hotel price changes
-      let newEstimatedCost = editedTrip.estimatedCost;
-      
-      // Update the trip state
-      setTrip(editedTrip);
-      
-      // If it's a local trip, update it in the store
+      // Update local trip if exists
       if (localTrips.find(t => t.id === trip.id)) {
         updateTrip(trip.id, {
-          destination: editedTrip.destination,
-          startDate: editedTrip.startDate,
-          endDate: editedTrip.endDate,
-          purpose: editedTrip.purpose,
-          estimatedCost: newEstimatedCost,
-          flight: editedTrip.flight ? {
-            airline: editedTrip.flight.airline || "",
-            departTime: editedTrip.flight.departTime || "",
-            returnTime: editedTrip.flight.returnTime || "",
+          destination: trip.destination,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          purpose: trip.purpose,
+          estimatedCost: trip.estimatedCost,
+          flight: trip.flight ? {
+            airline: trip.flight.airline || "",
+            departTime: trip.flight.departTime || "",
+            returnTime: trip.flight.returnTime || "",
           } : null,
-          hotel: editedTrip.hotel ? {
-            name: editedTrip.hotel.name || "",
-            location: editedTrip.hotel.location || "",
+          hotel: trip.hotel ? {
+            name: trip.hotel.name || "",
+            location: trip.hotel.location || "",
           } : null,
-          groundTransport: editedTrip.groundTransport || null,
+          groundTransport: trip.groundTransport || null,
         });
       }
       
-      toast.success("Trip updated successfully");
+      toast.success("Trip saved successfully");
       setIsEditing(false);
-      setEditedTrip(null);
     } catch (error) {
       toast.error("Failed to save changes");
     } finally {
       setIsSaving(false);
     }
-  }, [editedTrip, trip, localTrips, updateTrip]);
+  }, [trip, localTrips, updateTrip]);
 
-  // Handle hotel card click to open details modal
+  // Handle card clicks
+  const handleFlightCardClick = useCallback(() => {
+    if (isEditing) {
+      setFlightSelectorOpen(true);
+    }
+  }, [isEditing]);
+
   const handleHotelCardClick = useCallback(() => {
-    if (!isEditing) {
+    if (isEditing) {
+      setHotelSelectorOpen(true);
+    } else if (trip?.hotel) {
       setHotelModalOpen(true);
+    }
+  }, [isEditing, trip?.hotel]);
+
+  const handleDateCardClick = useCallback(() => {
+    if (isEditing) {
+      setDateSelectorOpen(true);
+    }
+  }, [isEditing]);
+
+  const handleGroundCardClick = useCallback(() => {
+    if (isEditing) {
+      setGroundSelectorOpen(true);
     }
   }, [isEditing]);
 
@@ -456,14 +590,14 @@ export default function TripDetail() {
               ) : null}
             </div>
             
-            {/* Edit/Save/Cancel buttons */}
+            {/* Edit/Save buttons */}
             <div className="flex items-center gap-2">
               {isEditing ? (
                 <>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleCancelEdit}
+                    onClick={handleToggleEdit}
                     disabled={isSaving}
                     className="text-muted-foreground hover:text-foreground"
                   >
@@ -473,7 +607,7 @@ export default function TripDetail() {
                   <Button
                     variant="default"
                     size="sm"
-                    onClick={handleSaveEdit}
+                    onClick={handleSaveChanges}
                     disabled={isSaving}
                     className="gap-1"
                   >
@@ -498,7 +632,7 @@ export default function TripDetail() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={handleStartEdit}
+                  onClick={handleToggleEdit}
                   className="rounded-full hover:bg-muted hover:text-primary transition-colors"
                   aria-label="Edit trip"
                 >
@@ -508,6 +642,26 @@ export default function TripDetail() {
             </div>
           </div>
         </motion.header>
+
+        {/* Edit Mode Banner */}
+        <AnimatePresence>
+          {isEditing && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="bg-primary/5 border-b border-primary/20 overflow-hidden"
+            >
+              <div className="px-4 md:px-6 py-3 max-w-4xl mx-auto">
+                <div className="flex items-center gap-2 text-sm text-primary">
+                  <Sparkles className="w-4 h-4" />
+                  <span className="font-medium">Edit Mode</span>
+                  <span className="text-primary/70">— Tap any card to make changes</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Main Content */}
         <main className="px-4 md:px-6 py-6 max-w-4xl mx-auto">
@@ -520,7 +674,7 @@ export default function TripDetail() {
               transition={{ delay: 0.2, duration: 0.3 }}
               className="space-y-6"
             >
-              {/* Segmented Control / Tabs */}
+              {/* Tabs */}
               <div className="bg-muted/50 p-1 rounded-xl inline-flex gap-1">
                 {tabs.map((tab) => (
                   <button
@@ -577,7 +731,13 @@ export default function TripDetail() {
                     </Card>
 
                     {/* Flight Card */}
-                    <Card className="border border-border/50 group">
+                    <Card 
+                      className={cn(
+                        "border border-border/50 group transition-all",
+                        isEditing && "cursor-pointer hover:border-primary/30 hover:shadow-md"
+                      )}
+                      onClick={handleFlightCardClick}
+                    >
                       <CardContent className="p-5">
                         <div className="flex items-start justify-between">
                           <div className="flex items-start gap-3">
@@ -585,46 +745,64 @@ export default function TripDetail() {
                               <Plane className="w-5 h-5 text-blue-500" />
                             </div>
                             <div>
-                              <p className="font-medium text-foreground">
-                                {trip.flight?.airline || "No flight selected"}
-                              </p>
-                              {trip.flight?.flightNumber && (
-                                <p className="text-sm text-muted-foreground">
-                                  Flight {trip.flight.flightNumber}
-                                </p>
-                              )}
-                              {trip.flight?.departTime && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Depart: {trip.flight.departTime} • Return: {trip.flight.returnTime || "—"}
-                                </p>
+                              {trip.flight?.airline ? (
+                                <>
+                                  <p className="font-medium text-foreground">
+                                    {trip.flight.airline}
+                                  </p>
+                                  {trip.flight.flightNumber && (
+                                    <p className="text-sm text-muted-foreground">
+                                      Flight {trip.flight.flightNumber}
+                                    </p>
+                                  )}
+                                  {trip.flight.departTime && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Depart: {trip.flight.departTime} • Return: {trip.flight.returnTime || "—"}
+                                    </p>
+                                  )}
+                                  {trip.flight.price && (
+                                    <p className="text-xs text-primary mt-1 font-medium">
+                                      ${trip.flight.price}
+                                    </p>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <p className="font-medium text-muted-foreground">No flight selected</p>
+                                  {isEditing && (
+                                    <button 
+                                      className="text-sm text-primary flex items-center gap-1 mt-1 hover:underline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setFlightSelectorOpen(true);
+                                      }}
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                      Add flight
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>
                           {isEditing && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setFlightPickerOpen(true)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              Change
-                            </Button>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                           )}
                         </div>
                       </CardContent>
                     </Card>
 
-                    {/* Hotel Card - Clickable with thumbnail */}
+                    {/* Hotel Card */}
                     <Card 
                       className={cn(
-                        "border border-border/50 group transition-all",
-                        !isEditing && "cursor-pointer hover:border-primary/30 hover:shadow-md"
+                        "border border-border/50 group transition-all cursor-pointer",
+                        "hover:border-primary/30 hover:shadow-md"
                       )}
                       onClick={handleHotelCardClick}
                     >
                       <CardContent className="p-5">
                         <div className="flex items-start gap-4">
-                          {/* Hotel thumbnail image */}
+                          {/* Hotel thumbnail */}
                           <div className="w-20 h-20 rounded-xl overflow-hidden bg-muted shrink-0">
                             {trip.hotel?.images?.[0] ? (
                               <img 
@@ -642,48 +820,53 @@ export default function TripDetail() {
                             )}
                           </div>
                           
-                          {/* Hotel info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="font-medium text-foreground truncate">
-                                  {trip.hotel?.name || "No hotel selected"}
-                                </p>
-                                {trip.hotel?.location && (
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    {trip.hotel.location}
-                                  </p>
-                                )}
-                                {trip.hotel?.rating && (
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <span className="text-xs text-amber-500">★</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {trip.hotel.rating.toFixed(1)}
-                                    </span>
-                                    {trip.hotel?.pricePerNight && (
-                                      <span className="text-xs text-muted-foreground ml-2">
-                                        ${trip.hotel.pricePerNight}/night
-                                      </span>
+                                {trip.hotel?.name ? (
+                                  <>
+                                    <p className="font-medium text-foreground truncate">
+                                      {trip.hotel.name}
+                                    </p>
+                                    {trip.hotel.location && (
+                                      <p className="text-sm text-muted-foreground truncate">
+                                        {trip.hotel.location}
+                                      </p>
                                     )}
-                                  </div>
+                                    {trip.hotel.rating && (
+                                      <div className="flex items-center gap-1 mt-1">
+                                        <span className="text-xs text-amber-500">★</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {trip.hotel.rating.toFixed(1)}
+                                        </span>
+                                        {trip.hotel.pricePerNight && (
+                                          <span className="text-xs text-primary ml-2 font-medium">
+                                            ${trip.hotel.pricePerNight}/night
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="font-medium text-muted-foreground">No hotel selected</p>
+                                    {isEditing && (
+                                      <button 
+                                        className="text-sm text-primary flex items-center gap-1 mt-1 hover:underline"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setHotelSelectorOpen(true);
+                                        }}
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                        Add hotel
+                                      </button>
+                                    )}
+                                  </>
                                 )}
                               </div>
                               
-                              {isEditing ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setHotelPickerOpen(true);
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                                >
-                                  Change
-                                </Button>
-                              ) : (
-                                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              )}
+                              <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                             </div>
                           </div>
                         </div>
@@ -691,7 +874,13 @@ export default function TripDetail() {
                     </Card>
 
                     {/* Dates Card */}
-                    <Card className="border border-border/50 group">
+                    <Card 
+                      className={cn(
+                        "border border-border/50 group transition-all",
+                        isEditing && "cursor-pointer hover:border-primary/30 hover:shadow-md"
+                      )}
+                      onClick={handleDateCardClick}
+                    >
                       <CardContent className="p-5">
                         <div className="flex items-start justify-between">
                           <div className="flex items-start gap-3">
@@ -704,40 +893,80 @@ export default function TripDetail() {
                                 {format(new Date(trip.startDate), "EEEE, MMM d")} – {format(new Date(trip.endDate), "EEEE, MMM d, yyyy")}
                               </p>
                               <p className="text-xs text-muted-foreground mt-1">
-                                {Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24))} nights
+                                {nights} {nights === 1 ? "night" : "nights"}
                               </p>
                             </div>
                           </div>
                           {isEditing && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setDatePickerOpen(true)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              Edit
-                            </Button>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                           )}
                         </div>
                       </CardContent>
                     </Card>
 
-                    {/* Ground Transport */}
-                    {trip.groundTransport && (
-                      <Card className="border border-border/50">
+                    {/* Ground Transport Card */}
+                    {trip.groundTransport ? (
+                      <Card 
+                        className={cn(
+                          "border border-border/50 group transition-all",
+                          isEditing && "cursor-pointer hover:border-primary/30 hover:shadow-md"
+                        )}
+                        onClick={handleGroundCardClick}
+                      >
                         <CardContent className="p-5">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                              <Car className="w-5 h-5 text-purple-500" />
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                                <Car className="w-5 h-5 text-purple-500" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground">Ground Transport</p>
+                                <p className="text-sm text-muted-foreground">{trip.groundTransport}</p>
+                                {trip.groundTransportPrice && (
+                                  <p className="text-xs text-primary mt-1 font-medium">
+                                    ${trip.groundTransportPrice}
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium text-foreground">Ground Transport</p>
-                              <p className="text-sm text-muted-foreground">{trip.groundTransport}</p>
+                            <div className="flex items-center gap-2">
+                              {isEditing && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveGround();
+                                    }}
+                                    className="text-xs text-destructive hover:underline"
+                                  >
+                                    Remove
+                                  </button>
+                                  <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </>
+                              )}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
-                    )}
+                    ) : isEditing ? (
+                      <Card 
+                        className="border border-dashed border-border/60 hover:border-primary/30 cursor-pointer transition-all group"
+                        onClick={() => setGroundSelectorOpen(true)}
+                      >
+                        <CardContent className="p-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                              <Plus className="w-5 h-5 text-purple-500" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-muted-foreground">Add Ground Transport</p>
+                              <p className="text-sm text-muted-foreground">Rideshare, rental, or transit</p>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : null}
                   </motion.div>
                 )}
 
@@ -758,8 +987,7 @@ export default function TripDetail() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {/* Placeholder itinerary items */}
-                        {Array.from({ length: Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1 }).map((_, i) => {
+                        {Array.from({ length: nights + 1 }).map((_, i) => {
                           const dayDate = new Date(trip.startDate);
                           dayDate.setDate(dayDate.getDate() + i);
                           return (
@@ -770,12 +998,12 @@ export default function TripDetail() {
                               </div>
                               <div className="flex-1">
                                 <p className="font-medium text-foreground">
-                                  {i === 0 ? "Arrival Day" : i === Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) ? "Departure Day" : `Day ${i + 1}`}
+                                  {i === 0 ? "Arrival Day" : i === nights ? "Departure Day" : `Day ${i + 1}`}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
                                   {i === 0 
                                     ? `Arrive in ${trip.destination}, check into ${trip.hotel?.name || "hotel"}`
-                                    : i === Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24))
+                                    : i === nights
                                     ? "Check out and return flight"
                                     : "Meetings and activities"
                                   }
@@ -859,40 +1087,54 @@ export default function TripDetail() {
           )}
         </main>
 
-        {/* Pickers */}
-        <TripFlightPicker
-          open={flightPickerOpen}
-          onOpenChange={setFlightPickerOpen}
-          flights={mockFlightOptions}
+        {/* Full-Screen Selectors */}
+        <FlightSelectionPage
+          open={flightSelectorOpen}
+          onClose={() => setFlightSelectorOpen(false)}
+          flights={flightOptions}
           selectedFlight={selectedFlight}
-          selectedSeat={selectedSeat}
           onSelect={handleFlightSelect}
+          origin="Home"
+          destination={trip?.destination}
         />
         
-        <TripHotelPicker
-          open={hotelPickerOpen}
-          onOpenChange={setHotelPickerOpen}
-          hotels={mockHotelOptions}
+        <HotelSelectionPage
+          open={hotelSelectorOpen}
+          onClose={() => setHotelSelectorOpen(false)}
+          hotels={hotelOptions}
           selectedHotel={selectedHotel}
           onSelect={handleHotelSelect}
           nights={nights}
+          venueName={trip?.destination}
         />
         
-        <TripDatePicker
-          open={datePickerOpen}
-          onOpenChange={setDatePickerOpen}
+        <TripDateSelectionPage
+          open={dateSelectorOpen}
+          onClose={() => setDateSelectorOpen(false)}
           startDate={trip ? new Date(trip.startDate) : new Date()}
           endDate={trip ? new Date(trip.endDate) : new Date()}
           onSelect={handleDateSelect}
+          tripDestination={trip?.destination}
         />
         
-        {/* Hotel Detail Modal */}
+        <GroundTransportSelectionPage
+          open={groundSelectorOpen}
+          onClose={() => setGroundSelectorOpen(false)}
+          options={groundOptions}
+          selectedOption={selectedGround}
+          onSelect={handleGroundSelect}
+        />
+        
+        {/* Hotel Detail Modal (for non-edit viewing) */}
         {hotelInfoForModal && (
           <HotelDetailModal
             hotel={hotelInfoForModal}
             isOpen={hotelModalOpen}
             onClose={() => setHotelModalOpen(false)}
-            onChangeHotel={() => setHotelPickerOpen(true)}
+            onChangeHotel={() => {
+              setHotelModalOpen(false);
+              setHotelSelectorOpen(true);
+            }}
             nights={nights}
           />
         )}
