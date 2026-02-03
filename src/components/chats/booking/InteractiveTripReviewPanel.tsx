@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { format, differenceInDays, parse } from "date-fns";
 import type { FlightOption, SeatOption, HotelOption, DetectedTripData } from "./types";
 import { FlightSelectorDrawer } from "./FlightSelectorDrawer";
-import { HotelBrowserDrawer } from "./HotelBrowserDrawer";
+import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { DatePickerDrawer } from "./DatePickerDrawer";
 import { mockFlightOptions, mockHotelOptions } from "./mockBookingData";
 
@@ -387,9 +387,9 @@ export function InteractiveTripReviewPanel({ detectedTrip, onReviewTrip }: Inter
         basePrice={detectedTrip.flight.price}
       />
       
-      <HotelBrowserDrawer
+      <HotelSelectionPage
         open={hotelDrawerOpen}
-        onOpenChange={setHotelDrawerOpen}
+        onClose={() => setHotelDrawerOpen(false)}
         hotels={adjustedHotels}
         selectedHotel={selectedHotel}
         onSelect={handleHotelSelect}

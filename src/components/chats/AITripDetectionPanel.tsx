@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Plane, Building2, Calendar, DollarSign, ChevronRight, Check, Pencil, X, ArrowLeft, Star, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FlightSelectorDrawer } from "./booking/FlightSelectorDrawer";
-import { HotelBrowserDrawer } from "./booking/HotelBrowserDrawer";
+import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { DatePickerDrawer } from "./booking/DatePickerDrawer";
 import { HotelPhotoCarousel } from "./booking/HotelPhotoCarousel";
 import { mockFlightOptions, mockHotelOptions } from "./booking/mockBookingData";
@@ -426,10 +426,10 @@ export function AITripDetectionPanel({ detectedTrip, onReviewTrip, onClose }: AI
         basePrice={detectedTrip.flight.price}
       />
 
-      {/* Hotel Browser Drawer */}
-      <HotelBrowserDrawer
+      {/* Hotel Selection Full-Screen Page */}
+      <HotelSelectionPage
         open={hotelDrawerOpen}
-        onOpenChange={setHotelDrawerOpen}
+        onClose={() => setHotelDrawerOpen(false)}
         hotels={tripState.options.hotels}
         selectedHotel={tripState.selected.hotel}
         onSelect={handleHotelSelect}
