@@ -128,7 +128,7 @@ export function TripEditDrawer({
         ) || (trip.flight_details?.airline ? {
           id: "trip-flight",
           airline: trip.flight_details.airline,
-          airlineLogo: "✈️",
+          airlineLogo: "",
           departTime: "8:00 AM",
           arriveTime: "11:30 AM",
           duration: "3h 30m",

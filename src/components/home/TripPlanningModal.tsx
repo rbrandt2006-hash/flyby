@@ -553,7 +553,7 @@ export function TripPlanningModal({
                             <div>
                               <p className="font-medium">{hotel.name}</p>
                               <p className="text-sm text-muted-foreground">
-                                {hotel.area} • {hotel.distanceToVenue} to venue • ⭐ {hotel.rating}
+                                {hotel.area} • {hotel.distanceToVenue} to venue • {hotel.rating} rating
                               </p>
                               <p className="text-xs text-muted-foreground mt-1">
                                 ${hotel.pricePerNight}/night × {nights} night{nights !== 1 ? 's' : ''}

@@ -3,7 +3,8 @@ import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { format, addDays } from "date-fns";
 import { 
   Plus, AlertTriangle, Clock, Globe, Save, RotateCcw, 
-  ChevronDown, ChevronUp, Pencil, Check, X
+  ChevronDown, ChevronUp, Pencil, Check, X,
+  Plane, Building2, DoorOpen, Users, Utensils, Car, Coffee, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,15 +162,15 @@ export function ItineraryEditor({
     return warnings.filter(w => w.dayIndex === dayIndex);
   }, [warnings]);
   
-  const blockTypeOptions: { type: ItineraryBlockType; label: string; emoji: string }[] = [
-    { type: "meeting", label: "Meeting", emoji: "👥" },
-    { type: "meal", label: "Business Meal", emoji: "🍽️" },
-    { type: "transport", label: "Transportation", emoji: "🚗" },
-    { type: "free_time", label: "Free Time", emoji: "🕐" },
-    { type: "flight", label: "Flight", emoji: "✈️" },
-    { type: "hotel_checkin", label: "Hotel Check-in", emoji: "🏨" },
-    { type: "hotel_checkout", label: "Hotel Check-out", emoji: "🚪" },
-    { type: "custom", label: "Other", emoji: "📝" },
+  const blockTypeOptions: { type: ItineraryBlockType; label: string; icon: string }[] = [
+    { type: "meeting", label: "Meeting", icon: "users" },
+    { type: "meal", label: "Business Meal", icon: "utensils" },
+    { type: "transport", label: "Transportation", icon: "car" },
+    { type: "free_time", label: "Free Time", icon: "coffee" },
+    { type: "flight", label: "Flight", icon: "plane" },
+    { type: "hotel_checkin", label: "Hotel Check-in", icon: "building" },
+    { type: "hotel_checkout", label: "Hotel Check-out", icon: "door" },
+    { type: "custom", label: "Other", icon: "file" },
   ];
   
   return (
@@ -382,7 +383,14 @@ export function ItineraryEditor({
                                 key={option.type}
                                 onClick={() => handleAddBlock(day.dayIndex, option.type)}
                               >
-                                <span className="mr-2">{option.emoji}</span>
+                                {option.type === 'flight' && <Plane className="w-4 h-4 mr-2" />}
+                                {option.type === 'hotel_checkin' && <Building2 className="w-4 h-4 mr-2" />}
+                                {option.type === 'hotel_checkout' && <DoorOpen className="w-4 h-4 mr-2" />}
+                                {option.type === 'meeting' && <Users className="w-4 h-4 mr-2" />}
+                                {option.type === 'meal' && <Utensils className="w-4 h-4 mr-2" />}
+                                {option.type === 'transport' && <Car className="w-4 h-4 mr-2" />}
+                                {option.type === 'free_time' && <Coffee className="w-4 h-4 mr-2" />}
+                                {option.type === 'custom' && <FileText className="w-4 h-4 mr-2" />}
                                 {option.label}
                               </DropdownMenuItem>
                             ))}

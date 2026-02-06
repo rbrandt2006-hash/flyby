@@ -156,7 +156,7 @@ export default function Expenses() {
     const chat = getOrCreateExpenseChat(supervisorId, supervisorName, selectedExpense.id, expenseMetadata);
     
     const categoryLabel = selectedExpense.category.charAt(0).toUpperCase() + selectedExpense.category.slice(1);
-    const systemMessage = `📝 Julia submitted an expense for approval:\n\n**${selectedExpense.merchant}** – $${selectedExpense.amount.toFixed(2)} (${categoryLabel})\n${selectedExpense.description}`;
+    const systemMessage = `Julia submitted an expense for approval:\n\n**${selectedExpense.merchant}** – $${selectedExpense.amount.toFixed(2)} (${categoryLabel})\n${selectedExpense.description}`;
     
     sendExpenseSystemMessage(chat.id, selectedExpense.id, "expense_submission", systemMessage);
     

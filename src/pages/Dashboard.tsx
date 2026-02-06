@@ -326,26 +326,50 @@ export default function Dashboard() {
   // Get trips from the hook - use real trips + demo fallback
   const { trips: localTrips } = useTrips();
   
+  // Safe date formatter with validation
+  const formatTripDates = useCallback((startDate: string | undefined, endDate: string | undefined): string => {
+    try {
+      if (!startDate || !endDate) return "TBD";
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return "TBD";
+      return `${format(start, 'MMM d')}-${format(end, 'd, yyyy')}`;
+    } catch {
+      return "TBD";
+    }
+  }, []);
+  
   // Create demo trips for display if no real trips exist
   const upcomingTrips = useMemo(() => {
+    // Guard against undefined/null trips array
+    if (!Array.isArray(localTrips)) {
+      console.warn("localTrips is not an array, using demo fallback");
+      return getDemoTrips();
+    }
+    
     // Filter to only upcoming/active trips (not archived or cancelled)
     const activeLocalTrips = localTrips.filter(t => 
-      t.status === 'draft' || t.status === 'pending' || t.status === 'confirmed'
+      t && t.id && (t.status === 'draft' || t.status === 'pending' || t.status === 'confirmed')
     );
     
     if (activeLocalTrips.length > 0) {
-      // Map local trips to display format
+      // Map local trips to display format with defensive checks
       return activeLocalTrips.slice(0, 4).map(t => ({
-        id: t.id,
-        destination: t.destination,
-        dates: `${format(new Date(t.startDate), 'MMM d')}-${format(new Date(t.endDate), 'd, yyyy')}`,
+        id: t.id || `trip_${Date.now()}`,
+        destination: t.destination || "Unknown destination",
+        dates: formatTripDates(t.startDate, t.endDate),
         status: t.status === 'confirmed' ? 'approved' as const : t.status === 'pending' ? 'pending' as const : 'draft' as const,
-        purpose: t.purpose,
-        estimatedCost: t.estimatedCost
+        purpose: t.purpose || "Business travel",
+        estimatedCost: typeof t.estimatedCost === 'number' ? t.estimatedCost : 0
       }));
     }
     
     // Demo fallback trips with stable IDs
+    return getDemoTrips();
+  }, [localTrips, formatTripDates]);
+  
+  // Demo trips helper function
+  function getDemoTrips() {
     return [
       {
         id: "demo_trip_sf_2025",
@@ -364,7 +388,7 @@ export default function Dashboard() {
         estimatedCost: 2100
       }
     ];
-  }, [localTrips]);
+  }
   const calendarSuggestions = [{
     id: 1,
     event: "Q1 Planning Meeting",
@@ -871,40 +895,52 @@ export default function Dashboard() {
             </Button>
           </motion.div>
         </div>
-        <div className="grid md:grid-cols-2 gap-4">
-          {upcomingTrips.map((trip, index) => <AnimatedCard key={trip.id} delay={index * 0.1} className="cursor-pointer group hover:shadow-md hover:border-primary/20 transition-all duration-200" onClick={() => navigate(`/trips/${trip.id}`)}>
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <motion.div whileHover={{
-                  scale: 1.1
-                }} className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <MapPin className="w-5 h-5 text-primary" />
-                    </motion.div>
-                    <div>
-                      <h3 className="font-semibold">{trip.destination}</h3>
-                      <p className="text-sm text-muted-foreground">{trip.dates}</p>
+        {upcomingTrips.length === 0 ? (
+          <Card className="border-dashed border-2 border-border/50 bg-muted/20">
+            <CardContent className="flex flex-col items-center justify-center py-12 space-y-3">
+              <Plane className="w-10 h-10 text-muted-foreground/50" />
+              <p className="text-muted-foreground text-center">You have no upcoming trips yet.</p>
+              <p className="text-sm text-muted-foreground/70 text-center">Use the search bar above to plan your next trip.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {upcomingTrips.map((trip, index) => (
+              <AnimatedCard 
+                key={trip.id || `trip-${index}`} 
+                delay={index * 0.1} 
+                className="cursor-pointer group hover:shadow-md hover:border-primary/20 transition-all duration-200" 
+                onClick={() => navigate(`/trips/${trip.id}`)}
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <motion.div whileHover={{ scale: 1.1 }} className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <MapPin className="w-5 h-5 text-primary" />
+                      </motion.div>
+                      <div>
+                        <h3 className="font-semibold">{trip.destination || "Unknown"}</h3>
+                        <p className="text-sm text-muted-foreground">{trip.dates || "TBD"}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <motion.span 
+                        initial={{ scale: 0.9, opacity: 0 }} 
+                        animate={{ scale: 1, opacity: 1 }} 
+                        transition={{ delay: 0.3 + index * 0.1 }} 
+                        className={`text-xs px-2.5 py-1 rounded-full font-medium ${trip.status === "approved" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}
+                      >
+                        {trip.status || "draft"}
+                      </motion.span>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <motion.span initial={{
-                  scale: 0.9,
-                  opacity: 0
-                }} animate={{
-                  scale: 1,
-                  opacity: 1
-                }} transition={{
-                  delay: 0.3 + index * 0.1
-                }} className={`text-xs px-2.5 py-1 rounded-full font-medium ${trip.status === "approved" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
-                      {trip.status}
-                    </motion.span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">{trip.purpose}</p>
-              </CardContent>
-            </AnimatedCard>)}
-        </div>
+                  <p className="text-sm text-muted-foreground">{trip.purpose || "Business travel"}</p>
+                </CardContent>
+              </AnimatedCard>
+            ))}
+          </div>
+        )}
       </ScrollReveal>
 
       {/* Refine Modal */}

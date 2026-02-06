@@ -51,24 +51,8 @@ interface FlightSelectionPageProps {
 
 type SortOption = "recommended" | "cheapest" | "fastest" | "earliest";
 
-const airlineLogos: Record<string, string> = {
-  "Delta": "🔷",
-  "Delta Air Lines": "🔷",
-  "United": "🌐",
-  "United Airlines": "🌐",
-  "American": "🦅",
-  "American Airlines": "🦅",
-  "Southwest": "❤️",
-  "Southwest Airlines": "❤️",
-  "JetBlue": "💙",
-  "JetBlue Airways": "💙",
-  "Alaska": "🏔️",
-  "Alaska Airlines": "🏔️",
-  "Spirit": "💛",
-  "Spirit Airlines": "💛",
-  "Frontier": "🦌",
-  "Frontier Airlines": "🦌",
-};
+// Airline list for filter chips (no emoji logos - use Plane icons instead)
+
 
 const allAirlines = [
   "Delta",
@@ -332,7 +316,7 @@ export function FlightSelectionPage({
                             : "bg-muted hover:bg-muted/80 text-foreground"
                         )}
                       >
-                        <span>{airlineLogos[airline] || "✈️"}</span>
+                        <Plane className="w-4 h-4" />
                         {airline}
                       </button>
                     ))}
@@ -396,10 +380,8 @@ export function FlightSelectionPage({
                       >
                         <div className="flex items-start gap-4">
                           {/* Airline logo */}
-                          <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center text-3xl shrink-0">
-                            {flight.airlineLogo ||
-                              airlineLogos[flight.airline] ||
-                              "✈️"}
+                          <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                            <Plane className="w-7 h-7 text-muted-foreground" />
                           </div>
 
                           <div className="flex-1 min-w-0">

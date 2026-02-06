@@ -551,14 +551,14 @@ export function BlockEditorPanel({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="flight">✈️ Flight</SelectItem>
-                      <SelectItem value="hotel_checkin">🏨 Hotel Check-in</SelectItem>
-                      <SelectItem value="hotel_checkout">🚪 Hotel Check-out</SelectItem>
-                      <SelectItem value="meeting">👥 Meeting</SelectItem>
-                      <SelectItem value="meal">🍽️ Business Meal</SelectItem>
-                      <SelectItem value="transport">🚗 Transportation</SelectItem>
-                      <SelectItem value="free_time">🕐 Free Time / Buffer</SelectItem>
-                      <SelectItem value="custom">📝 Other</SelectItem>
+                      <SelectItem value="flight">Flight</SelectItem>
+                      <SelectItem value="hotel_checkin">Hotel Check-in</SelectItem>
+                      <SelectItem value="hotel_checkout">Hotel Check-out</SelectItem>
+                      <SelectItem value="meeting">Meeting</SelectItem>
+                      <SelectItem value="meal">Business Meal</SelectItem>
+                      <SelectItem value="transport">Transportation</SelectItem>
+                      <SelectItem value="free_time">Free Time / Buffer</SelectItem>
+                      <SelectItem value="custom">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
