@@ -14,6 +14,7 @@ import type { HotelOption as FullHotelOption } from "@/components/chats/booking/
 import { generateFlightOptions } from "@/services/mockFlightGenerator";
 import { getAllGroundTransportOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
 import { getHotelsForDestination } from "@/services/mockHotelService";
+import { TransportIcon } from "@/components/trips/TransportIcon";
 
 interface TripPlanningModalProps {
   open: boolean;
@@ -396,8 +397,8 @@ export function TripPlanningModal({
                     <div className="p-4 rounded-xl bg-card border border-border/60 group">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-xl">
-                            {selectedGround.icon}
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <TransportIcon type={selectedGround.iconType} size="md" />
                           </div>
                           <div>
                             <p className="font-medium text-foreground">{selectedGround.rideType}</p>

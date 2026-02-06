@@ -33,6 +33,7 @@ import {
   generateRentalOptions,
   generatePublicTransitOptions,
 } from "@/services/mockGroundTransportService";
+import { TransportIcon, SectionHeaderIcon } from "@/components/trips/TransportIcon";
 
 interface GroundTransportSelectionPageProps {
   open: boolean;
@@ -310,8 +311,8 @@ export function GroundTransportSelectionPage({
                 <div className="p-4 rounded-xl bg-muted/50 border border-border/60 mb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-black flex items-center justify-center text-xl">
-                        🚗
+                      <div className="w-10 h-10 rounded-lg bg-foreground flex items-center justify-center">
+                        <Car className="w-5 h-5 text-background" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -504,7 +505,7 @@ export function GroundTransportSelectionPage({
                       {filteredOptions.some((o) => o.type === "rideshare") && (
                         <div className="mb-6">
                           <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                            <span>🚗</span> Rideshare
+                            <SectionHeaderIcon type="rideshare" /> Rideshare
                           </h3>
                           <div className="space-y-2">
                             {filteredOptions
@@ -525,7 +526,7 @@ export function GroundTransportSelectionPage({
                       {filteredOptions.some((o) => o.type === "rental") && (
                         <div className="mb-6">
                           <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                            <span>🚙</span> Rental Cars
+                            <SectionHeaderIcon type="rental" /> Rental Cars
                           </h3>
                           <div className="space-y-2">
                             {filteredOptions
@@ -547,7 +548,7 @@ export function GroundTransportSelectionPage({
                       {filteredOptions.some((o) => o.type === "public") && (
                         <div className="mb-6">
                           <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                            <span>🚊</span> Public Transit
+                            <SectionHeaderIcon type="public" /> Public Transit
                           </h3>
                           <div className="space-y-2">
                             {filteredOptions
@@ -691,9 +692,11 @@ function OptionCard({
     >
       <div className="flex items-start gap-4">
         {/* Icon */}
-        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-2xl shrink-0">
-          {option.icon}
-        </div>
+        <TransportIcon 
+          type={option.iconType} 
+          size="lg" 
+          showBackground 
+        />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 flex-wrap">

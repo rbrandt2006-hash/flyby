@@ -10,7 +10,7 @@ export interface GroundTransportOption {
   priceMax: number;
   price: number; // Average/estimated price
   tags: string[];
-  icon: string;
+  iconType: string; // Icon identifier (e.g., "car", "car-green", "car-share")
   co2Savings?: string;
 }
 
@@ -48,7 +48,7 @@ export function generateUberOptions(distanceMiles: number = 15): GroundTransport
       priceMax: Math.round(basePrice * 1.1),
       price: Math.round(basePrice),
       tags: ["Best value"],
-      icon: "🚗",
+      iconType: "car",
     },
     {
       id: "uber-comfort",
@@ -62,7 +62,7 @@ export function generateUberOptions(distanceMiles: number = 15): GroundTransport
       priceMax: Math.round(basePrice * 1.4),
       price: Math.round(basePrice * 1.3),
       tags: ["Extra legroom"],
-      icon: "🚙",
+      iconType: "car-comfort",
     },
     {
       id: "uber-xl",
@@ -76,7 +76,7 @@ export function generateUberOptions(distanceMiles: number = 15): GroundTransport
       priceMax: Math.round(basePrice * 1.7),
       price: Math.round(basePrice * 1.55),
       tags: ["Groups"],
-      icon: "🚐",
+      iconType: "car-xl",
     },
     {
       id: "uber-black",
@@ -90,7 +90,7 @@ export function generateUberOptions(distanceMiles: number = 15): GroundTransport
       priceMax: Math.round(basePrice * 2.4),
       price: Math.round(basePrice * 2.2),
       tags: ["Most comfortable", "Premium"],
-      icon: "🚘",
+      iconType: "car-black",
     },
     {
       id: "uber-black-suv",
@@ -104,7 +104,7 @@ export function generateUberOptions(distanceMiles: number = 15): GroundTransport
       priceMax: Math.round(basePrice * 3.0),
       price: Math.round(basePrice * 2.75),
       tags: ["Premium", "Groups"],
-      icon: "🚙",
+      iconType: "car-suv",
     },
     {
       id: "uber-green",
@@ -118,7 +118,7 @@ export function generateUberOptions(distanceMiles: number = 15): GroundTransport
       priceMax: Math.round(basePrice * 1.15),
       price: Math.round(basePrice * 1.05),
       tags: ["Eco-friendly"],
-      icon: "🌱",
+      iconType: "car-green",
       co2Savings: "2.3 kg CO₂ saved",
     },
     {
@@ -133,7 +133,7 @@ export function generateUberOptions(distanceMiles: number = 15): GroundTransport
       priceMax: Math.round(basePrice * 0.8),
       price: Math.round(basePrice * 0.7),
       tags: ["Cheapest"],
-      icon: "👥",
+      iconType: "car-share",
       co2Savings: "1.5 kg CO₂ saved",
     },
   ];
@@ -154,7 +154,7 @@ export function generateRentalOptions(): GroundTransportOption[] {
       priceMax: 55,
       price: 50,
       tags: ["Best value"],
-      icon: "🚗",
+      iconType: "rental-economy",
     },
     {
       id: "hertz-midsize",
@@ -168,7 +168,7 @@ export function generateRentalOptions(): GroundTransportOption[] {
       priceMax: 70,
       price: 62,
       tags: [],
-      icon: "🚗",
+      iconType: "rental-midsize",
     },
     {
       id: "hertz-suv",
@@ -182,7 +182,7 @@ export function generateRentalOptions(): GroundTransportOption[] {
       priceMax: 110,
       price: 95,
       tags: ["Groups"],
-      icon: "🚙",
+      iconType: "rental-suv",
     },
     {
       id: "enterprise-luxury",
@@ -196,7 +196,7 @@ export function generateRentalOptions(): GroundTransportOption[] {
       priceMax: 150,
       price: 135,
       tags: ["Premium"],
-      icon: "🚘",
+      iconType: "rental-luxury",
     },
   ];
 }
@@ -216,7 +216,7 @@ export function generatePublicTransitOptions(): GroundTransportOption[] {
       priceMax: 3,
       price: 3,
       tags: ["Cheapest", "Eco-friendly"],
-      icon: "🚊",
+      iconType: "transit-rail",
       co2Savings: "4.2 kg CO₂ saved",
     },
     {
@@ -231,7 +231,7 @@ export function generatePublicTransitOptions(): GroundTransportOption[] {
       priceMax: 2,
       price: 2,
       tags: ["Cheapest"],
-      icon: "🚌",
+      iconType: "transit-bus",
       co2Savings: "3.8 kg CO₂ saved",
     },
   ];
