@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CalendarDays } from "lucide-react";
 import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw, Check, Clock } from "lucide-react";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
@@ -15,6 +16,7 @@ import { TripConfirmationModal } from "@/components/trips/TripConfirmationModal"
 import { UndoConfirmationToast, useUndoConfirmation } from "@/components/trips/UndoConfirmationToast";
 import { ManagerApprovalPanel } from "@/components/trips/ManagerApprovalPanel";
 import { toast } from "sonner";
+import { TripCalendarView } from "@/components/trips/TripCalendarView";
 import { 
   fetchCalendarEvents, 
   isCalendarConnected, 
@@ -62,6 +64,7 @@ export default function Trips() {
   const [tripToArchive, setTripToArchive] = useState<LocalTrip | null>(null);
   const [showCancelled, setShowCancelled] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [calendarViewOpen, setCalendarViewOpen] = useState(false);
   
   // Trip planning modal state
   const [planningModalOpen, setPlanningModalOpen] = useState(false);
@@ -508,6 +511,14 @@ export default function Trips() {
         <div className="flex items-center gap-3">
           <Button 
             variant="outline" 
+            onClick={() => setCalendarViewOpen(true)}
+            className="transition-smooth hover:border-primary/30"
+          >
+            <CalendarDays className="w-4 h-4 mr-2" />
+            View Calendar
+          </Button>
+          <Button 
+            variant="outline" 
             onClick={() => setCalendarDialogOpen(true)}
             className="transition-smooth hover:border-primary/30"
           >
@@ -607,6 +618,13 @@ export default function Trips() {
         open={confirmModalOpen}
         onOpenChange={setConfirmModalOpen}
         onConfirm={handleConfirmDraftTrip}
+      />
+
+      {/* Trip Calendar View */}
+      <TripCalendarView
+        open={calendarViewOpen}
+        onClose={() => setCalendarViewOpen(false)}
+        trips={localTrips}
       />
 
       {/* Manager Approval Panel (for demo) */}
