@@ -10,7 +10,16 @@ export interface CalendarEvent {
   description: string | null;
 }
 
+export interface CreateCalendarEventParams {
+  title: string;
+  location: string | null;
+  startDate: string;
+  endDate: string;
+  description: string | null;
+}
+
 const STORAGE_KEY = 'flyby_calendar_connection';
+const CREATED_EVENTS_KEY = 'flyby_created_calendar_events';
 
 // Load persisted state from localStorage
 function loadPersistedState(): { connected: boolean; email: string | null } {
@@ -31,6 +40,28 @@ function persistState(connected: boolean, email: string | null): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ connected, email }));
   } catch (e) {
     console.error('Failed to persist calendar state:', e);
+  }
+}
+
+// Load created events from localStorage
+function loadCreatedEvents(): Record<string, string> {
+  try {
+    const stored = localStorage.getItem(CREATED_EVENTS_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load created events:', e);
+  }
+  return {};
+}
+
+// Save created events to localStorage
+function saveCreatedEvents(events: Record<string, string>): void {
+  try {
+    localStorage.setItem(CREATED_EVENTS_KEY, JSON.stringify(events));
+  } catch (e) {
+    console.error('Failed to save created events:', e);
   }
 }
 
@@ -123,4 +154,71 @@ export function isCalendarConnected(): boolean {
 
 export function getConnectedEmail(): string | null {
   return MOCK_CREDENTIALS.email;
+}
+
+/**
+ * Create a calendar event for a confirmed trip
+ * Returns the created event ID
+ */
+export async function createCalendarEvent(
+  tripId: string,
+  params: CreateCalendarEventParams
+): Promise<{ success: boolean; eventId: string; error?: string }> {
+  if (!MOCK_CREDENTIALS.connected) {
+    return { 
+      success: false, 
+      eventId: '', 
+      error: 'Calendar not connected. Please connect your calendar first.' 
+    };
+  }
+
+  // Check for duplicate - idempotent
+  const createdEvents = loadCreatedEvents();
+  if (createdEvents[tripId]) {
+    // Already created, return existing event ID
+    return { success: true, eventId: createdEvents[tripId] };
+  }
+
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 1200));
+
+  // Simulate occasional failure (10% chance)
+  if (Math.random() < 0.1) {
+    return { 
+      success: false, 
+      eventId: '', 
+      error: 'Failed to sync with calendar. Please try again.' 
+    };
+  }
+
+  // Create mock event ID
+  const eventId = `cal_evt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+  // Store the mapping
+  createdEvents[tripId] = eventId;
+  saveCreatedEvents(createdEvents);
+
+  return { success: true, eventId };
+}
+
+/**
+ * Delete a calendar event (e.g., when trip is cancelled)
+ */
+export async function deleteCalendarEvent(tripId: string): Promise<{ success: boolean }> {
+  const createdEvents = loadCreatedEvents();
+  
+  if (createdEvents[tripId]) {
+    delete createdEvents[tripId];
+    saveCreatedEvents(createdEvents);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Check if a trip already has a calendar event
+ */
+export function hasCalendarEvent(tripId: string): boolean {
+  const createdEvents = loadCreatedEvents();
+  return !!createdEvents[tripId];
 }

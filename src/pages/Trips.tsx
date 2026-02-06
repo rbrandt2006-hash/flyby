@@ -1,22 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw } from "lucide-react";
+import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw, Check, Clock } from "lucide-react";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
 import { FlightSearchDialog } from "@/components/flights/FlightSearchDialog";
 import { TripCard, type Trip } from "@/components/trips/TripCard";
 import { TripEditDrawer } from "@/components/trips/TripEditDrawer";
+import { TripConfirmationModal } from "@/components/trips/TripConfirmationModal";
+import { UndoConfirmationToast, useUndoConfirmation } from "@/components/trips/UndoConfirmationToast";
+import { ManagerApprovalPanel } from "@/components/trips/ManagerApprovalPanel";
 import { toast } from "sonner";
 import { 
   fetchCalendarEvents, 
   isCalendarConnected, 
   getConnectedEmail, 
   disconnectCalendar,
+  createCalendarEvent,
   type CalendarEvent 
 } from "@/services/mockCalendarService";
 import { cn } from "@/lib/utils";
@@ -32,7 +36,12 @@ export default function Trips() {
     trips: localTrips, 
     createTrip, 
     updateTrip: updateLocalTrip, 
-    confirmTrip: confirmLocalTrip, 
+    confirmTrip: confirmLocalTrip,
+    revertToDraft,
+    approveTrip,
+    rejectTrip,
+    setCalendarEventId,
+    setCalendarSyncError,
     cancelTrip: cancelLocalTrip, 
     deleteTrip: deleteLocalTrip,
     archiveTrip: archiveLocalTrip,
@@ -57,6 +66,26 @@ export default function Trips() {
   // Trip planning modal state
   const [planningModalOpen, setPlanningModalOpen] = useState(false);
   const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<CalendarEvent | null>(null);
+  
+  // Trip confirmation modal state
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [tripToConfirm, setTripToConfirm] = useState<LocalTrip | null>(null);
+  const [pendingUndoTripId, setPendingUndoTripId] = useState<string | null>(null);
+
+  // Undo confirmation hook
+  const undoConfirmation = useUndoConfirmation({
+    onUndo: () => {
+      if (pendingUndoTripId) {
+        revertToDraft(pendingUndoTripId);
+        toast.success("Trip reverted to draft");
+        setPendingUndoTripId(null);
+      }
+    },
+    onTimeout: () => {
+      setPendingUndoTripId(null);
+    },
+    duration: 10,
+  });
 
   // Filter trips by status - cancelled trips are separate from upcoming
   const draftTrips = localTrips.filter(t => t.status === "draft");
@@ -67,6 +96,68 @@ export default function Trips() {
   // Backend trips - filter out cancelled ones from upcoming
   const upcomingBackendTrips = trips.filter(t => t.status !== "cancelled" && t.status !== "archived");
   const cancelledBackendTrips = trips.filter(t => t.status === "cancelled");
+
+  // Handle calendar sync for an approved trip
+  const handleCalendarSync = useCallback(async (tripId: string) => {
+    const trip = localTrips.find(t => t.id === tripId);
+    if (!trip) return;
+
+    // Build calendar event details
+    const title = `Business Trip — ${trip.destination}`;
+    const location = trip.hotel?.location || trip.destination;
+    let description = trip.purpose || "";
+    if (trip.flight) {
+      description += `\n\nFlight: ${trip.flight.airline} - Depart ${trip.flight.departTime}`;
+    }
+    if (trip.hotel) {
+      description += `\nHotel: ${trip.hotel.name}`;
+    }
+
+    const result = await createCalendarEvent(tripId, {
+      title,
+      location,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      description: description || null,
+    });
+
+    if (result.success) {
+      setCalendarEventId(tripId, result.eventId);
+      toast.success("Trip added to calendar");
+    } else {
+      setCalendarSyncError(tripId, result.error || "Failed to sync");
+      toast.error(result.error || "Failed to sync with calendar");
+    }
+  }, [localTrips, setCalendarEventId, setCalendarSyncError]);
+
+  // Handle manager approval with calendar sync
+  const handleApproveTrip = useCallback(async (tripId: string) => {
+    approveTrip(tripId);
+    toast.success("Trip approved!");
+    
+    // Automatically sync to calendar after approval
+    if (isCalendarConnected()) {
+      await handleCalendarSync(tripId);
+    }
+  }, [approveTrip, handleCalendarSync]);
+
+  const handleRejectTrip = useCallback((tripId: string) => {
+    rejectTrip(tripId);
+    toast.info("Trip rejected");
+  }, [rejectTrip]);
+
+  // Handle draft trip confirmation
+  const handleOpenConfirmModal = (trip: LocalTrip) => {
+    setTripToConfirm(trip);
+    setConfirmModalOpen(true);
+  };
+
+  const handleConfirmDraftTrip = (tripId: string) => {
+    confirmLocalTrip(tripId);
+    const trip = localTrips.find(t => t.id === tripId);
+    setPendingUndoTripId(tripId);
+    undoConfirmation.show(trip?.destination || "Trip");
+  };
 
   const handleNewTrip = () => {
     setBookingDialogOpen(true);
@@ -273,7 +364,7 @@ export default function Trips() {
     );
   }
 
-  const renderTripCard = (trip: LocalTrip, index: number, showArchiveAction = false, showUnarchiveAction = false) => {
+  const renderTripCard = (trip: LocalTrip, index: number, showArchiveAction = false, showUnarchiveAction = false, showConfirmAction = false) => {
     const statusConfig: Record<string, { label: string; className: string }> = {
       draft: { label: "Draft", className: "bg-muted text-muted-foreground border-border" },
       confirmed: { label: "Confirmed", className: "bg-success/10 text-success border-success/20" },
@@ -281,10 +372,19 @@ export default function Trips() {
       pending: { label: "Pending", className: "bg-warning/10 text-warning border-warning/20" },
       archived: { label: "Archived", className: "bg-muted/50 text-muted-foreground border-border/50" },
     };
+    
+    const approvalConfig: Record<string, { label: string; className: string; icon: typeof Clock }> = {
+      pending: { label: "Pending approval", className: "bg-warning/10 text-warning border-warning/20", icon: Clock },
+      approved: { label: "Approved", className: "bg-success/10 text-success border-success/20", icon: Check },
+      rejected: { label: "Rejected", className: "bg-destructive/10 text-destructive border-destructive/20", icon: Clock },
+    };
+    
     const status = statusConfig[trip.status] || statusConfig.draft;
+    const approval = trip.approvalStatus !== "none" ? approvalConfig[trip.approvalStatus] : null;
     const isDraft = trip.status === "draft";
     const isCancelled = trip.status === "cancelled";
     const isArchived = trip.status === "archived";
+    const isConfirmed = trip.status === "confirmed";
 
     return (
       <Card 
@@ -305,10 +405,18 @@ export default function Trips() {
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={cn("text-xs", status.className)}>
                   {status.label}
                 </Badge>
+                {/* Approval status badge for confirmed trips */}
+                {isConfirmed && approval && (
+                  <Badge variant="outline" className={cn("text-xs gap-1", approval.className)}>
+                    {approval.label === "Pending approval" && <Clock className="w-3 h-3" />}
+                    {approval.label === "Approved" && <Check className="w-3 h-3" />}
+                    {approval.label}
+                  </Badge>
+                )}
                 <span className="text-xs text-muted-foreground">
                   {format(new Date(trip.createdAt), "MMM d, h:mm a")}
                 </span>
@@ -337,6 +445,20 @@ export default function Trips() {
                   ${trip.estimatedCost.toLocaleString()}
                 </p>
               </div>
+              {/* Confirm button for drafts */}
+              {showConfirmAction && isDraft && (
+                <Button 
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenConfirmModal(trip);
+                  }}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Confirm
+                </Button>
+              )}
               {showArchiveAction && (
                 <Button 
                   variant="ghost"
@@ -478,6 +600,22 @@ export default function Trips() {
         onConfirm={handleConfirmTrip}
         onSaveDraft={handleSaveDraft}
       />
+      
+      {/* Trip Confirmation Modal */}
+      <TripConfirmationModal
+        trip={tripToConfirm}
+        open={confirmModalOpen}
+        onOpenChange={setConfirmModalOpen}
+        onConfirm={handleConfirmDraftTrip}
+      />
+
+      {/* Manager Approval Panel (for demo) */}
+      <ManagerApprovalPanel
+        trips={localTrips}
+        onApprove={handleApproveTrip}
+        onReject={handleRejectTrip}
+        onCalendarSync={handleCalendarSync}
+      />
 
       {/* Calendar Events */}
       {calendarConnected && calendarEvents.length > 0 && (
@@ -552,8 +690,11 @@ export default function Trips() {
               {draftTrips.length}
             </Badge>
           </div>
+          <p className="text-sm text-muted-foreground -mt-2">
+            Click "Confirm" to submit for manager approval
+          </p>
           <div className="grid gap-3">
-            {draftTrips.map((draft, index) => renderTripCard(draft, index))}
+            {draftTrips.map((draft, index) => renderTripCard(draft, index, false, false, true))}
           </div>
         </div>
       )}
@@ -706,6 +847,15 @@ export default function Trips() {
           </Card>
         </div>
       )}
+
+      {/* Undo Confirmation Toast */}
+      <UndoConfirmationToast
+        visible={undoConfirmation.visible}
+        tripDestination={undoConfirmation.tripDestination}
+        countdown={undoConfirmation.countdown}
+        onUndo={undoConfirmation.handleUndo}
+        onDismiss={undoConfirmation.handleDismiss}
+      />
     </div>
   );
 }

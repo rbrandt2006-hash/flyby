@@ -23,6 +23,8 @@ export interface TripAIReasoning {
   summary: string;
 }
 
+export type ApprovalStatus = "none" | "pending" | "approved" | "rejected";
+
 export interface LocalTrip {
   id: string;
   destination: string;
@@ -30,6 +32,9 @@ export interface LocalTrip {
   endDate: string;
   purpose: string;
   status: "draft" | "pending" | "confirmed" | "cancelled" | "archived";
+  approvalStatus: ApprovalStatus;
+  calendarEventId: string | null;
+  calendarSyncError: string | null;
   participants: string[];
   chatId: string | null;
   flight: {
@@ -50,6 +55,8 @@ export interface LocalTrip {
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
+  confirmedAt?: string;
+  approvedAt?: string;
 }
 
 const STORAGE_KEY = "flyby_local_trips";
@@ -129,6 +136,9 @@ export function useTrips() {
       endDate: tripData.endDate,
       purpose: tripData.purpose,
       status: "draft",
+      approvalStatus: "none",
+      calendarEventId: null,
+      calendarSyncError: null,
       participants: [],
       chatId: null,
       flight: tripData.flight,
@@ -220,12 +230,64 @@ export function useTrips() {
   }, [trips]);
 
   const confirmTrip = useCallback((tripId: string) => {
-    updateTrip(tripId, { status: "confirmed" });
+    const now = new Date().toISOString();
+    updateTrip(tripId, { 
+      status: "confirmed",
+      approvalStatus: "pending",
+      confirmedAt: now,
+    });
     addTimelineEvent(tripId, {
       type: "confirmed",
-      description: "Trip confirmed by user",
+      description: "Trip confirmed by user — awaiting manager approval",
     });
   }, [updateTrip, addTimelineEvent]);
+
+  const revertToDraft = useCallback((tripId: string) => {
+    updateTrip(tripId, { 
+      status: "draft",
+      approvalStatus: "none",
+      confirmedAt: undefined,
+    });
+    addTimelineEvent(tripId, {
+      type: "user_edit",
+      description: "Confirmation undone — trip reverted to draft",
+    });
+  }, [updateTrip, addTimelineEvent]);
+
+  const approveTrip = useCallback((tripId: string) => {
+    const now = new Date().toISOString();
+    updateTrip(tripId, { 
+      approvalStatus: "approved",
+      approvedAt: now,
+    });
+    addTimelineEvent(tripId, {
+      type: "confirmed",
+      description: "Trip approved by manager",
+    });
+  }, [updateTrip, addTimelineEvent]);
+
+  const rejectTrip = useCallback((tripId: string, reason?: string) => {
+    updateTrip(tripId, { 
+      approvalStatus: "rejected",
+    });
+    addTimelineEvent(tripId, {
+      type: "cancelled",
+      description: reason ? `Trip rejected: ${reason}` : "Trip rejected by manager",
+    });
+  }, [updateTrip, addTimelineEvent]);
+
+  const setCalendarEventId = useCallback((tripId: string, eventId: string) => {
+    updateTrip(tripId, { 
+      calendarEventId: eventId,
+      calendarSyncError: null,
+    });
+  }, [updateTrip]);
+
+  const setCalendarSyncError = useCallback((tripId: string, error: string) => {
+    updateTrip(tripId, { 
+      calendarSyncError: error,
+    });
+  }, [updateTrip]);
 
   const cancelTrip = useCallback((tripId: string) => {
     updateTrip(tripId, { status: "cancelled" });
@@ -309,6 +371,9 @@ export function useTrips() {
       endDate,
       purpose: "Rebooked trip",
       status: "pending",
+      approvalStatus: "none",
+      calendarEventId: null,
+      calendarSyncError: null,
       participants: [],
       chatId: null,
       flight: {
@@ -365,6 +430,11 @@ export function useTrips() {
     getTripByChatId,
     getTripByDestination,
     confirmTrip,
+    revertToDraft,
+    approveTrip,
+    rejectTrip,
+    setCalendarEventId,
+    setCalendarSyncError,
     cancelTrip,
     archiveTrip,
     unarchiveTrip,
