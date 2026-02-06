@@ -30,14 +30,7 @@ interface FlightChooserDrawerProps {
 
 type SortOption = "recommended" | "cheapest" | "fastest" | "nonstop";
 
-const airlineLogos: Record<string, string> = {
-  "Delta": "🔷",
-  "United": "🌐",
-  "American": "🦅",
-  "Southwest": "❤️",
-  "JetBlue": "💙",
-  "Alaska": "🏔️",
-};
+// Note: Using Plane icons instead of emoji logos
 
 export function FlightChooserDrawer({
   open,
@@ -159,8 +152,8 @@ export function FlightChooserDrawer({
                 >
                   <div className="flex items-start gap-4">
                     {/* Airline logo */}
-                    <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-2xl shrink-0">
-                      {airlineLogos[flight.airline] || "✈️"}
+                    <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                      <Plane className="w-6 h-6 text-muted-foreground" />
                     </div>
 
                     <div className="flex-1 min-w-0">

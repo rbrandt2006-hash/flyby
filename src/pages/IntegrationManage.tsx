@@ -24,6 +24,11 @@ import {
   Loader2,
   Trash2,
   ExternalLink,
+  Calendar,
+  Mail,
+  MessageSquare,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -56,35 +61,35 @@ const itemVariants = {
 // Integration configs
 const integrationConfigs: Record<string, {
   name: string;
-  icon: string;
+  Icon: LucideIcon;
   color: string;
   type: "calendar" | "messaging";
   permissions: string[];
 }> = {
   "google-calendar": {
     name: "Google Calendar",
-    icon: "📅",
-    color: "bg-red-500/10",
+    Icon: Calendar,
+    color: "bg-destructive/10",
     type: "calendar",
     permissions: ["Read calendar events", "Create calendar events", "Modify calendar events", "Read event attendees"],
   },
   "outlook": {
     name: "Outlook",
-    icon: "📧",
-    color: "bg-blue-500/10",
+    Icon: Mail,
+    color: "bg-primary/10",
     type: "calendar",
     permissions: ["Read calendar events", "Create calendar events", "Read emails", "Send emails"],
   },
   "slack": {
     name: "Slack",
-    icon: "💬",
+    Icon: MessageSquare,
     color: "bg-purple-500/10",
     type: "messaging",
     permissions: ["Read channels", "Read messages", "Send messages", "Access workspace info"],
   },
   "teams": {
     name: "Microsoft Teams",
-    icon: "👥",
+    Icon: Users,
     color: "bg-violet-500/10",
     type: "messaging",
     permissions: ["Read channels", "Read messages", "Send messages", "Access team info"],
@@ -180,7 +185,7 @@ export default function IntegrationManage() {
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center", config.color)}>
-              <span className="text-2xl">{config.icon}</span>
+              <config.Icon className="w-7 h-7 text-foreground" />
             </div>
             <div>
               <h1 className="text-2xl font-bold">{config.name}</h1>
