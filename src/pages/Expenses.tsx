@@ -1,20 +1,24 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import ConnectCardModal from "@/components/expenses/ConnectCardModal";
 import { AddExpenseModal } from "@/components/expenses/AddExpenseModal";
 import { SendToSupervisorModal } from "@/components/expenses/SendToSupervisorModal";
 import { DisputeModal } from "@/components/expenses/DisputeModal";
+import { ExpenseTripGroup, UnassignedExpenseGroup } from "@/components/expenses/ExpenseTripGroup";
 import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
 import { toast } from "sonner";
 import { 
   Plane, Building2, Utensils, Car, CreditCard, Receipt, AlertCircle,
-  Send, Flag, CheckCircle, ArrowRight, Plus, Check, Gamepad2, Briefcase
+  Send, Flag, CheckCircle, ArrowRight, Plus, Check, Gamepad2, Briefcase,
+  ChevronDown, ChevronUp, Filter
 } from "lucide-react";
 
 const categoryIcons: Record<string, typeof Plane> = {
@@ -45,7 +49,19 @@ const itemVariants = {
 };
 
 export default function Expenses() {
-  const { expenses, addExpense, updateExpense, sendToSupervisor, toggleReimbursable, fileDispute, linkChatToExpense, totalPending, totalApproved } = useExpenses();
+  const { 
+    expenses, 
+    expensesByTrip,
+    addExpense, 
+    updateExpense, 
+    sendToSupervisor, 
+    toggleReimbursable, 
+    fileDispute, 
+    linkChatToExpense, 
+    totalPending, 
+    totalApproved,
+    totalDisputed,
+  } = useExpenses();
   const { getOrCreateExpenseChat, sendMessage, sendExpenseSystemMessage, postExpenseUpdate, supervisorMap, findChatByExpenseId } = useChats();
   
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -54,6 +70,66 @@ export default function Expenses() {
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isSendSupervisorOpen, setIsSendSupervisorOpen] = useState(false);
   const [isDisputeOpen, setIsDisputeOpen] = useState(false);
+
+  // Expand/Collapse state
+  const [expandedTrips, setExpandedTrips] = useState<Set<string>>(() => {
+    // Default: expand the most recent trip if there are few trips
+    const { groups } = expensesByTrip;
+    if (groups.length <= 3 && groups.length > 0) {
+      return new Set([groups[0].tripId]);
+    }
+    return new Set();
+  });
+  const [unassignedExpanded, setUnassignedExpanded] = useState(false);
+
+  // Filters
+  const [showDisputedOnly, setShowDisputedOnly] = useState(false);
+  const [showReimbursableOnly, setShowReimbursableOnly] = useState(false);
+
+  // Filter expenses based on current filters
+  const filterExpenses = useCallback((expenseList: Expense[]) => {
+    return expenseList.filter((expense) => {
+      if (showDisputedOnly && expense.status !== "disputed") return false;
+      if (showReimbursableOnly && !expense.reimbursable) return false;
+      return true;
+    });
+  }, [showDisputedOnly, showReimbursableOnly]);
+
+  // Filtered groups
+  const filteredGroups = useMemo(() => {
+    return expensesByTrip.groups.map((group) => ({
+      ...group,
+      filteredExpenses: filterExpenses(group.expenses),
+    })).filter((group) => group.filteredExpenses.length > 0);
+  }, [expensesByTrip.groups, filterExpenses]);
+
+  const filteredUnassigned = useMemo(() => {
+    return filterExpenses(expensesByTrip.unassigned);
+  }, [expensesByTrip.unassigned, filterExpenses]);
+
+  // Expand/Collapse all
+  const handleExpandAll = () => {
+    const allIds = new Set(filteredGroups.map((g) => g.tripId));
+    setExpandedTrips(allIds);
+    setUnassignedExpanded(true);
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedTrips(new Set());
+    setUnassignedExpanded(false);
+  };
+
+  const toggleTripExpanded = (tripId: string) => {
+    setExpandedTrips((prev) => {
+      const next = new Set(prev);
+      if (next.has(tripId)) {
+        next.delete(tripId);
+      } else {
+        next.add(tripId);
+      }
+      return next;
+    });
+  };
 
   const handleAddExpense = (expenseData: Omit<Expense, "id">, submitNow: boolean) => {
     addExpense(expenseData);
@@ -64,11 +140,9 @@ export default function Expenses() {
   const handleSendToSupervisor = (supervisorName: string, note: string) => {
     if (!selectedExpense) return;
     
-    // Get supervisor info
     const supervisor = supervisorMap[supervisorName];
     const supervisorId = supervisor?.id || "1";
     
-    // Create expense metadata for the context card
     const expenseMetadata = {
       merchant: selectedExpense.merchant,
       amount: selectedExpense.amount,
@@ -79,32 +153,26 @@ export default function Expenses() {
       submittedAt: new Date().toISOString(),
     };
     
-    // Get or create chat with this supervisor for expense approval
     const chat = getOrCreateExpenseChat(supervisorId, supervisorName, selectedExpense.id, expenseMetadata);
     
-    // Send system message with expense details
     const categoryLabel = selectedExpense.category.charAt(0).toUpperCase() + selectedExpense.category.slice(1);
     const systemMessage = `📝 Julia submitted an expense for approval:\n\n**${selectedExpense.merchant}** – $${selectedExpense.amount.toFixed(2)} (${categoryLabel})\n${selectedExpense.description}`;
     
     sendExpenseSystemMessage(chat.id, selectedExpense.id, "expense_submission", systemMessage);
     
-    // If user added a note, send it as a follow-up message
     if (note.trim()) {
       setTimeout(() => {
         sendMessage(chat.id, note, "current", false);
       }, 300);
     }
     
-    // Update expense state
     sendToSupervisor(selectedExpense.id, supervisorName);
     linkChatToExpense(selectedExpense.id, chat.id);
     
-    // Simulate supervisor response
     setTimeout(() => {
       if (selectedExpense.amount > 500 || selectedExpense.status === "flagged") {
         sendMessage(chat.id, "Thanks for sending. Can you clarify the business purpose for this expense?", supervisorId, false);
       } else {
-        // Post approval status update
         postExpenseUpdate(chat.id, selectedExpense.id, "approved", supervisorName);
         updateExpense(selectedExpense.id, { status: "approved" });
       }
@@ -127,7 +195,6 @@ export default function Expenses() {
     if (!selectedExpense) return;
     fileDispute(selectedExpense.id, reason, description);
     
-    // Post dispute to existing chat if one exists
     const existingChat = findChatByExpenseId(selectedExpense.id);
     if (existingChat) {
       postExpenseUpdate(existingChat.id, selectedExpense.id, "disputed", "Julia");
@@ -137,13 +204,15 @@ export default function Expenses() {
     toast.success("Dispute submitted");
   };
 
+  const hasActiveFilters = showDisputedOnly || showReimbursableOnly;
+
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-5xl mx-auto space-y-8 pb-20 md:pb-0">
       {/* Header */}
       <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Expenses</h1>
-          <p className="text-muted-foreground mt-1">Track and manage your business expenses</p>
+          <p className="text-muted-foreground mt-1">Track and manage your business expenses by trip</p>
         </div>
         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
           <Button className="rounded-xl" onClick={() => setIsAddExpenseOpen(true)}>
@@ -154,7 +223,7 @@ export default function Expenses() {
       </motion.div>
 
       {/* Stats Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-warning/5 to-warning/10 border-warning/20">
           <CardContent className="p-5">
             <div className="flex items-center gap-3">
@@ -162,7 +231,7 @@ export default function Expenses() {
                 <Receipt className="w-5 h-5 text-warning" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pending Review</p>
+                <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-2xl font-bold">${totalPending.toFixed(2)}</p>
               </div>
             </div>
@@ -175,8 +244,21 @@ export default function Expenses() {
                 <CheckCircle className="w-5 h-5 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Approved This Month</p>
+                <p className="text-sm text-muted-foreground">Approved</p>
                 <p className="text-2xl font-bold">${totalApproved.toFixed(2)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-destructive/5 to-destructive/10 border-destructive/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+                <Flag className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Disputed</p>
+                <p className="text-2xl font-bold">${totalDisputed.toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
@@ -234,41 +316,118 @@ export default function Expenses() {
         )}
       </motion.div>
 
-      {/* Expense List */}
+      {/* Filters & Controls */}
       <motion.div variants={itemVariants}>
-        <h2 className="text-lg font-semibold mb-4">Recent Expenses</h2>
-        <div className="space-y-2">
-          {expenses.map((expense) => {
-            const CategoryIcon = categoryIcons[expense.category] || Briefcase;
-            const status = statusConfig[expense.status] || statusConfig.pending;
-            
-            return (
-              <motion.div key={expense.id} variants={itemVariants} whileHover={{ scale: 1.005, y: -1 }} transition={{ duration: 0.2 }}>
-                <Card className="cursor-pointer hover:shadow-md transition-all duration-200 hover:border-primary/20" onClick={() => setSelectedExpense(expense)}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
-                        <CategoryIcon className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium truncate">{expense.merchant}</h3>
-                          <Badge variant={status.variant} className="shrink-0">{status.label}</Badge>
-                          {expense.reimbursable && <Badge variant="outline" className="shrink-0 text-xs">Reimbursable</Badge>}
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate">{expense.description}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-semibold">${expense.amount.toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground">{expense.date}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Filters */}
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">Filters:</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="disputed-filter"
+                    checked={showDisputedOnly}
+                    onCheckedChange={setShowDisputedOnly}
+                  />
+                  <Label htmlFor="disputed-filter" className="text-sm cursor-pointer">
+                    Disputed only
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="reimbursable-filter"
+                    checked={showReimbursableOnly}
+                    onCheckedChange={setShowReimbursableOnly}
+                  />
+                  <Label htmlFor="reimbursable-filter" className="text-sm cursor-pointer">
+                    Reimbursable only
+                  </Label>
+                </div>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground"
+                    onClick={() => {
+                      setShowDisputedOnly(false);
+                      setShowReimbursableOnly(false);
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+
+              {/* Expand/Collapse All */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={handleExpandAll}
+                >
+                  <ChevronDown className="w-3.5 h-3.5 mr-1" />
+                  Expand all
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={handleCollapseAll}
+                >
+                  <ChevronUp className="w-3.5 h-3.5 mr-1" />
+                  Collapse all
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Grouped Expenses by Trip */}
+      <motion.div variants={itemVariants} className="space-y-4">
+        <h2 className="text-lg font-semibold">Expenses by Trip</h2>
+        
+        {filteredGroups.length === 0 && filteredUnassigned.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="p-8 text-center">
+              <Receipt className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+              <h3 className="text-lg font-medium mb-1">No matching expenses</h3>
+              <p className="text-sm text-muted-foreground">
+                {hasActiveFilters 
+                  ? "Try adjusting your filters to see more expenses." 
+                  : "Add your first expense to get started."}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {filteredGroups.map((group) => (
+              <ExpenseTripGroup
+                key={group.tripId}
+                group={group}
+                isExpanded={expandedTrips.has(group.tripId)}
+                onToggle={() => toggleTripExpanded(group.tripId)}
+                onExpenseClick={setSelectedExpense}
+                filteredExpenses={group.filteredExpenses}
+              />
+            ))}
+
+            {/* Unassigned Expenses */}
+            {filteredUnassigned.length > 0 && (
+              <UnassignedExpenseGroup
+                expenses={filteredUnassigned}
+                isExpanded={unassignedExpanded}
+                onToggle={() => setUnassignedExpanded(!unassignedExpanded)}
+                onExpenseClick={setSelectedExpense}
+              />
+            )}
+          </div>
+        )}
       </motion.div>
 
       {/* Expense Detail Panel */}
@@ -299,6 +458,12 @@ export default function Expenses() {
 
                 <div className="space-y-4">
                   <div><p className="text-sm text-muted-foreground">Description</p><p className="font-medium">{selectedExpense.description}</p></div>
+                  {selectedExpense.tripName && (
+                    <>
+                      <Separator />
+                      <div><p className="text-sm text-muted-foreground">Trip</p><p className="font-medium">{selectedExpense.tripName}</p><p className="text-xs text-muted-foreground">{selectedExpense.tripDates}</p></div>
+                    </>
+                  )}
                   <Separator />
                   <div className="grid grid-cols-2 gap-4">
                     <div><p className="text-sm text-muted-foreground">Date</p><p className="font-medium">{selectedExpense.date}</p></div>
