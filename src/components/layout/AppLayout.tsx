@@ -45,7 +45,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: contentReady ? 1 : 0, y: contentReady ? 0 : -20 }}
           transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-          className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50"
+          className="sticky top-0 z-50 bg-background/70 backdrop-blur-2xl border-b border-border/40"
         >
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <div className="flex items-center justify-between h-14">
@@ -62,7 +62,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Link>
 
               {/* Center Navigation Tabs */}
-              <nav className="hidden md:flex items-center gap-6 absolute left-[45%] -translate-x-1/2">
+              <nav className="hidden md:flex items-center gap-1 absolute left-[45%] -translate-x-1/2">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
@@ -70,8 +70,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       key={item.path}
                       to={item.path}
                       className={cn(
-                        "relative px-4 py-2.5 text-sm font-medium capitalize tracking-normal transition-colors duration-200",
-                        isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                        "relative px-4 py-2 text-[13px] font-medium tracking-normal rounded-lg transition-colors duration-200",
+                        isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
                       )}
                     >
                       {item.label}
@@ -125,7 +125,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </AnimatePresence>
 
         {/* Mobile bottom navigation */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border/50 flex justify-around py-2 px-4 z-50">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background/70 backdrop-blur-2xl border-t border-border/40 flex justify-around py-2 px-4 z-50">
           {navItems.slice(0, 4).map((item) => {
             const isActive = location.pathname === item.path;
             return (
