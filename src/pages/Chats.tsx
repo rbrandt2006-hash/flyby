@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChannelsContainer, SyncedConversation } from "@/components/chats/ChannelsContainer";
 import { ConversationCanvas, ExpenseMetadataForContext } from "@/components/chats/ConversationCanvas";
 import { SmartTripAssistant } from "@/components/chats/SmartTripAssistant";
+import { PlatformSelector, Platform } from "@/components/chats/PlatformSelector";
 import { mockSyncedConversations, mockDetectedTrips } from "@/data/mockSyncedConversations";
 import { Button } from "@/components/ui/button";
 import { useChats, ExpenseMetadata } from "@/hooks/useChats";
@@ -13,19 +14,14 @@ import { toast } from "sonner";
 
 export default function Chats() {
   const location = useLocation();
-  const {
-    chats,
-    getMemberById,
-    sendMessage,
-    currentUser,
-    systemUser
-  } = useChats();
-  
+  const { chats, getMemberById, sendMessage, currentUser, systemUser } = useChats();
   const { expenses, getExpenseById } = useExpenses();
+
+  // Platform filter
+  const [selectedPlatform, setSelectedPlatform] = useState<Platform>("all");
 
   // Merge synced conversations with dynamic expense approval chats
   const allConversations = useMemo(() => {
-    // Filter chats that have expense approval or linked expense
     const expenseChats: SyncedConversation[] = chats
       .filter(chat => chat.type === "expense_approval" || chat.expenseId)
       .map(chat => ({
@@ -57,6 +53,20 @@ export default function Chats() {
       }));
     return [...expenseChats, ...mockSyncedConversations];
   }, [chats, getMemberById]);
+
+  // Filter by platform
+  const filteredConversations = useMemo(() => {
+    if (selectedPlatform === "all") return allConversations;
+    return allConversations.filter(c => c.source === selectedPlatform);
+  }, [allConversations, selectedPlatform]);
+
+  // Platform counts
+  const platformCounts = useMemo(() => ({
+    slack: allConversations.filter(c => c.source === "slack").length,
+    teams: allConversations.filter(c => c.source === "teams").length,
+    flyby: allConversations.filter(c => c.source === "flyby").length,
+  }), [allConversations]);
+
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     const stateId = location.state?.openChatId || location.state?.entityId;
     if (stateId) return stateId;
@@ -65,28 +75,21 @@ export default function Chats() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showAIStatus, setShowAIStatus] = useState(true);
 
-  // Handle navigation state for opening specific chat
   useEffect(() => {
     const stateId = location.state?.openChatId || location.state?.entityId;
     if (stateId && allConversations.find(c => c.id === stateId)) {
       setSelectedId(stateId);
     }
   }, [location.state, allConversations]);
+
   const selectedConversation = allConversations.find(c => c.id === selectedId) as SyncedConversation | undefined;
   const detectedTrip = selectedId ? mockDetectedTrips[selectedId] : null;
   const travelIntentCount = allConversations.filter(c => c.hasTravelIntent).length;
 
-  // Get expense metadata for the selected conversation
   const selectedExpenseMetadata = useMemo(() => {
     if (!selectedConversation?.expenseId) return undefined;
-    
-    // First try to get from chat metadata
     const chat = chats.find(c => c.id === selectedConversation.id);
-    if (chat?.expenseMetadata) {
-      return chat.expenseMetadata as ExpenseMetadataForContext;
-    }
-    
-    // Fall back to looking up the expense directly
+    if (chat?.expenseMetadata) return chat.expenseMetadata as ExpenseMetadataForContext;
     const expense = getExpenseById(selectedConversation.expenseId);
     if (expense) {
       return {
@@ -99,18 +102,15 @@ export default function Chats() {
         submittedAt: expense.supervisorSentAt || new Date().toISOString(),
       } as ExpenseMetadataForContext;
     }
-    
     return undefined;
   }, [selectedConversation, chats, getExpenseById]);
 
-  // Get expense status
   const selectedExpenseStatus = useMemo(() => {
     if (!selectedConversation?.expenseId) return undefined;
     const expense = getExpenseById(selectedConversation.expenseId);
     return expense?.status;
   }, [selectedConversation, getExpenseById]);
 
-  // Auto-dismiss AI status after 8 seconds
   useEffect(() => {
     if (showAIStatus) {
       const timer = setTimeout(() => setShowAIStatus(false), 8000);
@@ -128,22 +128,18 @@ export default function Chats() {
   };
   
   const handleSendMessage = (text: string) => {
-    // For expense approval chats, actually persist the message
     if (selectedConversation && (selectedConversation.type === "expense_approval" || selectedConversation.expenseId)) {
       sendMessage(selectedConversation.id, text, currentUser.id, false);
       return;
     }
-    // For external platforms, show toast (would send to API in real app)
     toast.success(`Message sent via ${selectedConversation?.source || "Flyby"}`);
   };
 
-  // Mock connected platforms
-  const connectedPlatforms = {
-    slack: true,
-    teams: true
-  };
-  return <div className="h-[calc(100vh-8rem)] animate-fade-in">
-      {/* Clean header */}
+  const connectedPlatforms = { slack: true, teams: true };
+
+  return (
+    <div className="h-[calc(100vh-8rem)] animate-fade-in">
+      {/* Header */}
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-foreground tracking-tight">Inbox</h1>
@@ -157,31 +153,52 @@ export default function Chats() {
         </Button>
       </div>
 
-      {/* 3-Zone Layout with spacing-based separation */}
-      <div className="h-[calc(100%-4rem)] flex gap-6">
-        {/* Left: Channels Container (Card Style) */}
-        <div className="w-72 shrink-0">
-          <ChannelsContainer conversations={allConversations} selectedId={selectedId} onSelect={setSelectedId} connectedPlatforms={connectedPlatforms} />
+      {/* 3-Panel Layout: Platform Selector | Channels | Conversation */}
+      <div className="h-[calc(100%-4rem)] flex gap-3">
+        {/* Far Left: Platform Selector */}
+        <div className="w-16 shrink-0">
+          <PlatformSelector
+            selected={selectedPlatform}
+            onSelect={setSelectedPlatform}
+            counts={platformCounts}
+          />
         </div>
 
-        {/* Center: Conversation Canvas */}
-        <div className="flex-1 bg-card rounded-2xl border shadow-sm overflow-hidden relative border-[#7698cb]">
+        {/* Middle: Channels */}
+        <div className="w-72 shrink-0">
+          <ChannelsContainer
+            conversations={filteredConversations}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            connectedPlatforms={connectedPlatforms}
+          />
+        </div>
+
+        {/* Right: Conversation Canvas */}
+        <div className="flex-1 bg-card rounded-2xl border shadow-sm overflow-hidden relative border-border/60">
           <AnimatePresence mode="wait">
-            {selectedConversation ? <motion.div key={selectedConversation.id} initial={{
-            opacity: 0
-          }} animate={{
-            opacity: 1
-          }} exit={{
-            opacity: 0
-          }} transition={{
-            duration: 0.15
-          }} className="h-full">
-                <ConversationCanvas conversation={selectedConversation} onSendMessage={handleSendMessage} expenseMetadata={selectedExpenseMetadata} expenseStatus={selectedExpenseStatus} />
-              </motion.div> : <motion.div initial={{
-            opacity: 0
-          }} animate={{
-            opacity: 1
-          }} className="h-full flex flex-col items-center justify-center text-muted-foreground">
+            {selectedConversation ? (
+              <motion.div
+                key={selectedConversation.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="h-full"
+              >
+                <ConversationCanvas
+                  conversation={selectedConversation}
+                  onSendMessage={handleSendMessage}
+                  expenseMetadata={selectedExpenseMetadata}
+                  expenseStatus={selectedExpenseStatus}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="h-full flex flex-col items-center justify-center text-muted-foreground"
+              >
                 <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
                   <MessageSquare className="w-6 h-6 opacity-40" />
                 </div>
@@ -189,37 +206,31 @@ export default function Chats() {
                 <p className="text-xs text-muted-foreground/70 mt-1">
                   Choose a channel to view messages
                 </p>
-              </motion.div>}
+              </motion.div>
+            )}
           </AnimatePresence>
 
-          {/* Smart Trip Assistant - Floating Pill */}
-          {detectedTrip && <div className="absolute bottom-24 right-6 z-10">
+          {/* Smart Trip Assistant */}
+          {detectedTrip && (
+            <div className="absolute bottom-24 right-6 z-10">
               <SmartTripAssistant detectedTrip={detectedTrip} onReviewTrip={() => {}} />
-            </div>}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Minimal AI Status indicator */}
+      {/* AI Status */}
       <AnimatePresence>
-        {showAIStatus && <motion.div initial={{
-        opacity: 0,
-        y: 10
-      }} animate={{
-        opacity: 1,
-        y: 0
-      }} exit={{
-        opacity: 0,
-        y: 5
-      }} transition={{
-        duration: 0.2
-      }} className="fixed bottom-5 left-5 z-40">
+        {showAIStatus && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 5 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-5 left-5 z-40"
+          >
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/40 shadow-lg">
-              <motion.div animate={{
-            opacity: [0.5, 1, 0.5]
-          }} transition={{
-            duration: 2,
-            repeat: Infinity
-          }}>
+              <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity }}>
                 <Sparkles className="w-3.5 h-3.5 text-primary" />
               </motion.div>
               <span className="text-xs text-muted-foreground">
@@ -229,7 +240,9 @@ export default function Chats() {
                 <X className="w-3 h-3 text-muted-foreground/60" />
               </button>
             </div>
-          </motion.div>}
+          </motion.div>
+        )}
       </AnimatePresence>
-    </div>;
+    </div>
+  );
 }

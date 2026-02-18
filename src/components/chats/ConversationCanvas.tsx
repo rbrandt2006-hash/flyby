@@ -1,14 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SyncedConversation, SyncedMessage } from "./ChannelsContainer";
 import { ExpenseContextCard } from "./ExpenseContextCard";
-import { Send, Command, Paperclip, Smile, CheckCircle, AlertTriangle, DollarSign } from "lucide-react";
+import { Send, Command, Paperclip, Smile, CheckCircle, AlertTriangle, DollarSign, MessageCircle, FileText, Image as ImageIcon, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Slack icon component
+// Slack icon
 function SlackIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -17,7 +17,7 @@ function SlackIcon({ className }: { className?: string }) {
   );
 }
 
-// Teams icon component
+// Teams icon
 function TeamsIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -26,7 +26,6 @@ function TeamsIcon({ className }: { className?: string }) {
   );
 }
 
-// Travel-related keywords to highlight
 const TRAVEL_KEYWORDS = [
   "travel", "trip", "flight", "hotel", "meeting", "conference",
   "client", "NYC", "New York", "SF", "San Francisco", "LA", "Los Angeles",
@@ -53,22 +52,41 @@ interface ConversationCanvasProps {
   expenseStatus?: string;
 }
 
+// Mock emoji reactions for messages
+const MOCK_REACTIONS: Record<string, { emoji: string; count: number; reacted: boolean }[]> = {
+  "m1": [{ emoji: "👀", count: 2, reacted: false }],
+  "m3": [{ emoji: "✈️", count: 3, reacted: true }, { emoji: "👍", count: 1, reacted: false }],
+  "m5": [{ emoji: "🏨", count: 1, reacted: false }],
+  "m8": [{ emoji: "📅", count: 2, reacted: true }],
+  "m12": [{ emoji: "🙋", count: 4, reacted: true }],
+};
+
+// Mock thread replies
+const MOCK_THREADS: Record<string, number> = {
+  "m1": 3,
+  "m6": 5,
+  "m11": 2,
+};
+
+// Mock file attachments
+const MOCK_FILES: Record<string, { name: string; type: "pdf" | "image" | "doc"; size: string }[]> = {
+  "m4": [{ name: "meeting-agenda.pdf", type: "pdf", size: "245 KB" }],
+  "m7": [{ name: "conference-venue.jpg", type: "image", size: "1.2 MB" }],
+};
+
+const QUICK_EMOJIS = ["👍", "❤️", "😂", "🎉", "🚀", "👀"];
+
 function highlightKeywords(text: string): React.ReactNode {
   const pattern = new RegExp(
     `(${TRAVEL_KEYWORDS.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
     'gi'
   );
-  
   const parts = text.split(pattern);
-  
   return parts.map((part, index) => {
     const isKeyword = TRAVEL_KEYWORDS.some(k => k.toLowerCase() === part.toLowerCase());
     if (isKeyword) {
       return (
-        <span 
-          key={index} 
-          className="text-primary font-medium bg-primary/5 px-0.5 rounded"
-        >
+        <span key={index} className="text-primary font-medium bg-primary/5 px-0.5 rounded">
           {part}
         </span>
       );
@@ -77,7 +95,6 @@ function highlightKeywords(text: string): React.ReactNode {
   });
 }
 
-// Get icon for different message types
 function getSystemMessageIcon(messageType?: string) {
   switch (messageType) {
     case "expense_approved":
@@ -95,7 +112,6 @@ function getSystemMessageIcon(messageType?: string) {
   }
 }
 
-// Get background color for system message types
 function getSystemMessageStyle(messageType?: string) {
   switch (messageType) {
     case "expense_approved":
@@ -109,6 +125,70 @@ function getSystemMessageStyle(messageType?: string) {
   }
 }
 
+function FilePreviewCard({ file }: { file: { name: string; type: "pdf" | "image" | "doc"; size: string } }) {
+  const Icon = file.type === "image" ? ImageIcon : FileText;
+  const bgColor = file.type === "image" ? "bg-primary/5 border-primary/20" : "bg-muted/50 border-border/50";
+  return (
+    <div className={cn("inline-flex items-center gap-2.5 px-3 py-2 rounded-lg border mt-2 cursor-pointer hover:bg-muted/60 transition-colors", bgColor)}>
+      <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-foreground truncate">{file.name}</p>
+        <p className="text-[10px] text-muted-foreground">{file.size}</p>
+      </div>
+    </div>
+  );
+}
+
+function EmojiReactions({ reactions, onAdd }: { reactions: { emoji: string; count: number; reacted: boolean }[]; onAdd: () => void }) {
+  return (
+    <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+      {reactions.map((r, i) => (
+        <button
+          key={i}
+          className={cn(
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors",
+            r.reacted
+              ? "bg-primary/10 border-primary/30 text-primary"
+              : "bg-muted/40 border-border/50 text-muted-foreground hover:bg-muted/60"
+          )}
+        >
+          <span>{r.emoji}</span>
+          <span className="font-medium">{r.count}</span>
+        </button>
+      ))}
+      <button
+        onClick={onAdd}
+        className="w-6 h-6 rounded-full border border-dashed border-border/50 flex items-center justify-center text-muted-foreground/40 hover:text-muted-foreground hover:border-border transition-colors"
+      >
+        <Smile className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
+function TypingIndicator() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 5 }}
+      className="flex items-center gap-2 px-4 py-2"
+    >
+      <div className="flex gap-1">
+        {[0, 1, 2].map((i) => (
+          <motion.div
+            key={i}
+            className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40"
+            animate={{ y: [0, -4, 0] }}
+            transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+          />
+        ))}
+      </div>
+      <span className="text-xs text-muted-foreground/50">Someone is typing…</span>
+    </motion.div>
+  );
+}
+
 export function ConversationCanvas({ 
   conversation, 
   onSendMessage,
@@ -116,27 +196,23 @@ export function ConversationCanvas({
   expenseStatus 
 }: ConversationCanvasProps) {
   const [message, setMessage] = useState("");
+  const [showTyping, setShowTyping] = useState(false);
+  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const formatMessageTime = (dateStr: string) => {
-    return format(new Date(dateStr), "h:mm a");
-  };
+  const formatMessageTime = (dateStr: string) => format(new Date(dateStr), "h:mm a");
+  const formatMessageDate = (dateStr: string) => format(new Date(dateStr), "EEEE, MMMM d");
 
-  const formatMessageDate = (dateStr: string) => {
-    return format(new Date(dateStr), "EEEE, MMMM d");
-  };
-
-  // Check if this is an expense approval conversation
   const isExpenseChat = conversation.type === "expense_approval" || !!conversation.expenseId;
 
-  // Filter out the initial submission system message if we're showing the context card
   const filteredMessages = isExpenseChat && expenseMetadata
     ? conversation.messages.filter(msg => msg.messageType !== "expense_submission")
     : conversation.messages;
 
-  // Group messages by date and sender
+  // Group messages by date
   const groupedMessages: { date: string; messages: SyncedMessage[] }[] = [];
   filteredMessages.forEach((msg) => {
     const dateKey = format(new Date(msg.createdAt), "yyyy-MM-dd");
@@ -156,8 +232,6 @@ export function ConversationCanvas({
       const timeDiff = lastGroup 
         ? new Date(msg.createdAt).getTime() - new Date(lastGroup.messages[lastGroup.messages.length - 1].createdAt).getTime()
         : Infinity;
-      
-      // Don't group system messages with other messages
       if (msg.isSystemMessage) {
         groups.push({ sender: msg, messages: [msg] });
       } else if (lastGroup && !lastGroup.sender.isSystemMessage && lastGroup.sender.senderId === msg.senderId && timeDiff < 300000) {
@@ -173,9 +247,10 @@ export function ConversationCanvas({
     if (message.trim()) {
       onSendMessage(message.trim());
       setMessage("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-      }
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+      // Show typing indicator briefly
+      setShowTyping(true);
+      setTimeout(() => setShowTyping(false), 2500);
     }
   };
 
@@ -186,7 +261,6 @@ export function ConversationCanvas({
     }
   };
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -194,7 +268,6 @@ export function ConversationCanvas({
     }
   }, [message]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation.messages]);
@@ -236,10 +309,26 @@ export function ConversationCanvas({
 
   return (
     <div className="flex flex-col h-full bg-background">
+      {/* Channel Header */}
+      <div className="shrink-0 px-6 py-3 border-b border-border/30 flex items-center justify-between bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-semibold text-foreground"># {conversation.name}</h2>
+          {conversation.hasTravelIntent && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+              <Sparkles className="w-3 h-3" />
+              Travel detected
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{conversation.messages.length} messages</span>
+        </div>
+      </div>
+
       {/* Messages Area */}
       <ScrollArea className="flex-1" ref={scrollRef}>
         <div className="max-w-3xl mx-auto px-6 py-6">
-          {/* Expense Context Card - Pinned at top */}
+          {/* Expense Context Card */}
           {isExpenseChat && expenseMetadata && (
             <ExpenseContextCard
               expenseId={conversation.expenseId || ""}
@@ -256,19 +345,20 @@ export function ConversationCanvas({
 
           {groupedMessages.map(({ date, messages }, groupIndex) => (
             <div key={date} className={cn(groupIndex > 0 && "mt-8")}>
-              {/* Date separator - subtle */}
+              {/* Date separator */}
               <div className="flex items-center justify-center mb-6">
-                <span className="text-[11px] text-muted-foreground/50 font-medium bg-muted/30 px-3 py-1 rounded-full">
+                <div className="flex-1 h-px bg-border/30" />
+                <span className="text-[11px] text-muted-foreground/50 font-medium px-4">
                   {formatMessageDate(messages[0].createdAt)}
                 </span>
+                <div className="flex-1 h-px bg-border/30" />
               </div>
               
-              {/* Message groups by sender */}
-              <div className="space-y-4">
+              {/* Message groups */}
+              <div className="space-y-1">
                 {groupBySender(messages).map(({ sender, messages: senderMessages }, senderIndex) => {
                   const isSystemMessage = sender.isSystemMessage;
                   
-                  // System message rendering (for expense events)
                   if (isSystemMessage) {
                     return (
                       <motion.div
@@ -303,48 +393,101 @@ export function ConversationCanvas({
                     );
                   }
                   
-                  // Regular message rendering
+                  // Regular Slack-style message
                   return (
                     <motion.div
                       key={`${sender.senderId}-${senderIndex}-${sender.id}`}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: senderIndex * 0.05 }}
-                      className="flex gap-3"
+                      transition={{ duration: 0.15, delay: senderIndex * 0.03 }}
+                      className="group relative rounded-lg hover:bg-muted/30 px-2 py-1.5 -mx-2 transition-colors"
+                      onMouseEnter={() => setHoveredMsgId(sender.id)}
+                      onMouseLeave={() => { setHoveredMsgId(null); setShowEmojiPicker(null); }}
                     >
-                      <img
-                        src={sender.senderAvatar}
-                        alt={sender.senderName}
-                        className="w-9 h-9 rounded-xl object-cover shrink-0 shadow-sm"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-2 mb-1">
-                          <span className="text-sm font-semibold text-foreground">
-                            {sender.senderName}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground/50">
-                            {formatMessageTime(sender.createdAt)}
-                          </span>
-                        </div>
-                        <div className="space-y-1">
-                          {senderMessages.map((msg, msgIndex) => (
-                            <div
-                              key={msg.id}
-                              className={cn(
-                                "text-sm text-foreground/90 leading-relaxed",
-                                msgIndex > 0 && "pt-1"
-                              )}
-                            >
-                              {highlightKeywords(msg.text)}
-                              {msgIndex > 0 && (
-                                <span className="text-[10px] text-muted-foreground/40 ml-2">
-                                  {formatMessageTime(msg.createdAt)}
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                      <div className="flex gap-3">
+                        <img
+                          src={sender.senderAvatar}
+                          alt={sender.senderName}
+                          className="w-9 h-9 rounded-lg object-cover shrink-0 shadow-sm"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 mb-0.5">
+                            <span className="text-sm font-semibold text-foreground">
+                              {sender.senderName}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground/50">
+                              {formatMessageTime(sender.createdAt)}
+                            </span>
+                          </div>
+                          <div className="space-y-0.5">
+                            {senderMessages.map((msg, msgIndex) => (
+                              <div key={msg.id}>
+                                <div className={cn(
+                                  "text-sm text-foreground/90 leading-relaxed",
+                                  msgIndex > 0 && "pt-0.5"
+                                )}>
+                                  {highlightKeywords(msg.text)}
+                                  {msgIndex > 0 && (
+                                    <span className="text-[10px] text-muted-foreground/40 ml-2">
+                                      {formatMessageTime(msg.createdAt)}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {/* File Preview Cards */}
+                                {MOCK_FILES[msg.id] && (
+                                  <div className="flex flex-wrap gap-2">
+                                    {MOCK_FILES[msg.id].map((file, fi) => (
+                                      <FilePreviewCard key={fi} file={file} />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Emoji Reactions */}
+                          {MOCK_REACTIONS[sender.id] && (
+                            <EmojiReactions
+                              reactions={MOCK_REACTIONS[sender.id]}
+                              onAdd={() => setShowEmojiPicker(sender.id)}
+                            />
+                          )}
+
+                          {/* Thread Reply Indicator */}
+                          {MOCK_THREADS[sender.id] && (
+                            <button className="flex items-center gap-1.5 mt-1.5 text-xs text-primary hover:text-primary/80 transition-colors">
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span className="font-medium">{MOCK_THREADS[sender.id]} replies</span>
+                            </button>
+                          )}
                         </div>
                       </div>
+
+                      {/* Hover Action Bar */}
+                      <AnimatePresence>
+                        {hoveredMsgId === sender.id && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 4 }}
+                            className="absolute top-0 right-2 -translate-y-1/2 flex items-center gap-0.5 bg-card border border-border/60 rounded-lg shadow-md px-1 py-0.5"
+                          >
+                            {QUICK_EMOJIS.slice(0, 4).map((emoji) => (
+                              <button
+                                key={emoji}
+                                className="w-7 h-7 rounded-md hover:bg-muted/60 flex items-center justify-center text-sm transition-colors"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                            <div className="w-px h-5 bg-border/50 mx-0.5" />
+                            <button className="w-7 h-7 rounded-md hover:bg-muted/60 flex items-center justify-center transition-colors">
+                              <MessageCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                   );
                 })}
@@ -352,19 +495,23 @@ export function ConversationCanvas({
             </div>
           ))}
           
-          {/* Empty state for expense chats with no messages yet */}
+          {/* Empty state */}
           {isExpenseChat && filteredMessages.length === 0 && expenseMetadata && (
             <div className="text-center py-8 text-muted-foreground">
               <p className="text-sm">No messages yet. Start the conversation below.</p>
             </div>
           )}
+
+          {/* Typing indicator */}
+          <AnimatePresence>
+            {showTyping && <TypingIndicator />}
+          </AnimatePresence>
           
-          {/* Scroll anchor */}
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
-      {/* Unified Message Composer */}
+      {/* Message Composer */}
       <div className="border-t border-border/30 bg-background/80 backdrop-blur-sm">
         <div className="max-w-3xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between mb-2">

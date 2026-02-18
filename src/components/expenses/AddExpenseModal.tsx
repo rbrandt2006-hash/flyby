@@ -22,6 +22,7 @@ const categories = [
   { value: "hotel", label: "Hotel" },
   { value: "meals", label: "Meals" },
   { value: "transportation", label: "Transportation" },
+  { value: "conference", label: "Conference Fees" },
   { value: "entertainment", label: "Entertainment" },
   { value: "office", label: "Office/Other" },
 ];
