@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,18 +7,23 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ConnectCardModal from "@/components/expenses/ConnectCardModal";
 import { AddExpenseModal } from "@/components/expenses/AddExpenseModal";
 import { SendToSupervisorModal } from "@/components/expenses/SendToSupervisorModal";
 import { DisputeModal } from "@/components/expenses/DisputeModal";
 import { ExpenseTripGroup, UnassignedExpenseGroup } from "@/components/expenses/ExpenseTripGroup";
+import { ExpenseDrawer } from "@/components/expenses/ExpenseDrawer";
+import { ExpenseAnalyticsModal } from "@/components/expenses/ExpenseAnalyticsModal";
+import { AIExpenseInsights } from "@/components/expenses/AIExpenseInsights";
+import { demoExpenses, demoStats, type DemoExpense } from "@/components/expenses/demoExpenseData";
 import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
 import { toast } from "sonner";
 import { 
   Plane, Building2, Utensils, Car, CreditCard, Receipt, AlertCircle,
   Send, Flag, CheckCircle, ArrowRight, Plus, Check, Gamepad2, Briefcase,
-  ChevronDown, ChevronUp, Filter
+  ChevronDown, ChevronUp, Filter, BarChart3
 } from "lucide-react";
 
 const categoryIcons: Record<string, typeof Plane> = {
@@ -71,9 +76,35 @@ export default function Expenses() {
   const [isSendSupervisorOpen, setIsSendSupervisorOpen] = useState(false);
   const [isDisputeOpen, setIsDisputeOpen] = useState(false);
 
+  // Demo drawer + analytics state
+  const [demoDrawerStatus, setDemoDrawerStatus] = useState<DemoExpense["status"] | null>(null);
+  const [demoExpenseList, setDemoExpenseList] = useState<DemoExpense[]>(demoExpenses);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+
+  const drawerTitle = useMemo(() => {
+    if (demoDrawerStatus === "pending") return "Pending Approvals";
+    if (demoDrawerStatus === "approved") return "Approved Expenses";
+    if (demoDrawerStatus === "disputed") return "Disputed Expenses";
+    return "All Expenses";
+  }, [demoDrawerStatus]);
+
+  const drawerExpenses = useMemo(() =>
+    demoDrawerStatus ? demoExpenseList.filter(e => e.status === demoDrawerStatus) : demoExpenseList,
+    [demoExpenseList, demoDrawerStatus]
+  );
+
+  const handleUpdateDemoExpense = (id: string, status: DemoExpense["status"]) => {
+    setDemoExpenseList(prev => prev.map(e => e.id === id ? { ...e, status } : e));
+  };
+
+  // Live totals from demo data
+  const livePending = useMemo(() => demoExpenseList.filter(e => e.status === "pending").reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
+  const liveApproved = useMemo(() => demoExpenseList.filter(e => e.status === "approved").reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
+  const liveDisputed = useMemo(() => demoExpenseList.filter(e => e.status === "disputed").reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
+  const liveTotal = useMemo(() => demoExpenseList.reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
+
   // Expand/Collapse state
   const [expandedTrips, setExpandedTrips] = useState<Set<string>>(() => {
-    // Default: expand the most recent trip if there are few trips
     const { groups } = expensesByTrip;
     if (groups.length <= 3 && groups.length > 0) {
       return new Set([groups[0].tripId]);
@@ -222,60 +253,130 @@ export default function Expenses() {
         </motion.div>
       </motion.div>
 
-      {/* Stats Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-warning/5 to-warning/10 border-warning/20">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
-                <Receipt className="w-5 h-5 text-warning" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold">${totalPending.toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-success/5 to-success/10 border-success/20">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-success" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Approved</p>
-                <p className="text-2xl font-bold">${totalApproved.toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-destructive/5 to-destructive/10 border-destructive/20">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-                <Flag className="w-5 h-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Disputed</p>
-                <p className="text-2xl font-bold">${totalDisputed.toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Expenses</p>
-                <p className="text-2xl font-bold">{expenses.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* AI Insights */}
+      <motion.div variants={itemVariants}>
+        <AIExpenseInsights />
+      </motion.div>
+
+      {/* Stats Cards — interactive */}
+      <motion.div variants={itemVariants}>
+        <TooltipProvider delayDuration={300}>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Pending */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <motion.div whileHover={{ y: -2, scale: 1.01 }} whileTap={{ scale: 0.99 }} className="cursor-pointer" onClick={() => setDemoDrawerStatus("pending")}>
+                  <Card className="bg-gradient-to-br from-warning/5 to-warning/10 border-warning/20 hover:border-warning/40 hover:shadow-md transition-all">
+                    <CardContent className="p-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
+                          <Receipt className="w-5 h-5 text-warning" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Pending</p>
+                          <p className="text-2xl font-bold">${livePending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">{demoExpenseList.filter(e => e.status === "pending").length} awaiting review · Click to review</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[220px] p-3">
+                <p className="font-semibold text-xs mb-1.5">Pending breakdown</p>
+                <p className="text-xs text-muted-foreground">3 flights awaiting approval</p>
+                <p className="text-xs text-muted-foreground">2 hotel receipts missing</p>
+                <p className="text-xs text-muted-foreground">1 conference registration</p>
+                <p className="text-xs font-medium mt-1.5">Sarah K., Marcus J., Priya P.</p>
+                <p className="text-xs font-bold mt-1">Total: ${livePending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Approved */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <motion.div whileHover={{ y: -2, scale: 1.01 }} whileTap={{ scale: 0.99 }} className="cursor-pointer" onClick={() => setDemoDrawerStatus("approved")}>
+                  <Card className="bg-gradient-to-br from-success/5 to-success/10 border-success/20 hover:border-success/40 hover:shadow-md transition-all">
+                    <CardContent className="p-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+                          <CheckCircle className="w-5 h-5 text-success" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Approved</p>
+                          <p className="text-2xl font-bold">${liveApproved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">{demoExpenseList.filter(e => e.status === "approved").length} expenses approved · Click to view</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[220px] p-3">
+                <p className="font-semibold text-xs mb-1.5">Recently approved</p>
+                <p className="text-xs text-muted-foreground">Julia C. – United Airlines $498</p>
+                <p className="text-xs text-muted-foreground">Priya P. – Edgewater Hotel $521</p>
+                <p className="text-xs text-muted-foreground">Alex R. – Capital Grille $342</p>
+                <p className="text-xs font-bold mt-1">Total: ${liveApproved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Disputed */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <motion.div whileHover={{ y: -2, scale: 1.01 }} whileTap={{ scale: 0.99 }} className="cursor-pointer" onClick={() => setDemoDrawerStatus("disputed")}>
+                  <Card className="bg-gradient-to-br from-destructive/5 to-destructive/10 border-destructive/20 hover:border-destructive/40 hover:shadow-md transition-all">
+                    <CardContent className="p-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+                          <Flag className="w-5 h-5 text-destructive" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Disputed</p>
+                          <p className="text-2xl font-bold">${liveDisputed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">{demoExpenseList.filter(e => e.status === "disputed").length} under review · Click to manage</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[240px] p-3">
+                <p className="font-semibold text-xs mb-1.5">Active disputes</p>
+                <p className="text-xs text-muted-foreground">Marcus J. – Marriott minibar $189</p>
+                <p className="text-xs text-muted-foreground">Sarah K. – Uber $124.80 no receipt</p>
+                <p className="text-xs text-muted-foreground">Priya P. – Peninsula Chicago $685 over policy</p>
+                <p className="text-xs font-bold mt-1">Total: ${liveDisputed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Total / Analytics */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <motion.div whileHover={{ y: -2, scale: 1.01 }} whileTap={{ scale: 0.99 }} className="cursor-pointer" onClick={() => setAnalyticsOpen(true)}>
+                  <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 hover:border-primary/40 hover:shadow-md transition-all">
+                    <CardContent className="p-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <BarChart3 className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Total Expenses</p>
+                          <p className="text-2xl font-bold">${liveTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-primary/70 font-medium mt-2">Click for analytics dashboard →</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[220px] p-3">
+                <p className="font-semibold text-xs mb-1">Click to open</p>
+                <p className="text-xs text-muted-foreground">Spend by category, employee, and month-over-month trends</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       </motion.div>
 
       {/* Corporate Card CTA */}
@@ -523,6 +624,20 @@ export default function Expenses() {
           <DisputeModal open={isDisputeOpen} onOpenChange={setIsDisputeOpen} expenseMerchant={selectedExpense.merchant} expenseAmount={selectedExpense.amount} onSubmit={handleFileDispute} />
         </>
       )}
+
+      {/* Demo interactive drawers */}
+      <ExpenseDrawer
+        open={demoDrawerStatus !== null}
+        onOpenChange={open => { if (!open) setDemoDrawerStatus(null); }}
+        title={drawerTitle}
+        expenses={drawerExpenses}
+        onUpdateExpense={handleUpdateDemoExpense}
+        filterStatus={demoDrawerStatus ?? undefined}
+      />
+
+      {/* Analytics modal */}
+      <ExpenseAnalyticsModal open={analyticsOpen} onOpenChange={setAnalyticsOpen} />
     </motion.div>
   );
 }
+
