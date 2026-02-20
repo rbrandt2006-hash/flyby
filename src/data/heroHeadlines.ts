@@ -1,0 +1,61 @@
+// 50 rotating hero headlines for the Dashboard command center
+export const heroHeadlines: string[] = [
+  "Manage company travel in seconds.",
+  "Your team's travel, one command away.",
+  "Control every trip from one place.",
+  "Book smarter. Travel faster.",
+  "Where efficiency meets enterprise travel.",
+  "Your company's travel. One command.",
+  "Travel ops, simplified.",
+  "Command your company's travel.",
+  "Every trip. Every team. One view.",
+  "The fastest way to manage travel.",
+  "Travel management, reimagined.",
+  "Move your team. Move your business.",
+  "From booking to boarding — handled.",
+  "Travel intelligence at your fingertips.",
+  "Built for teams that move fast.",
+  "Your travel command center is ready.",
+  "Plan trips in seconds, not hours.",
+  "Corporate travel, without the chaos.",
+  "One platform. Every trip. Total control.",
+  "Smart travel for modern teams.",
+  "Get your team where they need to be.",
+  "Travel planning on autopilot.",
+  "See every traveler. Manage every dollar.",
+  "The operating system for business travel.",
+  "Less coordination. More momentum.",
+  "Travel visibility in real time.",
+  "Your team is moving. Stay in control.",
+  "Instant booking. Instant visibility.",
+  "From request to runway — seamless.",
+  "Enterprise travel, consumer simplicity.",
+  "Because travel shouldn't slow you down.",
+  "Focus on business. We'll handle the flights.",
+  "Global travel. Local control.",
+  "Your CFO's favorite travel tool.",
+  "Zero friction. Full compliance.",
+  "Every booking. Every policy. One system.",
+  "Travel like a startup. Control like an enterprise.",
+  "Power every trip with intelligence.",
+  "The modern way to move your company.",
+  "Turn travel chaos into travel clarity.",
+  "Built for ops teams that demand speed.",
+  "Real-time travel. Real-time savings.",
+  "Spend less time booking, more time doing.",
+  "Where smart companies manage travel.",
+  "Make every trip count.",
+  "Corporate travel that just works.",
+  "Move fast. Stay compliant.",
+  "Your next trip is one sentence away.",
+  "Command, control, and cut costs.",
+  "Travel management for the modern enterprise.",
+];
+
+export function getRandomHeadline(): string {
+  // Use a daily seed so it changes per login/day
+  const today = new Date();
+  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  const index = seed % heroHeadlines.length;
+  return heroHeadlines[index];
+}

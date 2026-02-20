@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -19,6 +19,7 @@ import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
 import type { CalendarEvent } from "@/services/mockCalendarService";
 import { cn } from "@/lib/utils";
+import { getRandomHeadline } from "@/data/heroHeadlines";
 
 interface TripPlan {
   destination: string;
@@ -79,11 +80,18 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   };
 };
 
-// Demo team members traveling
+// Demo team members traveling with live journey status
+const travelJourneyStatuses = [
+  "At gate B12", "Boarded plane", "In flight", "Landed", "In transit to hotel",
+  "Checked into hotel", "In meeting", "At conference", "Heading to airport", "Returning today",
+  "Flight delayed", "Boarding soon", "Taxi to hotel", "Working remotely",
+];
+
 const teamTraveling = [
-  { name: "Julia Chen", destination: "Seattle, WA", status: "Flight delayed", statusType: "warning" as const, initials: "JC" },
-  { name: "Mark Thompson", destination: "Chicago, IL", status: "Hotel checked in", statusType: "success" as const, initials: "MT" },
-  { name: "Priya Patel", destination: "New York, NY", status: "Returning today", statusType: "info" as const, initials: "PP" },
+  { name: "Julia Chen", destination: "Seattle, WA", status: "Boarded plane", journeyStep: 2, totalSteps: 5, statusType: "info" as const, initials: "JC" },
+  { name: "Mark Thompson", destination: "Chicago, IL", status: "Checked into hotel", journeyStep: 4, totalSteps: 5, statusType: "success" as const, initials: "MT" },
+  { name: "Priya Patel", destination: "New York, NY", status: "Heading to airport", journeyStep: 5, totalSteps: 5, statusType: "warning" as const, initials: "PP" },
+  { name: "Alex Rivera", destination: "San Francisco, CA", status: "In meeting", journeyStep: 4, totalSteps: 6, statusType: "success" as const, initials: "AR" },
 ];
 
 export default function Dashboard() {
@@ -247,9 +255,13 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
         >
-          Manage company travel
-          <br />
-          <span className="text-muted-foreground font-semibold">in seconds.</span>
+          {getRandomHeadline().split(/(?<=\.)/).map((part, i) => {
+            const trimmed = part.trim();
+            if (!trimmed) return null;
+            // Make last portion muted
+            if (i > 0) return <span key={i} className="text-muted-foreground font-semibold"><br />{trimmed}</span>;
+            return <span key={i}>{trimmed}</span>;
+          })}
         </motion.h1>
         <motion.p
           className="text-base md:text-lg text-muted-foreground max-w-lg mx-auto"
@@ -489,6 +501,25 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <MapPin className="w-3 h-3" />{member.destination}
                     </p>
+                    {/* Journey progress bar */}
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <motion.div
+                          className={cn(
+                            "h-full rounded-full",
+                            member.statusType === "success" && "bg-success",
+                            member.statusType === "warning" && "bg-warning",
+                            member.statusType === "info" && "bg-primary",
+                          )}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(member.journeyStep / member.totalSteps) * 100}%` }}
+                          transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        {member.journeyStep}/{member.totalSteps}
+                      </span>
+                    </div>
                   </div>
                   <Badge
                     variant="secondary"
