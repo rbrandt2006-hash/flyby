@@ -26,6 +26,7 @@ const banks: Bank[] = [
   { id: "wells-fargo", name: "Wells Fargo Commercial", color: "bg-yellow-600" },
   { id: "citi", name: "Citi Commercial Bank", color: "bg-blue-500" },
   { id: "bofa", name: "Bank of America Business", color: "bg-red-700" },
+  { id: "other", name: "Other", color: "bg-muted-foreground" },
 ];
 
 type Step = "bank" | "card" | "success";

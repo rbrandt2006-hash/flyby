@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -16,6 +15,7 @@ import { ExpenseTripGroup, UnassignedExpenseGroup } from "@/components/expenses/
 import { ExpenseDrawer } from "@/components/expenses/ExpenseDrawer";
 import { ExpenseAnalyticsModal } from "@/components/expenses/ExpenseAnalyticsModal";
 import { AIExpenseInsights } from "@/components/expenses/AIExpenseInsights";
+import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
 import { demoExpenses, demoStats, type DemoExpense } from "@/components/expenses/demoExpenseData";
 import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
@@ -212,6 +212,22 @@ export default function Expenses() {
     toast.success(`Expense sent to ${supervisorName} – Check Chats for updates`);
     setSelectedExpense({ ...selectedExpense, status: "submitted", supervisorSentAt: new Date().toISOString(), supervisorName });
     setIsSendSupervisorOpen(false);
+  };
+
+  const handleUndoSubmission = () => {
+    if (!selectedExpense) return;
+    updateExpense(selectedExpense.id, {
+      status: "pending",
+      supervisorSentAt: undefined,
+      supervisorName: undefined,
+    });
+    setSelectedExpense({
+      ...selectedExpense,
+      status: "pending",
+      supervisorSentAt: undefined,
+      supervisorName: undefined,
+    });
+    toast.success("Submission undone — expense is back to pending");
   };
 
   const handleToggleReimbursable = () => {
@@ -422,66 +438,31 @@ export default function Expenses() {
         <Card>
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              {/* Filters */}
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm font-medium text-muted-foreground">Filters:</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Switch
-                    id="disputed-filter"
-                    checked={showDisputedOnly}
-                    onCheckedChange={setShowDisputedOnly}
-                  />
-                  <Label htmlFor="disputed-filter" className="text-sm cursor-pointer">
-                    Disputed only
-                  </Label>
+                  <Switch id="disputed-filter" checked={showDisputedOnly} onCheckedChange={setShowDisputedOnly} />
+                  <Label htmlFor="disputed-filter" className="text-sm cursor-pointer">Disputed only</Label>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Switch
-                    id="reimbursable-filter"
-                    checked={showReimbursableOnly}
-                    onCheckedChange={setShowReimbursableOnly}
-                  />
-                  <Label htmlFor="reimbursable-filter" className="text-sm cursor-pointer">
-                    Reimbursable only
-                  </Label>
+                  <Switch id="reimbursable-filter" checked={showReimbursableOnly} onCheckedChange={setShowReimbursableOnly} />
+                  <Label htmlFor="reimbursable-filter" className="text-sm cursor-pointer">Reimbursable only</Label>
                 </div>
                 {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-muted-foreground"
-                    onClick={() => {
-                      setShowDisputedOnly(false);
-                      setShowReimbursableOnly(false);
-                    }}
-                  >
+                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => { setShowDisputedOnly(false); setShowReimbursableOnly(false); }}>
                     Clear filters
                   </Button>
                 )}
               </div>
-
-              {/* Expand/Collapse All */}
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={handleExpandAll}
-                >
-                  <ChevronDown className="w-3.5 h-3.5 mr-1" />
-                  Expand all
+                <Button variant="outline" size="sm" className="text-xs" onClick={handleExpandAll}>
+                  <ChevronDown className="w-3.5 h-3.5 mr-1" />Expand all
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={handleCollapseAll}
-                >
-                  <ChevronUp className="w-3.5 h-3.5 mr-1" />
-                  Collapse all
+                <Button variant="outline" size="sm" className="text-xs" onClick={handleCollapseAll}>
+                  <ChevronUp className="w-3.5 h-3.5 mr-1" />Collapse all
                 </Button>
               </div>
             </div>
@@ -499,9 +480,7 @@ export default function Expenses() {
               <Receipt className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
               <h3 className="text-lg font-medium mb-1">No matching expenses</h3>
               <p className="text-sm text-muted-foreground">
-                {hasActiveFilters 
-                  ? "Try adjusting your filters to see more expenses." 
-                  : "Add your first expense to get started."}
+                {hasActiveFilters ? "Try adjusting your filters to see more expenses." : "Add your first expense to get started."}
               </p>
             </CardContent>
           </Card>
@@ -517,8 +496,6 @@ export default function Expenses() {
                 filteredExpenses={group.filteredExpenses}
               />
             ))}
-
-            {/* Unassigned Expenses */}
             {filteredUnassigned.length > 0 && (
               <UnassignedExpenseGroup
                 expenses={filteredUnassigned}
@@ -531,89 +508,16 @@ export default function Expenses() {
         )}
       </motion.div>
 
-      {/* Expense Detail Panel */}
-      <Sheet open={!!selectedExpense} onOpenChange={() => setSelectedExpense(null)}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          {selectedExpense && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-              <SheetHeader className="text-left pb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
-                    {(() => { const CategoryIcon = categoryIcons[selectedExpense.category] || Briefcase; return <CategoryIcon className="w-6 h-6 text-muted-foreground" />; })()}
-                  </div>
-                  <div>
-                    <SheetTitle className="text-xl">{selectedExpense.merchant}</SheetTitle>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={statusConfig[selectedExpense.status]?.variant || "default"}>{statusConfig[selectedExpense.status]?.label || selectedExpense.status}</Badge>
-                      {selectedExpense.reimbursable && <Badge variant="outline" className="text-xs">Reimbursable</Badge>}
-                    </div>
-                  </div>
-                </div>
-              </SheetHeader>
-
-              <div className="space-y-6">
-                <div className="text-center py-6 bg-secondary/30 rounded-2xl">
-                  <p className="text-4xl font-bold">${selectedExpense.amount.toFixed(2)}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedExpense.category.charAt(0).toUpperCase() + selectedExpense.category.slice(1)} expense</p>
-                </div>
-
-                <div className="space-y-4">
-                  <div><p className="text-sm text-muted-foreground">Description</p><p className="font-medium">{selectedExpense.description}</p></div>
-                  {selectedExpense.tripName && (
-                    <>
-                      <Separator />
-                      <div><p className="text-sm text-muted-foreground">Trip</p><p className="font-medium">{selectedExpense.tripName}</p><p className="text-xs text-muted-foreground">{selectedExpense.tripDates}</p></div>
-                    </>
-                  )}
-                  <Separator />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><p className="text-sm text-muted-foreground">Date</p><p className="font-medium">{selectedExpense.date}</p></div>
-                    <div><p className="text-sm text-muted-foreground">Location</p><p className="font-medium">{selectedExpense.location || "—"}</p></div>
-                  </div>
-                  <Separator />
-                  <div><p className="text-sm text-muted-foreground">Payment Method</p><div className="flex items-center gap-2 mt-1"><CreditCard className="w-4 h-4 text-muted-foreground" /><p className="font-medium">{selectedExpense.paymentMethod}</p></div></div>
-                  {selectedExpense.supervisorSentAt && (
-                    <div className="text-xs text-muted-foreground">Last sent to supervisor: {new Date(selectedExpense.supervisorSentAt).toLocaleString()}</div>
-                  )}
-                  {selectedExpense.disputeFiledAt && (
-                    <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/20">
-                      <p className="text-sm font-medium text-destructive">Dispute filed</p>
-                      <p className="text-xs text-muted-foreground">{selectedExpense.disputeReason} • {new Date(selectedExpense.disputeFiledAt).toLocaleString()}</p>
-                    </div>
-                  )}
-                </div>
-
-                <Separator />
-                <div className="space-y-3 pt-2">
-                  <Button className="w-full rounded-xl" size="lg" onClick={() => setIsSendSupervisorOpen(true)}>
-                    <Send className="w-4 h-4 mr-2" />Send to supervisor
-                  </Button>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button variant="outline" className="rounded-xl" onClick={handleToggleReimbursable}>
-                      <CheckCircle className="w-4 h-4 mr-2" />{selectedExpense.reimbursable ? "Unmark" : "Mark"} reimbursable
-                    </Button>
-                    <Button variant="outline" className="rounded-xl text-destructive hover:text-destructive" onClick={() => setIsDisputeOpen(true)}>
-                      <Flag className="w-4 h-4 mr-2" />Dispute
-                    </Button>
-                  </div>
-                </div>
-
-                {selectedExpense.status === "flagged" && (
-                  <Card className="border-destructive/30 bg-destructive/5">
-                    <CardContent className="p-4 flex gap-3">
-                      <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium text-destructive">This expense has been flagged</p>
-                        <p className="text-sm text-muted-foreground mt-1">Amount exceeds policy limits. Please provide additional documentation.</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* Expense Detail Modal (centered) */}
+      <ExpenseDetailModal
+        expense={selectedExpense}
+        open={!!selectedExpense}
+        onOpenChange={(open) => { if (!open) setSelectedExpense(null); }}
+        onSendToSupervisor={() => setIsSendSupervisorOpen(true)}
+        onToggleReimbursable={handleToggleReimbursable}
+        onDispute={() => setIsDisputeOpen(true)}
+        onUndoSubmission={handleUndoSubmission}
+      />
 
       {/* Modals */}
       <ConnectCardModal open={isCardModalOpen} onOpenChange={setIsCardModalOpen} onSuccess={() => setIsCardConnected(true)} />
@@ -640,4 +544,3 @@ export default function Expenses() {
     </motion.div>
   );
 }
-

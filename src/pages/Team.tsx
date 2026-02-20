@@ -111,19 +111,7 @@ export default function Team() {
             See where your colleagues are traveling
           </p>
         </div>
-        <Button onClick={() => setCreateChatOpen(true)} className="gap-2">
-          <MessageSquarePlus className="w-4 h-4" />
-          New group chat
-        </Button>
       </div>
-
-      {/* Create Group Chat Modal */}
-      <CreateGroupChatModal
-        open={createChatOpen}
-        onOpenChange={setCreateChatOpen}
-        teamMembers={chatTeamMembers}
-        onCreateChat={handleCreateChat}
-      />
 
       {/* Team Member Panel */}
       <TeamMemberPanel
