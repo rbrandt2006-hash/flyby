@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, Car, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
@@ -20,6 +20,7 @@ import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
 import type { CalendarEvent } from "@/services/mockCalendarService";
 import { cn } from "@/lib/utils";
 import { getRandomHeadline } from "@/data/heroHeadlines";
+import { TravelerDetailPanel } from "@/components/home/TravelerDetailPanel";
 
 interface TripPlan {
   destination: string;
@@ -108,6 +109,7 @@ export default function Dashboard() {
   const [needsDestination, setNeedsDestination] = useState(false);
   const [isRefineOpen, setIsRefineOpen] = useState(false);
   const [kpiDrawer, setKpiDrawer] = useState<{ open: boolean; type: KPIType }>({ open: false, type: "upcomingTrips" });
+  const [selectedTraveler, setSelectedTraveler] = useState<typeof teamTraveling[number] | null>(null);
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
 
@@ -455,10 +457,6 @@ export default function Dashboard() {
                     <Hotel className="w-5 h-5 text-primary" />
                     <div className="flex-1"><p className="font-medium">{planResult.hotel.name}</p><p className="text-sm text-muted-foreground">{planResult.hotel.location}</p></div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                    <Car className="w-5 h-5 text-primary" />
-                    <div className="flex-1"><p className="font-medium">Ground Transport</p><p className="text-sm text-muted-foreground">{planResult.groundTransport}</p></div>
-                  </div>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/10">
                   <div className="flex items-center gap-2"><DollarSign className="w-5 h-5 text-primary" /><span className="font-medium">Estimated Total</span></div>
@@ -492,7 +490,7 @@ export default function Dashboard() {
             </div>
             <CardContent className="pt-0 space-y-1">
               {teamTraveling.map((member) => (
-                <div key={member.name} className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer group" onClick={() => navigate("/team")}>
+                <div key={member.name} className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer group" onClick={() => setSelectedTraveler(member)}>
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
                     {member.initials}
                   </div>
@@ -501,7 +499,6 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <MapPin className="w-3 h-3" />{member.destination}
                     </p>
-                    {/* Journey progress bar */}
                     <div className="flex items-center gap-2 mt-1.5">
                       <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                         <motion.div
@@ -649,6 +646,13 @@ export default function Dashboard() {
 
       {/* ─── KPI Drawer ─── */}
       <KPIDrawer open={kpiDrawer.open} onOpenChange={open => setKpiDrawer(prev => ({ ...prev, open }))} type={kpiDrawer.type} />
+
+      {/* Traveler Detail Panel */}
+      <TravelerDetailPanel
+        traveler={selectedTraveler}
+        open={!!selectedTraveler}
+        onClose={() => setSelectedTraveler(null)}
+      />
 
       {/* ─── Refine Modal ─── */}
       {planResult && <RefineModal open={isRefineOpen} onOpenChange={setIsRefineOpen} destination={planResult.destination} dates={planResult.dates} currentFlight={planResult.flight} currentHotel={planResult.hotel} currentGroundTransport={planResult.groundTransport} currentCost={planResult.estimatedCost} onSave={handleRefineSave} />}

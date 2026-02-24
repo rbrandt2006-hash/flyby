@@ -93,7 +93,6 @@ export function IntegrationsSettings() {
   });
 
   const handleConnect = useCallback((integrationId: string) => {
-    // Set to connecting state
     setIntegrationStates((prev) => {
       const updated = {
         ...prev,
@@ -103,9 +102,7 @@ export function IntegrationsSettings() {
       return updated;
     });
 
-    // Simulate connection delay (1-1.5 seconds)
     const delay = 1000 + Math.random() * 500;
-    
     setTimeout(() => {
       const config = integrationConfigs.find((c) => c.id === integrationId);
       setIntegrationStates((prev) => {
@@ -123,6 +120,17 @@ export function IntegrationsSettings() {
     }, delay);
   }, []);
 
+  const handleDisconnect = useCallback((integrationId: string) => {
+    setIntegrationStates((prev) => {
+      const updated = {
+        ...prev,
+        [integrationId]: { status: "not_connected" as ConnectionStatus },
+      };
+      persistStates(updated);
+      return updated;
+    });
+  }, []);
+
   const handleManage = useCallback((integrationId: string) => {
     navigate(`/settings/integrations/${integrationId}`);
   }, [navigate]);
@@ -138,6 +146,7 @@ export function IntegrationsSettings() {
             config={integration}
             state={state}
             onConnect={() => handleConnect(integration.id)}
+            onDisconnect={() => handleDisconnect(integration.id)}
             onManage={() => handleManage(integration.id)}
           />
         );
@@ -150,10 +159,11 @@ interface IntegrationRowProps {
   config: IntegrationConfig;
   state: IntegrationState;
   onConnect: () => void;
+  onDisconnect: () => void;
   onManage: () => void;
 }
 
-function IntegrationRow({ config, state, onConnect, onManage }: IntegrationRowProps) {
+function IntegrationRow({ config, state, onConnect, onDisconnect, onManage }: IntegrationRowProps) {
   const isConnecting = state.status === "connecting";
   const isConnected = state.status === "connected";
 
@@ -216,10 +226,10 @@ function IntegrationRow({ config, state, onConnect, onManage }: IntegrationRowPr
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-xl"
-                onClick={onManage}
+                className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={onDisconnect}
               >
-                Manage
+                Disconnect
               </Button>
             </motion.div>
           ) : (
