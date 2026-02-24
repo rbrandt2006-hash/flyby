@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Pencil, Plane, Building2, Car, Calendar, MapPin, DollarSign, Clock, Users, FileText, Receipt, ChevronRight, Check, X, Save, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, Pencil, Plane, Building2, Calendar, MapPin, DollarSign, Clock, Users, FileText, Receipt, ChevronRight, Check, X, Save, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,13 +13,11 @@ import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { FlightSelectionPage, type FlightOption } from "@/components/trips/FlightSelectionPage";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
-import { GroundTransportSelectionPage } from "@/components/trips/GroundTransportSelectionPage";
 import { TripDateSelectionPage } from "@/components/trips/TripDateSelectionPage";
 import { HotelDetailModal, type HotelInfo } from "@/components/trips/HotelDetailModal";
 import { ItineraryEditor } from "@/components/itinerary/ItineraryEditor";
 import type { HotelOption as FullHotelOption } from "@/components/chats/booking/types";
 import { generateFlightOptions } from "@/services/mockFlightGenerator";
-import { getAllGroundTransportOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
 import { getHotelsForDestination } from "@/services/mockHotelService";
 import { toast } from "sonner";
 
@@ -100,12 +98,10 @@ export default function TripDetail() {
   const [flightSelectorOpen, setFlightSelectorOpen] = useState(false);
   const [hotelSelectorOpen, setHotelSelectorOpen] = useState(false);
   const [dateSelectorOpen, setDateSelectorOpen] = useState(false);
-  const [groundSelectorOpen, setGroundSelectorOpen] = useState(false);
   
   // Selected options
   const [selectedFlight, setSelectedFlight] = useState<FlightOption | null>(null);
   const [selectedHotel, setSelectedHotel] = useState<FullHotelOption | null>(null);
-  const [selectedGround, setSelectedGround] = useState<GroundTransportOption | null>(null);
   
   // Hotel detail modal (for non-edit mode viewing)
   const [hotelModalOpen, setHotelModalOpen] = useState(false);
@@ -130,7 +126,6 @@ export default function TripDetail() {
     return getHotelsForDestination({ destination: trip.destination, nights });
   }, [trip?.destination, nights]);
 
-  const groundOptions = useMemo(() => getAllGroundTransportOptions(), []);
 
   // Demo trips fallback data
   const demoTrips: Record<string, TripData> = {
@@ -351,39 +346,6 @@ export default function TripDetail() {
     toast.success("Travel dates updated");
   }, [calculateEstimatedCost]);
 
-  // Handle ground transport selection
-  const handleGroundSelect = useCallback((option: GroundTransportOption) => {
-    setSelectedGround(option);
-    setTrip(prev => {
-      if (!prev) return null;
-      const newCost = calculateEstimatedCost(prev.flight?.price, prev.hotel?.pricePerNight, option.price);
-      return {
-        ...prev,
-        groundTransport: `${option.provider} ${option.rideType}`,
-        groundTransportPrice: option.price,
-        estimatedCost: newCost
-      };
-    });
-    setGroundSelectorOpen(false);
-    toast.success(`Ground transport updated to ${option.rideType}`);
-  }, [calculateEstimatedCost]);
-
-  // Handle removing ground transport
-  const handleRemoveGround = useCallback(() => {
-    setSelectedGround(null);
-    setTrip(prev => {
-      if (!prev) return null;
-      const newCost = calculateEstimatedCost(prev.flight?.price, prev.hotel?.pricePerNight, 0);
-      return {
-        ...prev,
-        groundTransport: undefined,
-        groundTransportPrice: undefined,
-        estimatedCost: newCost
-      };
-    });
-    toast.success("Ground transport removed");
-  }, [calculateEstimatedCost]);
-
   // Toggle edit mode
   const handleToggleEdit = useCallback(() => {
     setIsEditing(prev => !prev);
@@ -446,11 +408,6 @@ export default function TripDetail() {
     }
   }, [isEditing]);
 
-  const handleGroundCardClick = useCallback(() => {
-    if (isEditing) {
-      setGroundSelectorOpen(true);
-    }
-  }, [isEditing]);
 
   // Convert trip hotel to HotelInfo for modal
   const hotelInfoForModal: HotelInfo | null = useMemo(() => {
@@ -838,69 +795,6 @@ export default function TripDetail() {
                       </CardContent>
                     </Card>
 
-                    {/* Ground Transport Card */}
-                    {trip.groundTransport ? (
-                      <Card 
-                        className={cn(
-                          "border border-border/50 group transition-all",
-                          isEditing && "cursor-pointer hover:border-primary/30 hover:shadow-md"
-                        )}
-                        onClick={handleGroundCardClick}
-                      >
-                        <CardContent className="p-5">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                                <Car className="w-5 h-5 text-purple-500" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-foreground">Ground Transport</p>
-                                <p className="text-sm text-muted-foreground">{trip.groundTransport}</p>
-                                {trip.groundTransportPrice && (
-                                  <p className="text-xs text-primary mt-1 font-medium">
-                                    ${trip.groundTransportPrice}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {isEditing && (
-                                <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRemoveGround();
-                                    }}
-                                    className="text-xs text-destructive hover:underline"
-                                  >
-                                    Remove
-                                  </button>
-                                  <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ) : isEditing ? (
-                      <Card 
-                        className="border border-dashed border-border/60 hover:border-primary/30 cursor-pointer transition-all group"
-                        onClick={() => setGroundSelectorOpen(true)}
-                      >
-                        <CardContent className="p-5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                              <Plus className="w-5 h-5 text-purple-500" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-muted-foreground">Add Ground Transport</p>
-                              <p className="text-sm text-muted-foreground">Rideshare, rental, or transit</p>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ) : null}
                   </motion.div>
                 )}
 
@@ -1035,13 +929,6 @@ export default function TripDetail() {
           tripDestination={trip?.destination}
         />
         
-        <GroundTransportSelectionPage
-          open={groundSelectorOpen}
-          onClose={() => setGroundSelectorOpen(false)}
-          options={groundOptions}
-          selectedOption={selectedGround}
-          onSelect={handleGroundSelect}
-        />
         
         {/* Hotel Detail Modal (for non-edit viewing) */}
         {hotelInfoForModal && (

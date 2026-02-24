@@ -127,14 +127,15 @@ export function TripConfirmationModal({
             className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
           />
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2"
-          >
+          {/* Modal — centered with flexbox */}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-lg pointer-events-auto"
+            >
             <div className="bg-background rounded-2xl shadow-2xl border border-border/60 overflow-hidden">
               {/* Header */}
               <div className="px-6 py-5 border-b border-border/40 flex items-center justify-between">
@@ -357,7 +358,8 @@ export function TripConfirmationModal({
                 </Button>
               </div>
             </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>
