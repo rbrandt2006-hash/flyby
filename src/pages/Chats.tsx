@@ -6,6 +6,7 @@ import { ChannelsContainer, SyncedConversation } from "@/components/chats/Channe
 import { ConversationCanvas, ExpenseMetadataForContext } from "@/components/chats/ConversationCanvas";
 import { SmartTripAssistant } from "@/components/chats/SmartTripAssistant";
 import { PlatformSelector, Platform } from "@/components/chats/PlatformSelector";
+import { ChatContextPanel } from "@/components/chats/ChatContextPanel";
 import { mockSyncedConversations, mockDetectedTrips } from "@/data/mockSyncedConversations";
 import { Button } from "@/components/ui/button";
 import { useChats, ExpenseMetadata } from "@/hooks/useChats";
@@ -175,47 +176,54 @@ export default function Chats() {
         </div>
 
         {/* Right: Conversation Canvas */}
-        <div className="flex-1 bg-card rounded-2xl border shadow-sm overflow-hidden relative border-border/60">
-          <AnimatePresence mode="wait">
-            {selectedConversation ? (
-              <motion.div
-                key={selectedConversation.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="h-full"
-              >
-                <ConversationCanvas
-                  conversation={selectedConversation}
-                  onSendMessage={handleSendMessage}
-                  expenseMetadata={selectedExpenseMetadata}
-                  expenseStatus={selectedExpenseStatus}
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="h-full flex flex-col items-center justify-center text-muted-foreground"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-                  <MessageSquare className="w-6 h-6 opacity-40" />
-                </div>
-                <p className="text-sm font-medium">Select a conversation</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">
-                  Choose a channel to view messages
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className="flex-1 flex gap-3 min-w-0">
+          <div className="flex-1 bg-card rounded-2xl border shadow-sm overflow-hidden relative border-border/60">
+            <AnimatePresence mode="wait">
+              {selectedConversation ? (
+                <motion.div
+                  key={selectedConversation.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="h-full"
+                >
+                  <ConversationCanvas
+                    conversation={selectedConversation}
+                    onSendMessage={handleSendMessage}
+                    expenseMetadata={selectedExpenseMetadata}
+                    expenseStatus={selectedExpenseStatus}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="h-full flex flex-col items-center justify-center text-muted-foreground"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                    <MessageSquare className="w-6 h-6 opacity-40" />
+                  </div>
+                  <p className="text-sm font-medium">Select a conversation</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    Choose a channel to view messages
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {/* Smart Trip Assistant */}
-          {detectedTrip && (
-            <div className="absolute bottom-24 right-6 z-10">
-              <SmartTripAssistant detectedTrip={detectedTrip} onReviewTrip={() => {}} />
-            </div>
-          )}
+            {/* Smart Trip Assistant */}
+            {detectedTrip && (
+              <div className="absolute bottom-24 right-6 z-10">
+                <SmartTripAssistant detectedTrip={detectedTrip} onReviewTrip={() => {}} />
+              </div>
+            )}
+          </div>
+
+          {/* Context Panel */}
+          <div className="w-56 shrink-0 bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden hidden xl:block">
+            <ChatContextPanel conversation={selectedConversation || null} />
+          </div>
         </div>
       </div>
 
