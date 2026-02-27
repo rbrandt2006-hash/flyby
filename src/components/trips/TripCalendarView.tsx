@@ -44,7 +44,7 @@ import { TripConflictPanel } from "./TripConflictPanel";
 import { CalendarExportModal } from "./CalendarExportModal";
 import { CalendarShareModal } from "./CalendarShareModal";
 
-type ViewMode = "month" | "week";
+type ViewMode = "month" | "week" | "timeline";
 
 interface TripCalendarViewProps {
   open: boolean;
@@ -127,19 +127,15 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
 
   // Calendar navigation
   const handlePrev = () => {
-    if (viewMode === "month") {
-      setCurrentDate(subMonths(currentDate, 1));
-    } else {
-      setCurrentDate(subWeeks(currentDate, 1));
-    }
+    if (viewMode === "month") setCurrentDate(subMonths(currentDate, 1));
+    else if (viewMode === "week") setCurrentDate(subWeeks(currentDate, 1));
+    else setCurrentDate(subMonths(currentDate, 1));
   };
 
   const handleNext = () => {
-    if (viewMode === "month") {
-      setCurrentDate(addMonths(currentDate, 1));
-    } else {
-      setCurrentDate(addWeeks(currentDate, 1));
-    }
+    if (viewMode === "month") setCurrentDate(addMonths(currentDate, 1));
+    else if (viewMode === "week") setCurrentDate(addWeeks(currentDate, 1));
+    else setCurrentDate(addMonths(currentDate, 1));
   };
 
   const handleToday = () => {
@@ -148,17 +144,21 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
 
   // Generate calendar days
   const calendarDays = useMemo(() => {
+    if (viewMode === "timeline") {
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(monthStart);
+      return eachDayOfInterval({ start: monthStart, end: monthEnd });
+    }
     if (viewMode === "month") {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(monthStart);
       const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
       const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
       return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-    } else {
-      const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
-      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
-      return eachDayOfInterval({ start: weekStart, end: weekEnd });
     }
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
+    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
+    return eachDayOfInterval({ start: weekStart, end: weekEnd });
   }, [currentDate, viewMode]);
 
   // Get trips for a specific day
@@ -324,27 +324,125 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
           >
             Week
           </button>
+          <button
+            onClick={() => setViewMode("timeline")}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+              viewMode === "timeline"
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-muted text-muted-foreground"
+            )}
+          >
+            Timeline
+          </button>
         </div>
       </div>
 
-      {/* Calendar grid */}
+      {/* Calendar grid / Timeline */}
       <div className="flex-1 overflow-auto p-6">
+        {viewMode === "timeline" ? (
+          /* Timeline View */
+          <div className="space-y-1">
+            {/* Date header row */}
+            <div className="flex">
+              <div className="w-44 shrink-0 pr-3" />
+              <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${calendarDays.length}, minmax(0, 1fr))` }}>
+                {calendarDays.map((day) => (
+                  <div key={day.toISOString()} className={cn(
+                    "text-center text-[10px] font-medium pb-2 border-b border-border/30",
+                    isSameDay(day, new Date()) ? "text-primary font-bold" : "text-muted-foreground"
+                  )}>
+                    <div>{format(day, "EEE")}</div>
+                    <div className={cn(
+                      "w-6 h-6 mx-auto flex items-center justify-center rounded-full text-xs",
+                      isSameDay(day, new Date()) && "bg-primary text-primary-foreground"
+                    )}>
+                      {format(day, "d")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Trip rows */}
+            {[...calendarTrips, ...pendingTrips].map((trip) => {
+              const tripStart = parseISO(trip.startDate);
+              const tripEnd = parseISO(trip.endDate);
+              const monthStart = startOfMonth(currentDate);
+              const monthEnd = endOfMonth(currentDate);
+              const totalDays = calendarDays.length;
+
+              // Calculate position
+              const startCol = Math.max(0, differenceInDays(tripStart, monthStart));
+              const endCol = Math.min(totalDays - 1, differenceInDays(tripEnd, monthStart));
+              
+              if (endCol < 0 || startCol >= totalDays) return null;
+              
+              const clampedStart = Math.max(0, startCol);
+              const span = endCol - clampedStart + 1;
+              const isPending = trip.approvalStatus === "pending";
+              const initials = trip.destination.slice(0, 2).toUpperCase();
+
+              return (
+                <div key={trip.id} className="flex items-center h-12 group">
+                  <div className="w-44 shrink-0 pr-3 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{trip.destination}</p>
+                      <p className="text-[10px] text-muted-foreground">{format(tripStart, "MMM d")} – {format(tripEnd, "MMM d")}</p>
+                    </div>
+                  </div>
+                  <div className="flex-1 grid relative h-full" style={{ gridTemplateColumns: `repeat(${totalDays}, minmax(0, 1fr))` }}>
+                    {calendarDays.map((day) => (
+                      <div key={day.toISOString()} className="border-l border-border/10 h-full" />
+                    ))}
+                    <button
+                      onClick={(e) => handleTripClick(trip, e)}
+                      className={cn(
+                        "absolute top-1.5 bottom-1.5 rounded-lg flex items-center px-3 text-xs font-medium transition-all",
+                        "hover:shadow-md hover:brightness-110 cursor-pointer",
+                        isPending
+                          ? "bg-warning/20 text-warning border border-warning/30"
+                          : "bg-primary/15 text-primary border border-primary/20 hover:bg-primary/25"
+                      )}
+                      style={{
+                        left: `${(clampedStart / totalDays) * 100}%`,
+                        width: `${(span / totalDays) * 100}%`,
+                      }}
+                    >
+                      <Plane className="w-3 h-3 mr-1.5 shrink-0" />
+                      <span className="truncate">{trip.destination}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {calendarTrips.length + pendingTrips.length === 0 && (
+              <div className="text-center py-16 text-muted-foreground">
+                <CalendarIcon className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No trips this month</p>
+              </div>
+            )}
+          </div>
+        ) : (
+        /* Month/Week Grid View */
         <div className={cn(
-          "grid gap-px bg-border rounded-xl overflow-hidden border border-border",
-          viewMode === "month" ? "grid-cols-7" : "grid-cols-7"
+          "grid gap-px bg-border/50 rounded-2xl overflow-hidden border border-border/40 shadow-sm",
+          "grid-cols-7"
         )}>
           {/* Day headers */}
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
             <div
               key={day}
-              className="bg-muted/50 px-3 py-2 text-xs font-semibold text-muted-foreground text-center"
+              className="bg-muted/30 px-3 py-2.5 text-xs font-semibold text-muted-foreground text-center"
             >
               {day}
             </div>
           ))}
 
           {/* Calendar days */}
-          {calendarDays.map((day, index) => {
+          {calendarDays.map((day) => {
             const dayTrips = getTripsForDay(day);
             const isToday = isSameDay(day, new Date());
             const isCurrentMonth = viewMode === "month" ? isSameMonth(day, currentDate) : true;
@@ -353,16 +451,17 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
               <div
                 key={day.toISOString()}
                 className={cn(
-                  "bg-card min-h-[100px] p-2 transition-colors relative",
+                  "bg-card min-h-[110px] p-2.5 transition-all relative group/cell hover:bg-muted/20",
                   viewMode === "week" && "min-h-[200px]",
-                  !isCurrentMonth && "bg-muted/30"
+                  !isCurrentMonth && "bg-muted/10"
                 )}
               >
                 <div
                   className={cn(
-                    "text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full",
-                    isToday && "bg-primary text-primary-foreground",
-                    !isCurrentMonth && "text-muted-foreground/50"
+                    "text-sm font-medium mb-1.5 w-7 h-7 flex items-center justify-center rounded-full transition-colors",
+                    isToday && "bg-primary text-primary-foreground shadow-sm",
+                    !isCurrentMonth && "text-muted-foreground/40",
+                    !isToday && isCurrentMonth && "text-foreground"
                   )}
                 >
                   {format(day, "d")}
@@ -372,22 +471,27 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
                   {dayTrips.slice(0, viewMode === "month" ? 3 : 6).map(({ trip, isStart, isEnd, isPending }) => {
                     const hasConflict = conflictingTripIds.has(trip.id);
                     const hasSynced = !!trip.calendarEventId;
+                    const initials = trip.destination.slice(0, 2).toUpperCase();
 
                     return (
                       <button
                         key={trip.id}
                         onClick={(e) => handleTripClick(trip, e)}
                         className={cn(
-                          "w-full text-left px-2 py-1 rounded text-xs font-medium truncate transition-all group relative",
+                          "w-full text-left px-2 py-1.5 rounded-lg text-xs font-medium truncate transition-all group/trip",
+                          "hover:shadow-sm hover:scale-[1.02]",
                           isPending 
-                            ? "bg-warning/20 text-warning border border-warning/30 opacity-60"
-                            : "bg-primary/10 text-primary hover:bg-primary/20",
-                          hasConflict && "ring-2 ring-destructive/50",
-                          isStart && "rounded-l-full pl-3",
-                          isEnd && "rounded-r-full pr-3"
+                            ? "bg-warning/15 text-warning border border-warning/20 opacity-70"
+                            : "bg-primary/10 text-primary hover:bg-primary/20 border border-primary/10",
+                          hasConflict && "ring-2 ring-destructive/40",
+                          isStart && "rounded-l-xl pl-2.5",
+                          isEnd && "rounded-r-xl pr-2.5"
                         )}
                       >
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center text-[8px] font-bold shrink-0">
+                            {initials.charAt(0)}
+                          </div>
                           {hasConflict && (
                             <AlertTriangle className="w-3 h-3 text-destructive shrink-0" />
                           )}
@@ -400,7 +504,7 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
                     );
                   })}
                   {dayTrips.length > (viewMode === "month" ? 3 : 6) && (
-                    <div className="text-xs text-muted-foreground px-2">
+                    <div className="text-[10px] text-muted-foreground px-2 font-medium">
                       +{dayTrips.length - (viewMode === "month" ? 3 : 6)} more
                     </div>
                   )}
@@ -409,6 +513,7 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Trip preview popover */}

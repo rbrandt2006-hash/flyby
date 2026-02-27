@@ -101,13 +101,14 @@ export function AddExpenseModal({ open, onOpenChange, onSave }: AddExpenseModalP
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
+        <DialogHeader className="shrink-0">
           <DialogTitle>
             {step === "form" ? "Add New Expense" : "Submit or Save?"}
           </DialogTitle>
         </DialogHeader>
 
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
         <AnimatePresence mode="wait">
           {step === "form" ? (
             <motion.div
@@ -115,7 +116,7 @@ export function AddExpenseModal({ open, onOpenChange, onSave }: AddExpenseModalP
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-4"
+              className="space-y-5 pb-1"
             >
               {/* Merchant */}
               <div className="space-y-2">
@@ -318,6 +319,7 @@ export function AddExpenseModal({ open, onOpenChange, onSave }: AddExpenseModalP
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
       </DialogContent>
     </Dialog>
   );
