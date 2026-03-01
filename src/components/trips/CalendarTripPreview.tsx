@@ -5,8 +5,8 @@ import {
   X, 
   ExternalLink, 
   Plane, 
-  Building2, 
-  Car, 
+  Building2,
+   
   MapPin,
   Calendar,
   DollarSign,
@@ -141,13 +141,6 @@ export function CalendarTripPreview({
             </div>
           )}
 
-          {/* Ground transport */}
-          {trip.groundTransport && (
-            <div className="flex items-center gap-3 text-sm">
-              <Car className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>{trip.groundTransport}</span>
-            </div>
-          )}
 
           {/* Cost */}
           <div className="flex items-center gap-3 text-sm pt-2 border-t border-border/40">

@@ -230,12 +230,7 @@ export default function Dashboard() {
     ];
   }
 
-  const exampleCommands = [
-    "Book Julia to Chicago Tuesday",
-    "Where is my team today",
-    "Show travel spend this month",
-    "Change Mark's return flight",
-  ];
+  const exampleCommands: string[] = [];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -271,7 +266,7 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.6 }}
         >
-          Book, track, and control travel from one place.
+          Your AI-powered travel command center.
         </motion.p>
       </motion.div>
 
@@ -352,18 +347,6 @@ export default function Dashboard() {
               </Button>
             </div>
 
-            {/* Example commands */}
-            <div className="flex items-center gap-2 px-5 pb-4 overflow-x-auto scrollbar-hide">
-              {exampleCommands.map(cmd => (
-                <button
-                  key={cmd}
-                  onClick={() => { setTripInput(cmd); }}
-                  className="shrink-0 text-xs px-3 py-1.5 rounded-full bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
-                >
-                  {cmd}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Voice transcript confirmation */}

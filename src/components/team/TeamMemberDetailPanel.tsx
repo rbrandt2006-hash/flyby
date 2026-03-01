@@ -123,13 +123,14 @@ export function TeamMemberDetailPanel({ member, open, onClose }: TeamMemberDetai
             <GlassPanel variant="strong" className="rounded-3xl relative overflow-hidden">
               {/* Header bar */}
               <div className="flex items-center justify-between px-6 pt-5 pb-3">
-                {view !== "main" ? (
-                  <button onClick={handleBack} className="p-2 -ml-2 rounded-full glass-row hover:bg-muted/40 transition-all">
+                <div className="flex items-center gap-3">
+                  <button onClick={view !== "main" ? handleBack : onClose} className="p-2 -ml-2 rounded-full glass-row hover:bg-muted/40 transition-all">
                     <ArrowLeft className="w-4 h-4 text-muted-foreground" />
                   </button>
-                ) : (
-                  <img src={flybyLogo} alt="FlyBy" className="h-4 opacity-40" />
-                )}
+                  {view === "main" && (
+                    <span className="text-sm font-medium text-muted-foreground">Back</span>
+                  )}
+                </div>
                 <button onClick={onClose} className="p-2 -mr-2 rounded-full glass-row hover:bg-muted/40 transition-all">
                   <X className="w-4 h-4 text-muted-foreground" />
                 </button>
