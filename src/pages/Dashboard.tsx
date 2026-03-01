@@ -182,7 +182,7 @@ export default function Dashboard() {
     createTrip({
       destination: planResult.destination, startDate, endDate,
       purpose: planResult.purpose, flight: planResult.flight,
-      hotel: planResult.hotel, groundTransport: planResult.groundTransport,
+      hotel: planResult.hotel, groundTransport: null,
       estimatedCost: planResult.estimatedCost, confidenceLevel: planResult.confidenceLevel,
     });
     createChat(`${planResult.destination} Trip`, []);
