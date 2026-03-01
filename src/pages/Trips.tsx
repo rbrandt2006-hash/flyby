@@ -210,7 +210,7 @@ export default function Trips() {
         name: tripData.hotel.name,
         location: tripData.hotel.area,
       },
-      groundTransport: tripData.ground.provider,
+      groundTransport: null,
       estimatedCost: tripData.estimatedCost,
       confidenceLevel: 92,
     });
@@ -241,7 +241,7 @@ export default function Trips() {
         name: tripData.hotel.name,
         location: tripData.hotel.area,
       },
-      groundTransport: tripData.ground.provider,
+      groundTransport: null,
       estimatedCost: tripData.estimatedCost,
       confidenceLevel: 87,
     });

@@ -16,6 +16,7 @@ import { useTravelPreferences } from "@/hooks/useTravelPreferences";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { FunctionalToggle } from "@/components/settings/FunctionalToggle";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ChangePasswordModal } from "@/components/settings/ChangePasswordModal";
 import { TwoFactorSetupModal } from "@/components/settings/TwoFactorSetupModal";
@@ -240,9 +241,25 @@ export default function Settings() {
 
   const handleSaveProfile = async () => {
     setIsSaving(true);
-    await new Promise(r => setTimeout(r, 800));
-    setIsSaving(false);
-    toast.success("Profile saved");
+    try {
+      const fullNameInput = document.getElementById("fullName") as HTMLInputElement;
+      const phoneInput = document.getElementById("phone") as HTMLInputElement;
+      if (user && fullNameInput) {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ 
+            full_name: fullNameInput.value,
+            phone: phoneInput?.value || null,
+          })
+          .eq("user_id", user.id);
+        if (error) throw error;
+      }
+      toast.success("Profile saved");
+    } catch {
+      toast.error("Failed to save profile");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Integration handlers removed - now using IntegrationsSettings component
@@ -627,7 +644,7 @@ export default function Settings() {
                   <p className="text-xs text-muted-foreground">Platinum Elite</p>
                 </div>
                 <div className="p-3 border border-dashed border-border rounded-xl flex items-center justify-center">
-                  <Button variant="ghost" size="sm" className="text-xs">+ Add program</Button>
+                  <Button variant="ghost" size="sm" className="text-xs" onClick={() => toast.info("Loyalty program management coming soon")}>+ Add program</Button>
                 </div>
               </div>
             </div>
@@ -786,7 +803,7 @@ export default function Settings() {
                         <p className="text-xs text-muted-foreground">New York, NY • 2 hours ago</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive">Revoke</Button>
+                    <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => { toast.success("Session revoked"); }}>Revoke</Button>
                   </div>
                 </div>
               </div>

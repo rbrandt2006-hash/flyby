@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { MessageSquare, Sparkles, RefreshCw, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChannelsContainer, SyncedConversation } from "@/components/chats/ChannelsContainer";
@@ -14,6 +14,7 @@ import { useExpenses } from "@/hooks/useExpenses";
 import { toast } from "sonner";
 
 export default function Chats() {
+  const navigate = useNavigate();
   const location = useLocation();
   const { chats, getMemberById, sendMessage, currentUser, systemUser } = useChats();
   const { expenses, getExpenseById } = useExpenses();
@@ -215,7 +216,10 @@ export default function Chats() {
             {/* Smart Trip Assistant */}
             {detectedTrip && (
               <div className="absolute bottom-24 right-6 z-10">
-                <SmartTripAssistant detectedTrip={detectedTrip} onReviewTrip={() => {}} />
+                <SmartTripAssistant detectedTrip={detectedTrip} onReviewTrip={() => {
+                  toast.success("Trip review opened — navigating to Trips");
+                  navigate("/trips");
+                }} />
               </div>
             )}
           </div>

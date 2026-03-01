@@ -51,8 +51,6 @@ interface TripData {
     description?: string;
     reviewCount?: number;
   };
-  groundTransport?: string;
-  groundTransportPrice?: number;
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -161,8 +159,6 @@ export default function TripDetail() {
         description: "Experience luxury in the heart of San Francisco.",
         reviewCount: 2847
       },
-      groundTransport: "UberX",
-      groundTransportPrice: 38
     },
     "demo_trip_seattle_2025": {
       id: "demo_trip_seattle_2025",
@@ -196,8 +192,6 @@ export default function TripDetail() {
         description: "A historic landmark in downtown Seattle.",
         reviewCount: 1923
       },
-      groundTransport: "Light Rail",
-      groundTransportPrice: 3
     }
   };
 
@@ -220,7 +214,6 @@ export default function TripDetail() {
           estimatedCost: localTrip.estimatedCost,
           flight: localTrip.flight ? { ...localTrip.flight } : undefined,
           hotel: localTrip.hotel ? { ...localTrip.hotel } : undefined,
-          groundTransport: localTrip.groundTransport || undefined,
         });
         setIsLoading(false);
         return;
@@ -252,7 +245,6 @@ export default function TripDetail() {
             estimatedCost: data.total_estimated_cost || 0,
             flight: data.flight_details as TripData["flight"],
             hotel: data.hotel_details as TripData["hotel"],
-            groundTransport: data.ground_transport as string | undefined,
           });
           setIsLoading(false);
           return;
@@ -273,13 +265,12 @@ export default function TripDetail() {
   const calculateEstimatedCost = useCallback((
     flightPrice?: number,
     hotelPricePerNight?: number,
-    groundPrice?: number,
+    _groundPrice?: number,
     tripNights?: number
   ): number => {
     const flightCost = flightPrice || trip?.flight?.price || 400;
     const hotelCost = (hotelPricePerNight || trip?.hotel?.pricePerNight || 250) * (tripNights || nights);
-    const groundCost = groundPrice || trip?.groundTransportPrice || 40;
-    return flightCost + hotelCost + groundCost;
+    return flightCost + hotelCost;
   }, [trip, nights]);
 
   // Handle flight selection
@@ -287,7 +278,7 @@ export default function TripDetail() {
     setSelectedFlight(flight);
     setTrip(prev => {
       if (!prev) return null;
-      const newCost = calculateEstimatedCost(flight.price, prev.hotel?.pricePerNight, prev.groundTransportPrice);
+      const newCost = calculateEstimatedCost(flight.price, prev.hotel?.pricePerNight);
       return {
         ...prev,
         flight: { 
@@ -309,7 +300,7 @@ export default function TripDetail() {
     setSelectedHotel(hotel);
     setTrip(prev => {
       if (!prev) return null;
-      const newCost = calculateEstimatedCost(prev.flight?.price, hotel.pricePerNight, prev.groundTransportPrice);
+      const newCost = calculateEstimatedCost(prev.flight?.price, hotel.pricePerNight);
       return {
         ...prev,
         hotel: { 
@@ -334,7 +325,7 @@ export default function TripDetail() {
     const newNights = Math.max(1, differenceInDays(end, start));
     setTrip(prev => {
       if (!prev) return null;
-      const newCost = calculateEstimatedCost(prev.flight?.price, prev.hotel?.pricePerNight, prev.groundTransportPrice, newNights);
+      const newCost = calculateEstimatedCost(prev.flight?.price, prev.hotel?.pricePerNight, undefined, newNights);
       return {
         ...prev,
         startDate: start.toISOString(),
@@ -374,7 +365,6 @@ export default function TripDetail() {
             name: trip.hotel.name || "",
             location: trip.hotel.location || "",
           } : null,
-          groundTransport: trip.groundTransport || null,
         });
       }
       
@@ -855,7 +845,7 @@ export default function TripDetail() {
                           <p className="text-sm text-muted-foreground mt-1">
                             Expenses will appear here once the trip begins
                           </p>
-                          <Button variant="outline" className="mt-4">
+                          <Button variant="outline" className="mt-4" onClick={() => navigate("/expenses")}>
                             Add Expense
                           </Button>
                         </div>
