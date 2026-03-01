@@ -16,7 +16,6 @@ import {
   Share2,
   Plane,
   Building2,
-  Car,
   MapPin
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,15 +68,25 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
   const [showExportModal, setShowExportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
-  // Filter only confirmed/approved trips (exclude Draft and Pending Approval)
+  // All trips shown on calendar - drafts shown as tentative
   const calendarTrips = useMemo(() => {
     return trips.filter(t => 
-      t.status === "confirmed" && 
-      (t.approvalStatus === "approved" || t.approvalStatus === "none")
+      t.status !== "cancelled" && t.status !== "archived"
     );
   }, [trips]);
 
-  // Pending approval trips (shown muted)
+  // Tentative trips (draft or pending approval)
+  const tentativeTripIds = useMemo(() => {
+    const ids = new Set<string>();
+    calendarTrips.forEach(t => {
+      if (t.status === "draft" || t.approvalStatus === "pending") {
+        ids.add(t.id);
+      }
+    });
+    return ids;
+  }, [calendarTrips]);
+
+  // Pending approval trips kept for backward compat
   const pendingTrips = useMemo(() => {
     return trips.filter(t => 
       t.status === "confirmed" && 
@@ -165,7 +174,7 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
   const getTripsForDay = useCallback((day: Date) => {
     const dayTrips: { trip: LocalTrip; isStart: boolean; isEnd: boolean; isPending: boolean }[] = [];
     
-    [...calendarTrips, ...pendingTrips].forEach(trip => {
+    calendarTrips.forEach(trip => {
       const start = parseISO(trip.startDate);
       const end = parseISO(trip.endDate);
       
@@ -174,13 +183,13 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
           trip,
           isStart: isSameDay(day, start),
           isEnd: isSameDay(day, end),
-          isPending: trip.approvalStatus === "pending",
+          isPending: tentativeTripIds.has(trip.id),
         });
       }
     });
     
     return dayTrips;
-  }, [calendarTrips, pendingTrips]);
+  }, [calendarTrips, tentativeTripIds]);
 
   // Handle trip click
   const handleTripClick = (trip: LocalTrip, event: React.MouseEvent) => {
@@ -235,8 +244,8 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
             <div>
               <h1 className="text-lg font-semibold text-foreground">Trip Calendar</h1>
               <p className="text-sm text-muted-foreground">
-                {calendarTrips.length} confirmed trip{calendarTrips.length !== 1 ? 's' : ''}
-                {pendingTrips.length > 0 && ` • ${pendingTrips.length} pending`}
+                {calendarTrips.length} trip{calendarTrips.length !== 1 ? 's' : ''}
+                {tentativeTripIds.size > 0 && ` · ${tentativeTripIds.size} tentative`}
               </p>
             </div>
           </div>
@@ -364,7 +373,7 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
               </div>
             </div>
             {/* Trip rows */}
-            {[...calendarTrips, ...pendingTrips].map((trip) => {
+            {calendarTrips.map((trip) => {
               const tripStart = parseISO(trip.startDate);
               const tripEnd = parseISO(trip.endDate);
               const monthStart = startOfMonth(currentDate);
@@ -379,7 +388,7 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
               
               const clampedStart = Math.max(0, startCol);
               const span = endCol - clampedStart + 1;
-              const isPending = trip.approvalStatus === "pending";
+              const isPending = tentativeTripIds.has(trip.id);
               const initials = trip.destination.slice(0, 2).toUpperCase();
 
               return (
@@ -418,7 +427,7 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
                 </div>
               );
             })}
-            {calendarTrips.length + pendingTrips.length === 0 && (
+            {calendarTrips.length === 0 && (
               <div className="text-center py-16 text-muted-foreground">
                 <CalendarIcon className="w-8 h-8 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No trips this month</p>
@@ -541,7 +550,7 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
       <CalendarExportModal
         open={showExportModal}
         onClose={() => setShowExportModal(false)}
-        trips={[...calendarTrips, ...pendingTrips]}
+        trips={calendarTrips}
         conflicts={conflicts}
         dateRange={dateRangeLabel}
       />
@@ -550,7 +559,7 @@ export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps
       <CalendarShareModal
         open={showShareModal}
         onClose={() => setShowShareModal(false)}
-        trips={[...calendarTrips, ...pendingTrips]}
+        trips={calendarTrips}
         conflicts={conflicts}
         dateRange={dateRangeLabel}
       />
