@@ -20,6 +20,8 @@ import type { HotelOption as FullHotelOption } from "@/components/chats/booking/
 import { generateFlightOptions } from "@/services/mockFlightGenerator";
 import { getHotelsForDestination } from "@/services/mockHotelService";
 import { toast } from "sonner";
+import { AddExpenseModal } from "@/components/expenses/AddExpenseModal";
+import { useExpenses, type Expense } from "@/hooks/useExpenses";
 
 type TabType = "overview" | "itinerary" | "expenses";
 
@@ -86,11 +88,13 @@ export default function TripDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { trips: localTrips, updateTrip } = useTrips();
+  const { addExpense } = useExpenses();
   
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [isLoading, setIsLoading] = useState(true);
   const [trip, setTrip] = useState<TripData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   
   // Full-screen selector states
   const [flightSelectorOpen, setFlightSelectorOpen] = useState(false);
@@ -845,7 +849,8 @@ export default function TripDetail() {
                           <p className="text-sm text-muted-foreground mt-1">
                             Expenses will appear here once the trip begins
                           </p>
-                          <Button variant="outline" className="mt-4" onClick={() => navigate("/expenses")}>
+                          <Button variant="outline" className="mt-4" onClick={() => setIsAddExpenseOpen(true)}>
+                            <Plus className="w-4 h-4 mr-2" />
                             Add Expense
                           </Button>
                         </div>
@@ -933,6 +938,17 @@ export default function TripDetail() {
             nights={nights}
           />
         )}
+
+        {/* Add Expense Modal */}
+        <AddExpenseModal
+          open={isAddExpenseOpen}
+          onOpenChange={setIsAddExpenseOpen}
+          onSave={(expenseData, submitNow) => {
+            addExpense({ ...expenseData, tripId: trip?.id, tripName: trip?.destination });
+            toast.success(submitNow ? "Expense submitted for approval" : "Expense added to trip");
+            setIsAddExpenseOpen(false);
+          }}
+        />
       </motion.div>
     </AnimatePresence>
   );

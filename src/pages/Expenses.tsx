@@ -16,6 +16,7 @@ import { ExpenseDrawer } from "@/components/expenses/ExpenseDrawer";
 import { ExpenseAnalyticsModal } from "@/components/expenses/ExpenseAnalyticsModal";
 import { AIExpenseInsights } from "@/components/expenses/AIExpenseInsights";
 import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
+import { ExpenseHistoryTable } from "@/components/expenses/ExpenseHistoryTable";
 import { demoExpenses, demoStats, type DemoExpense } from "@/components/expenses/demoExpenseData";
 import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
@@ -506,6 +507,21 @@ export default function Expenses() {
             )}
           </div>
         )}
+      </motion.div>
+
+      {/* Recent Expenses History Table */}
+      <motion.div variants={itemVariants} className="space-y-4">
+        <h2 className="text-lg font-semibold">Recent Expenses</h2>
+        <ExpenseHistoryTable
+          expenses={demoExpenseList}
+          onViewReceipt={(expense) => toast.info(`Receipt for ${expense.vendor} — preview coming soon`)}
+          onEdit={(expense) => toast.info(`Edit ${expense.vendor} — opening editor`)}
+          onDelete={(expense) => {
+            setDemoExpenseList(prev => prev.filter(e => e.id !== expense.id));
+            toast.success(`${expense.vendor} expense deleted`);
+          }}
+          onTripClick={(tripName) => toast.info(`Viewing expenses for ${tripName}`)}
+        />
       </motion.div>
 
       {/* Expense Detail Modal (centered) */}

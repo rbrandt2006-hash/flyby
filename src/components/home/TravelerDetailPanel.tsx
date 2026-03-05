@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { X, MessageSquare, MapPin, Plane, Building2, Clock, Calendar, Users, Video, Navigation, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -95,9 +96,27 @@ function getStatusDetails(status: string, name: string, destination: string) {
 }
 
 export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailPanelProps) {
+  const navigate = useNavigate();
+
   if (!traveler) return null;
 
   const statusInfo = getStatusDetails(traveler.status, traveler.name, traveler.destination);
+
+  const handleMessageTraveler = () => {
+    onClose();
+    navigate("/chats", { 
+      state: { 
+        openChatId: null, 
+        travelerName: traveler.name,
+        travelerDestination: traveler.destination,
+      } 
+    });
+  };
+
+  const handleViewItinerary = () => {
+    onClose();
+    navigate("/trips");
+  };
 
   return (
     <AnimatePresence>
@@ -116,10 +135,10 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="w-full max-w-md pointer-events-auto bg-background rounded-2xl shadow-2xl border border-border/60 overflow-hidden"
+              className="w-full max-w-md pointer-events-auto bg-background rounded-2xl shadow-2xl border border-border/60 overflow-hidden max-h-[90vh] flex flex-col"
             >
               {/* Header */}
-              <div className="px-6 py-5 border-b border-border/40 flex items-start justify-between">
+              <div className="px-6 py-5 border-b border-border/40 flex items-start justify-between shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="relative">
                     <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
@@ -148,7 +167,7 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
               </div>
 
               {/* Status Badge */}
-              <div className="px-6 py-3 bg-muted/30">
+              <div className="px-6 py-3 bg-muted/30 shrink-0">
                 <Badge
                   variant="secondary"
                   className={cn(
@@ -164,7 +183,7 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
               </div>
 
               {/* Details */}
-              <div className="px-6 py-5 space-y-3 max-h-[50vh] overflow-y-auto">
+              <div className="px-6 py-5 space-y-3 flex-1 min-h-0 overflow-y-auto">
                 <h3 className="text-sm font-semibold text-foreground mb-3">{statusInfo.title}</h3>
                 {statusInfo.details.map((d, i) => (
                   <div key={i} className="flex items-start justify-between py-2 border-b border-border/30 last:border-0">
@@ -186,12 +205,12 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
               </div>
 
               {/* Actions */}
-              <div className="px-6 py-4 border-t border-border/40 bg-muted/20 flex gap-3">
-                <Button variant="default" className="flex-1 gap-2" size="sm">
+              <div className="px-6 py-4 border-t border-border/40 bg-muted/20 flex gap-3 shrink-0">
+                <Button variant="default" className="flex-1 gap-2" size="sm" onClick={handleMessageTraveler}>
                   <MessageSquare className="w-4 h-4" />
                   Message traveler
                 </Button>
-                <Button variant="outline" className="flex-1 gap-2" size="sm">
+                <Button variant="outline" className="flex-1 gap-2" size="sm" onClick={handleViewItinerary}>
                   <Calendar className="w-4 h-4" />
                   View itinerary
                 </Button>
