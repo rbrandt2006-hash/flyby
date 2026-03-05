@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SyncedConversation, SyncedMessage } from "./ChannelsContainer";
 import { ExpenseContextCard } from "./ExpenseContextCard";
+import { ImageLightbox } from "./ImageLightbox";
 import { Send, Command, Paperclip, Smile, CheckCircle, AlertTriangle, DollarSign, MessageCircle, FileText, Image as ImageIcon, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -125,11 +126,14 @@ function getSystemMessageStyle(messageType?: string) {
   }
 }
 
-function FilePreviewCard({ file }: { file: { name: string; type: "pdf" | "image" | "doc"; size: string } }) {
+function FilePreviewCard({ file, onImageClick }: { file: { name: string; type: "pdf" | "image" | "doc"; size: string }; onImageClick?: () => void }) {
   const Icon = file.type === "image" ? ImageIcon : FileText;
   const bgColor = file.type === "image" ? "bg-primary/5 border-primary/20" : "bg-muted/50 border-border/50";
   return (
-    <div className={cn("inline-flex items-center gap-2.5 px-3 py-2 rounded-lg border mt-2 cursor-pointer hover:bg-muted/60 transition-colors", bgColor)}>
+    <div
+      className={cn("inline-flex items-center gap-2.5 px-3 py-2 rounded-lg border mt-2 cursor-pointer hover:bg-muted/60 transition-colors", bgColor)}
+      onClick={file.type === "image" ? onImageClick : undefined}
+    >
       <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
       <div className="min-w-0">
         <p className="text-xs font-medium text-foreground truncate">{file.name}</p>
@@ -199,6 +203,7 @@ export function ConversationCanvas({
   const [showTyping, setShowTyping] = useState(false);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -438,7 +443,11 @@ export function ConversationCanvas({
                                 {MOCK_FILES[msg.id] && (
                                   <div className="flex flex-wrap gap-2">
                                     {MOCK_FILES[msg.id].map((file, fi) => (
-                                      <FilePreviewCard key={fi} file={file} />
+                                      <FilePreviewCard
+                                        key={fi}
+                                        file={file}
+                                        onImageClick={file.type === "image" ? () => setLightboxImage("https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&h=800&fit=crop") : undefined}
+                                      />
                                     ))}
                                   </div>
                                 )}
@@ -560,6 +569,7 @@ export function ConversationCanvas({
           </div>
         </div>
       </div>
+      <ImageLightbox src={lightboxImage} alt="Chat image" onClose={() => setLightboxImage(null)} />
     </div>
   );
 }
