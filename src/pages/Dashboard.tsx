@@ -25,6 +25,8 @@ import { TravelerDetailPanel } from "@/components/home/TravelerDetailPanel";
 interface TripPlan {
   destination: string;
   dates: string;
+  startDate: Date;
+  endDate: Date;
   datesAssumed: boolean;
   datesConfirmed: boolean;
   needsDateClarification: boolean;
@@ -64,9 +66,17 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   if (purpose !== "business meeting") confidence += 10;
   confidence += Math.floor(Math.random() * 5);
   const costVariation = Math.floor(Math.random() * 300) - 150;
+  
+  // Use parsed dates or fallback to 7-10 days from now
+  const now = new Date();
+  const startDate = dateResult.startDate || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const endDate = dateResult.endDate || new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+  
   return {
     destination: template.city,
     dates: dateResult.dates,
+    startDate,
+    endDate,
     datesAssumed: dateResult.assumed,
     datesConfirmed: !dateResult.assumed,
     needsDateClarification: dateResult.needsClarification || false,
@@ -176,9 +186,8 @@ export default function Dashboard() {
 
   const handleSaveDraft = () => {
     if (!planResult) return;
-    const now = new Date();
-    const startDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const endDate = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString();
+    const startDate = planResult.startDate.toISOString();
+    const endDate = planResult.endDate.toISOString();
     createTrip({
       destination: planResult.destination, startDate, endDate,
       purpose: planResult.purpose, flight: planResult.flight,
@@ -188,8 +197,8 @@ export default function Dashboard() {
     createChat(`${planResult.destination} Trip`, []);
     const isEarly = planResult.flight.departTime.includes("AM") && parseInt(planResult.flight.departTime) < 10;
     recordBookingChoice({ isEarlyFlight: isEarly, isDirect: true, isBudgetOption: planResult.estimatedCost < 2000 });
-    toast.success("Draft saved — you can find it under Draft Trips", {
-      action: { label: "View Trips", onClick: () => navigate("/trips") },
+    toast.success("Trip booked and added to calendar.", {
+      action: { label: "View Calendar", onClick: () => navigate("/trips") },
     });
     setPlanResult(null);
     setTripInput("");
