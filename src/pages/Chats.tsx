@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { MessageSquare, Sparkles, RefreshCw, X, Hash, Receipt } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChannelsContainer, SyncedConversation } from "@/components/chats/ChannelsContainer";
+import { ChannelsContainer, SyncedConversation, SyncedMessage } from "@/components/chats/ChannelsContainer";
 import { ConversationCanvas, ExpenseMetadataForContext } from "@/components/chats/ConversationCanvas";
 import { SmartTripAssistant } from "@/components/chats/SmartTripAssistant";
 import { Platform } from "@/components/chats/PlatformSelector";
