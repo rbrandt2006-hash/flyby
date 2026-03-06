@@ -46,6 +46,8 @@ export default function Chats() {
   const { expenses, getExpenseById } = useExpenses();
 
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>("all");
+  // Local messages injected into mock conversations
+  const [localMessages, setLocalMessages] = useState<Record<string, SyncedMessage[]>>({});
 
   const allConversations = useMemo(() => {
     const expenseChats: SyncedConversation[] = chats
@@ -77,8 +79,20 @@ export default function Chats() {
           };
         })
       }));
-    return [...expenseChats, ...mockSyncedConversations];
-  }, [chats, getMemberById]);
+
+    // Merge local messages into mock conversations
+    const enrichedMock = mockSyncedConversations.map(conv => {
+      const extra = localMessages[conv.id];
+      if (!extra || extra.length === 0) return conv;
+      return {
+        ...conv,
+        messages: [...conv.messages, ...extra],
+        lastUpdated: extra[extra.length - 1].createdAt,
+      };
+    });
+
+    return [...expenseChats, ...enrichedMock];
+  }, [chats, getMemberById, localMessages]);
 
   // Filter by platform — for "flyby" tab, we now show the dedicated approval queue
   const filteredConversations = useMemo(() => {
