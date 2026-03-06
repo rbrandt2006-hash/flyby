@@ -83,53 +83,86 @@ interface CalendarEvent {
   title: string;
   startDate: Date;
   endDate: Date;
-  type: "travel" | "meeting" | "office";
+  type: "travel" | "meeting" | "call" | "client" | "focus" | "office";
   location?: string;
   notes?: string;
+  time?: string;
+  participants?: string[];
 }
 
 function getMockCalendarEvents(memberId: string): CalendarEvent[] {
   const eventsMap: Record<string, CalendarEvent[]> = {
     "1": [ // Sarah Chen
       { id: "s1", title: "New York, NY — Product Summit", startDate: new Date(2026, 0, 15), endDate: new Date(2026, 0, 18), type: "travel", location: "New York, NY", notes: "Annual product summit with partners" },
-      { id: "s2", title: "Product Planning Meeting", startDate: new Date(2026, 0, 22), endDate: new Date(2026, 0, 22), type: "meeting", location: "San Francisco HQ", notes: "Q1 roadmap planning" },
-      { id: "s3", title: "Engineering Sync", startDate: new Date(2026, 0, 26), endDate: new Date(2026, 0, 26), type: "meeting", location: "Virtual", notes: "Cross-team alignment" },
-      { id: "s4", title: "Feature Roadmap Review", startDate: new Date(2026, 1, 3), endDate: new Date(2026, 1, 3), type: "meeting", location: "San Francisco HQ", notes: "Review Q2 feature priorities" },
+      { id: "s2", title: "Product Planning Meeting", startDate: new Date(2026, 0, 22), endDate: new Date(2026, 0, 22), type: "meeting", location: "San Francisco HQ", notes: "Q1 roadmap planning", time: "10:00 AM", participants: ["Emily Watson", "David Kim"] },
+      { id: "s2b", title: "Design Review Call", startDate: new Date(2026, 0, 22), endDate: new Date(2026, 0, 22), type: "call", location: "Zoom", time: "2:00 PM", participants: ["David Kim", "UX Team"] },
+      { id: "s3", title: "Engineering Sync", startDate: new Date(2026, 0, 26), endDate: new Date(2026, 0, 26), type: "call", location: "Google Meet", time: "11:00 AM", participants: ["Emily Watson", "Dev Team"] },
+      { id: "s3b", title: "Focus Work — Roadmap Draft", startDate: new Date(2026, 0, 26), endDate: new Date(2026, 0, 26), type: "focus", time: "2:00 PM – 5:00 PM" },
+      { id: "s4", title: "Feature Roadmap Review", startDate: new Date(2026, 1, 3), endDate: new Date(2026, 1, 3), type: "meeting", location: "San Francisco HQ", notes: "Review Q2 feature priorities", time: "9:30 AM", participants: ["Marcus Johnson", "James Wilson"] },
+      { id: "s4b", title: "Stakeholder Update Call", startDate: new Date(2026, 1, 3), endDate: new Date(2026, 1, 3), type: "call", location: "Zoom", time: "1:00 PM", participants: ["Leadership Team"] },
       { id: "s5", title: "Office Day", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 10), type: "office", location: "San Francisco HQ" },
+      { id: "s5b", title: "1:1 with Emily Watson", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 10), type: "meeting", time: "11:00 AM", location: "Conference Room B", participants: ["Emily Watson"] },
+      { id: "s5c", title: "Product Demo Prep", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 10), type: "focus", time: "3:00 PM – 5:00 PM" },
       { id: "s6", title: "Boston — Client Workshop", startDate: new Date(2026, 2, 2), endDate: new Date(2026, 2, 4), type: "travel", location: "Boston, MA", notes: "Enterprise client workshop" },
+      { id: "s7", title: "Sprint Retrospective", startDate: new Date(2026, 2, 9), endDate: new Date(2026, 2, 9), type: "meeting", time: "10:00 AM", location: "Virtual", participants: ["Product Team"] },
+      { id: "s8", title: "Client Check-in — Acme Corp", startDate: new Date(2026, 2, 11), endDate: new Date(2026, 2, 11), type: "client", time: "2:00 PM", location: "Zoom", participants: ["Acme Corp PM", "Lisa Martinez"] },
     ],
     "2": [ // Marcus Johnson
       { id: "m1", title: "Chicago, IL — Sales Conference", startDate: new Date(2026, 0, 20), endDate: new Date(2026, 0, 22), type: "travel", location: "Chicago, IL", notes: "National sales conference" },
-      { id: "m2", title: "Pipeline Review", startDate: new Date(2026, 0, 27), endDate: new Date(2026, 0, 27), type: "meeting", location: "San Francisco HQ", notes: "Q1 pipeline deep dive" },
+      { id: "m2", title: "Pipeline Review", startDate: new Date(2026, 0, 27), endDate: new Date(2026, 0, 27), type: "meeting", location: "San Francisco HQ", notes: "Q1 pipeline deep dive", time: "10:00 AM", participants: ["Sales Team"] },
+      { id: "m2b", title: "Sales Strategy Call", startDate: new Date(2026, 0, 27), endDate: new Date(2026, 0, 27), type: "call", location: "Zoom", time: "2:00 PM", participants: ["Lisa Martinez", "Regional Leads"] },
       { id: "m3", title: "Office Day", startDate: new Date(2026, 1, 5), endDate: new Date(2026, 1, 5), type: "office" },
-      { id: "m4", title: "Dallas — Enterprise Deal", startDate: new Date(2026, 1, 16), endDate: new Date(2026, 1, 18), type: "travel", location: "Dallas, TX", notes: "Enterprise closing meetings" },
-      { id: "m5", title: "Sales Team Standup", startDate: new Date(2026, 2, 3), endDate: new Date(2026, 2, 3), type: "meeting", location: "Virtual" },
+      { id: "m3b", title: "1:1 with Lisa Martinez", startDate: new Date(2026, 1, 5), endDate: new Date(2026, 1, 5), type: "meeting", time: "11:00 AM", location: "Conference Room A", participants: ["Lisa Martinez"] },
+      { id: "m3c", title: "Forecast Prep", startDate: new Date(2026, 1, 5), endDate: new Date(2026, 1, 5), type: "focus", time: "2:00 PM – 4:00 PM" },
+      { id: "m4", title: "Client Check-in — Acme Corp", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 10), type: "client", time: "10:00 AM", location: "Zoom", participants: ["Acme Corp CRO", "Sarah Chen"] },
+      { id: "m4b", title: "Internal Planning Call", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "call", time: "1:30 PM", location: "Google Meet", participants: ["Sales Ops"] },
+      { id: "m5", title: "Dallas — Enterprise Deal", startDate: new Date(2026, 1, 16), endDate: new Date(2026, 1, 18), type: "travel", location: "Dallas, TX", notes: "Enterprise closing meetings" },
+      { id: "m6", title: "Sales Team Standup", startDate: new Date(2026, 2, 3), endDate: new Date(2026, 2, 3), type: "call", location: "Google Meet", time: "9:00 AM", participants: ["Sales Team"] },
+      { id: "m6b", title: "Finance Review Meeting", startDate: new Date(2026, 2, 3), endDate: new Date(2026, 2, 3), type: "meeting", time: "11:00 AM", location: "San Francisco HQ", participants: ["James Wilson"] },
+      { id: "m7", title: "Focus Work — Q2 Targets", startDate: new Date(2026, 2, 5), endDate: new Date(2026, 2, 5), type: "focus", time: "9:00 AM – 12:00 PM" },
     ],
     "3": [ // Emily Watson
       { id: "e1", title: "San Francisco, CA — Tech Summit", startDate: new Date(2026, 0, 25), endDate: new Date(2026, 0, 28), type: "travel", location: "San Francisco, CA", notes: "Engineering leadership summit" },
-      { id: "e2", title: "Sprint Planning", startDate: new Date(2026, 1, 2), endDate: new Date(2026, 1, 2), type: "meeting", location: "Virtual", notes: "Sprint 14 planning" },
-      { id: "e3", title: "Architecture Review", startDate: new Date(2026, 1, 9), endDate: new Date(2026, 1, 9), type: "meeting", location: "San Francisco HQ" },
+      { id: "e2", title: "Sprint Planning", startDate: new Date(2026, 1, 2), endDate: new Date(2026, 1, 2), type: "meeting", location: "Virtual", notes: "Sprint 14 planning", time: "10:00 AM", participants: ["Engineering Team"] },
+      { id: "e2b", title: "Code Review Session", startDate: new Date(2026, 1, 2), endDate: new Date(2026, 1, 2), type: "focus", time: "2:00 PM – 4:00 PM" },
+      { id: "e3", title: "Architecture Review", startDate: new Date(2026, 1, 9), endDate: new Date(2026, 1, 9), type: "meeting", location: "San Francisco HQ", time: "9:30 AM", participants: ["David Kim", "Tech Leads"] },
+      { id: "e3b", title: "Vendor Call — AWS", startDate: new Date(2026, 1, 9), endDate: new Date(2026, 1, 9), type: "call", location: "Zoom", time: "1:00 PM", participants: ["AWS Account Manager"] },
+      { id: "e3c", title: "Focus Work — System Design", startDate: new Date(2026, 1, 9), endDate: new Date(2026, 1, 9), type: "focus", time: "3:00 PM – 5:30 PM" },
       { id: "e4", title: "Office Day", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "office" },
+      { id: "e4b", title: "1:1 with Sarah Chen", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "meeting", time: "11:00 AM", location: "Conference Room C", participants: ["Sarah Chen"] },
       { id: "e5", title: "Seattle — AWS Summit", startDate: new Date(2026, 2, 9), endDate: new Date(2026, 2, 11), type: "travel", location: "Seattle, WA", notes: "AWS re:Invent satellite event" },
+      { id: "e6", title: "Engineering All-Hands", startDate: new Date(2026, 2, 16), endDate: new Date(2026, 2, 16), type: "meeting", time: "10:00 AM", location: "Virtual", participants: ["All Engineering"] },
     ],
     "4": [ // David Kim
-      { id: "d1", title: "Design System Workshop", startDate: new Date(2026, 0, 28), endDate: new Date(2026, 0, 28), type: "meeting", location: "San Francisco HQ" },
+      { id: "d1", title: "Design System Workshop", startDate: new Date(2026, 0, 28), endDate: new Date(2026, 0, 28), type: "meeting", location: "San Francisco HQ", time: "10:00 AM", participants: ["UX Team", "Emily Watson"] },
+      { id: "d1b", title: "Focus Work — Prototyping", startDate: new Date(2026, 0, 28), endDate: new Date(2026, 0, 28), type: "focus", time: "2:00 PM – 5:00 PM" },
       { id: "d2", title: "Office Day", startDate: new Date(2026, 1, 4), endDate: new Date(2026, 1, 4), type: "office" },
-      { id: "d3", title: "Usability Testing", startDate: new Date(2026, 1, 11), endDate: new Date(2026, 1, 11), type: "meeting", location: "San Francisco HQ", notes: "User research sessions" },
+      { id: "d2b", title: "Design Critique", startDate: new Date(2026, 1, 4), endDate: new Date(2026, 1, 4), type: "meeting", time: "11:00 AM", location: "Design Studio", participants: ["UX Team"] },
+      { id: "d3", title: "Usability Testing", startDate: new Date(2026, 1, 11), endDate: new Date(2026, 1, 11), type: "meeting", location: "San Francisco HQ", notes: "User research sessions", time: "9:00 AM", participants: ["Research Team"] },
+      { id: "d3b", title: "Client Feedback Call", startDate: new Date(2026, 1, 11), endDate: new Date(2026, 1, 11), type: "client", time: "2:00 PM", location: "Zoom", participants: ["Beta Testers"] },
       { id: "d4", title: "Portland — Design Conference", startDate: new Date(2026, 2, 16), endDate: new Date(2026, 2, 18), type: "travel", location: "Portland, OR", notes: "Annual design conference" },
+      { id: "d5", title: "Design Handoff Review", startDate: new Date(2026, 2, 23), endDate: new Date(2026, 2, 23), type: "meeting", time: "10:00 AM", location: "Virtual", participants: ["Emily Watson", "Dev Team"] },
     ],
     "5": [ // Lisa Martinez
       { id: "l1", title: "Austin, TX — Client Visit", startDate: new Date(2026, 1, 5), endDate: new Date(2026, 1, 7), type: "travel", location: "Austin, TX", notes: "Key account review" },
-      { id: "l2", title: "Sales Strategy Call", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "meeting", location: "Virtual" },
+      { id: "l2", title: "Sales Strategy Call", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "call", location: "Zoom", time: "10:00 AM", participants: ["Marcus Johnson", "Sales Team"] },
+      { id: "l2b", title: "Client Presentation Prep", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "focus", time: "1:00 PM – 3:00 PM" },
       { id: "l3", title: "Office Day", startDate: new Date(2026, 1, 18), endDate: new Date(2026, 1, 18), type: "office" },
-      { id: "l4", title: "Miami — Partner Summit", startDate: new Date(2026, 2, 23), endDate: new Date(2026, 2, 25), type: "travel", location: "Miami, FL", notes: "Partner ecosystem summit" },
+      { id: "l3b", title: "Account Review — TechCo", startDate: new Date(2026, 1, 18), endDate: new Date(2026, 1, 18), type: "client", time: "2:00 PM", location: "San Francisco HQ", participants: ["TechCo Account Team"] },
+      { id: "l4", title: "Pipeline Standup", startDate: new Date(2026, 2, 3), endDate: new Date(2026, 2, 3), type: "call", time: "9:30 AM", location: "Google Meet", participants: ["Sales Ops"] },
+      { id: "l5", title: "Miami — Partner Summit", startDate: new Date(2026, 2, 23), endDate: new Date(2026, 2, 25), type: "travel", location: "Miami, FL", notes: "Partner ecosystem summit" },
     ],
     "6": [ // James Wilson
       { id: "j1", title: "London, UK — Investor Meetings", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 14), type: "travel", location: "London, UK", notes: "Series C investor roadshow" },
-      { id: "j2", title: "Executive Budget Review", startDate: new Date(2026, 1, 18), endDate: new Date(2026, 1, 18), type: "meeting", location: "San Francisco HQ", notes: "10:00 AM — Annual budget review" },
-      { id: "j3", title: "Finance Strategy Call", startDate: new Date(2026, 1, 21), endDate: new Date(2026, 1, 21), type: "meeting", location: "Virtual", notes: "Quarterly financial strategy" },
-      { id: "j4", title: "Board Preparation Meeting", startDate: new Date(2026, 1, 25), endDate: new Date(2026, 1, 25), type: "meeting", location: "San Francisco HQ", notes: "Board deck preparation" },
+      { id: "j2", title: "Executive Budget Review", startDate: new Date(2026, 1, 18), endDate: new Date(2026, 1, 18), type: "meeting", location: "San Francisco HQ", notes: "Annual budget review", time: "10:00 AM", participants: ["Executive Team"] },
+      { id: "j2b", title: "Board Prep Call", startDate: new Date(2026, 1, 18), endDate: new Date(2026, 1, 18), type: "call", time: "2:00 PM", location: "Zoom", participants: ["CFO Team"] },
+      { id: "j3", title: "Finance Strategy Call", startDate: new Date(2026, 1, 21), endDate: new Date(2026, 1, 21), type: "call", location: "Zoom", notes: "Quarterly financial strategy", time: "11:00 AM", participants: ["Finance Team"] },
+      { id: "j3b", title: "Focus Work — Board Deck", startDate: new Date(2026, 1, 21), endDate: new Date(2026, 1, 21), type: "focus", time: "2:00 PM – 5:00 PM" },
+      { id: "j4", title: "Board Preparation Meeting", startDate: new Date(2026, 1, 25), endDate: new Date(2026, 1, 25), type: "meeting", location: "San Francisco HQ", notes: "Board deck preparation", time: "9:00 AM", participants: ["Sarah Chen", "Marcus Johnson"] },
+      { id: "j4b", title: "Investor Relations Call", startDate: new Date(2026, 1, 25), endDate: new Date(2026, 1, 25), type: "call", time: "1:00 PM", location: "Zoom", participants: ["IR Team"] },
+      { id: "j4c", title: "Budget Planning", startDate: new Date(2026, 1, 25), endDate: new Date(2026, 1, 25), type: "meeting", time: "3:00 PM", location: "San Francisco HQ", participants: ["Finance Team"] },
       { id: "j5", title: "Office Day", startDate: new Date(2026, 2, 2), endDate: new Date(2026, 2, 2), type: "office" },
+      { id: "j5b", title: "1:1 with Marcus Johnson", startDate: new Date(2026, 2, 2), endDate: new Date(2026, 2, 2), type: "meeting", time: "11:00 AM", location: "Executive Suite", participants: ["Marcus Johnson"] },
       { id: "j6", title: "Tokyo — Asia Expansion", startDate: new Date(2026, 2, 16), endDate: new Date(2026, 2, 20), type: "travel", location: "Tokyo, Japan", notes: "Asia market expansion meetings" },
     ],
   };
@@ -158,10 +191,15 @@ function MemberCalendarView({ memberId, memberName }: { memberId: string; member
     return events.filter(e => date >= new Date(e.startDate.getFullYear(), e.startDate.getMonth(), e.startDate.getDate()) && date <= new Date(e.endDate.getFullYear(), e.endDate.getMonth(), e.endDate.getDate()));
   };
 
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
   const eventColor = (type: CalendarEvent["type"]) => {
     switch (type) {
       case "travel": return "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
       case "meeting": return "bg-primary/15 text-primary border-primary/30";
+      case "call": return "bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30";
+      case "client": return "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30";
+      case "focus": return "bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30";
       case "office": return "bg-muted text-muted-foreground border-border/50";
     }
   };
@@ -169,8 +207,22 @@ function MemberCalendarView({ memberId, memberName }: { memberId: string; member
   const eventIcon = (type: CalendarEvent["type"]) => {
     switch (type) {
       case "travel": return <Plane className="w-3 h-3 shrink-0" />;
-      case "meeting": return <Calendar className="w-3 h-3 shrink-0" />;
+      case "meeting": return <Users className="w-3 h-3 shrink-0" />;
+      case "call": return <Phone className="w-3 h-3 shrink-0" />;
+      case "client": return <Briefcase className="w-3 h-3 shrink-0" />;
+      case "focus": return <Clock className="w-3 h-3 shrink-0" />;
       case "office": return <Building2 className="w-3 h-3 shrink-0" />;
+    }
+  };
+
+  const eventEmoji = (type: CalendarEvent["type"]) => {
+    switch (type) {
+      case "travel": return "✈️";
+      case "meeting": return "👥";
+      case "call": return "📞";
+      case "client": return "🤝";
+      case "focus": return "🧠";
+      case "office": return "🏢";
     }
   };
 
