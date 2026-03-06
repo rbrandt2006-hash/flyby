@@ -174,7 +174,48 @@ export default function Chats() {
       sendMessage(selectedConversation.id, text, currentUser.id, false);
       return;
     }
-    toast.success(`Message sent via ${selectedConversation?.source || "Flyby"}`);
+    // For mock/synced conversations, inject into local state so it appears in thread
+    if (selectedConversation) {
+      const newMsg: SyncedMessage = {
+        id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        senderId: "current",
+        senderName: "Julia",
+        senderAvatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&h=100&fit=crop",
+        text,
+        createdAt: new Date().toISOString(),
+      };
+      setLocalMessages(prev => ({
+        ...prev,
+        [selectedConversation.id]: [...(prev[selectedConversation.id] || []), newMsg],
+      }));
+
+      // Simulate a coworker reply after 1.5–2.5s
+      setTimeout(() => {
+        const replies = [
+          "Got it, let me check on that and circle back.",
+          "Sounds good — I'll update the team.",
+          "Thanks for the heads up! I'll take a look.",
+          "Great idea. Let's sync on this tomorrow morning.",
+          "Yes — I believe it's March 10–12, but I'll double check the itinerary.",
+          "I'll loop in the rest of the team on this.",
+          "Perfect, I'll get that scheduled right away.",
+        ];
+        const replyText = replies[Math.floor(Math.random() * replies.length)];
+        const firstOther = selectedConversation.messages.find(m => m.senderId !== "current");
+        const replyMsg: SyncedMessage = {
+          id: `reply_${Date.now()}`,
+          senderId: firstOther?.senderId || "other",
+          senderName: firstOther?.senderName || "Teammate",
+          senderAvatar: firstOther?.senderAvatar || "",
+          text: replyText,
+          createdAt: new Date().toISOString(),
+        };
+        setLocalMessages(prev => ({
+          ...prev,
+          [selectedConversation.id]: [...(prev[selectedConversation.id] || []), replyMsg],
+        }));
+      }, 1500 + Math.random() * 1000);
+    }
   };
 
   const isExpenseApprovalsTab = selectedPlatform === "flyby";
