@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -99,6 +99,50 @@ export default function Trips() {
   // Backend trips - filter out cancelled ones from upcoming
   const upcomingBackendTrips = trips.filter(t => t.status !== "cancelled" && t.status !== "archived");
   const cancelledBackendTrips = trips.filter(t => t.status === "cancelled");
+
+  // Merge local + backend trips for the calendar view
+  const allCalendarTrips = useMemo(() => {
+    const localIds = new Set(localTrips.map(t => t.id));
+    const backendAsLocal: import("@/hooks/useTrips").LocalTrip[] = trips
+      .filter(t => !localIds.has(t.id))
+      .map(t => ({
+        id: t.id,
+        destination: t.destination,
+        startDate: t.start_date,
+        endDate: t.end_date,
+        purpose: t.purpose || "",
+        status: (t.status === "confirmed" || t.status === "draft" || t.status === "pending" || t.status === "cancelled" || t.status === "archived" ? t.status : "confirmed") as LocalTrip["status"],
+        approvalStatus: "none" as const,
+        calendarEventId: null,
+        calendarSyncError: null,
+        participants: [],
+        chatId: null,
+        flight: t.flight_details ? {
+          airline: (t.flight_details as any)?.airline || "",
+          departTime: (t.flight_details as any)?.departureTime || "",
+          returnTime: (t.flight_details as any)?.arrivalTime || "",
+        } : null,
+        hotel: t.hotel_details ? {
+          name: (t.hotel_details as any)?.name || "",
+          location: (t.hotel_details as any)?.address || "",
+        } : null,
+        groundTransport: null,
+        estimatedCost: t.total_estimated_cost || 0,
+        confidenceLevel: 90,
+        aiReasoning: {
+          costEfficiency: { score: 85, label: "Good", detail: "" },
+          timeEfficiency: { score: 85, label: "Good", detail: "" },
+          policyCompliance: { score: 100, label: "Compliant", detail: "" },
+          riskLevel: { score: 15, label: "Low", detail: "" },
+          summary: "",
+        },
+        timeline: [],
+        decisions: [],
+        createdAt: t.start_date,
+        updatedAt: t.start_date,
+      }));
+    return [...localTrips, ...backendAsLocal];
+  }, [localTrips, trips]);
 
   // Handle calendar sync for an approved trip
   const handleCalendarSync = useCallback(async (tripId: string) => {
@@ -620,11 +664,11 @@ export default function Trips() {
         onConfirm={handleConfirmDraftTrip}
       />
 
-      {/* Trip Calendar View */}
+      {/* Trip Calendar View - merge local + backend trips */}
       <TripCalendarView
         open={calendarViewOpen}
         onClose={() => setCalendarViewOpen(false)}
-        trips={localTrips}
+        trips={allCalendarTrips}
       />
 
       {/* Manager Approval Panel (for demo) */}
