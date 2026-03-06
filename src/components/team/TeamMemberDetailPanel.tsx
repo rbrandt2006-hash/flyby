@@ -266,22 +266,35 @@ function MemberCalendarView({ memberId, memberName }: { memberId: string; member
             if (day === null) return <div key={`empty-${i}`} className="h-9" />;
             const dayEvents = getEventsForDay(day);
             const hasEvents = dayEvents.length > 0;
+            const isSelected = selectedDay === day;
             return (
               <button
                 key={day}
-                onClick={() => { if (dayEvents.length > 0) setSelectedEvent(dayEvents[0]); }}
+                onClick={() => {
+                  if (hasEvents) {
+                    setSelectedDay(isSelected ? null : day);
+                    setSelectedEvent(null);
+                  }
+                }}
                 className={cn(
                   "h-9 rounded-lg text-xs font-medium relative transition-all",
                   hasEvents ? "hover:bg-muted/60 cursor-pointer" : "text-muted-foreground/60",
-                  dayEvents.some(e => e.type === "travel") && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-                  dayEvents.some(e => e.type === "meeting") && !dayEvents.some(e => e.type === "travel") && "bg-primary/10 text-primary",
+                  isSelected && "ring-2 ring-primary/40 bg-primary/10",
+                  !isSelected && dayEvents.some(e => e.type === "travel") && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                  !isSelected && dayEvents.some(e => e.type === "meeting" || e.type === "call" || e.type === "client") && !dayEvents.some(e => e.type === "travel") && "bg-primary/10 text-primary",
                 )}
               >
                 {day}
                 {hasEvents && (
                   <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
-                    {dayEvents.slice(0, 3).map((e, j) => (
-                      <div key={j} className={cn("w-1 h-1 rounded-full", e.type === "travel" ? "bg-emerald-500" : e.type === "meeting" ? "bg-primary" : "bg-muted-foreground/40")} />
+                    {dayEvents.slice(0, 4).map((e, j) => (
+                      <div key={j} className={cn("w-1 h-1 rounded-full",
+                        e.type === "travel" ? "bg-emerald-500" :
+                        e.type === "call" ? "bg-violet-500" :
+                        e.type === "client" ? "bg-amber-500" :
+                        e.type === "focus" ? "bg-sky-500" :
+                        e.type === "meeting" ? "bg-primary" : "bg-muted-foreground/40"
+                      )} />
                     ))}
                   </div>
                 )}
@@ -290,41 +303,70 @@ function MemberCalendarView({ memberId, memberName }: { memberId: string; member
           })}
         </div>
 
-        {/* Event popup */}
+        {/* Day schedule view */}
         <AnimatePresence mode="wait">
-          {selectedEvent && (
+          {selectedDay !== null && (
             <motion.div
-              key={selectedEvent.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.15 }}
+              key={`day-${selectedDay}`}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
             >
-              <GlassPanel className="p-4 rounded-2xl space-y-2">
-                <div className="flex items-start justify-between">
-                  <div className={cn("flex items-center gap-2 text-xs font-medium px-2 py-1 rounded-full border", eventColor(selectedEvent.type))}>
-                    {eventIcon(selectedEvent.type)}
-                    <span className="capitalize">{selectedEvent.type}</span>
-                  </div>
-                  <button onClick={() => setSelectedEvent(null)} className="p-1 rounded-md hover:bg-muted/50 text-muted-foreground">
+              <GlassPanel className="p-4 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-foreground">
+                    {MONTHS[month]} {selectedDay}
+                  </h4>
+                  <button onClick={() => setSelectedDay(null)} className="p-1 rounded-md hover:bg-muted/50 text-muted-foreground">
                     <X className="w-3 h-3" />
                   </button>
                 </div>
-                <h4 className="text-sm font-semibold text-foreground">{selectedEvent.title}</h4>
-                {selectedEvent.location && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <MapPin className="w-3 h-3" />
-                    {selectedEvent.location}
-                  </div>
-                )}
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
-                  {selectedEvent.startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  {selectedEvent.startDate.getTime() !== selectedEvent.endDate.getTime() && ` – ${selectedEvent.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                <div className="space-y-2">
+                  {getEventsForDay(selectedDay)
+                    .sort((a, b) => (a.time || "ZZZ").localeCompare(b.time || "ZZZ"))
+                    .map(ev => (
+                    <button
+                      key={ev.id}
+                      onClick={() => setSelectedEvent(selectedEvent?.id === ev.id ? null : ev)}
+                      className={cn(
+                        "w-full text-left p-3 rounded-xl border transition-all hover:shadow-sm",
+                        selectedEvent?.id === ev.id ? "ring-2 ring-primary/30" : "",
+                        eventColor(ev.type)
+                      )}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-sm mt-0.5">{eventEmoji(ev.type)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold truncate">{ev.title}</p>
+                          {ev.time && <p className="text-[10px] opacity-70 mt-0.5">{ev.time}</p>}
+                          {ev.location && <p className="text-[10px] opacity-60 mt-0.5">{ev.location}</p>}
+                        </div>
+                      </div>
+                      {/* Expanded detail */}
+                      <AnimatePresence>
+                        {selectedEvent?.id === ev.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-2 pt-2 border-t border-current/10 space-y-1.5"
+                          >
+                            {ev.notes && (
+                              <p className="text-[11px] opacity-70">{ev.notes}</p>
+                            )}
+                            {ev.participants && ev.participants.length > 0 && (
+                              <div className="flex items-center gap-1.5 text-[10px] opacity-60">
+                                <Users className="w-3 h-3" />
+                                <span>{ev.participants.join(", ")}</span>
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </button>
+                  ))}
                 </div>
-                {selectedEvent.notes && (
-                  <p className="text-xs text-muted-foreground/80 pt-1 border-t border-border/20">{selectedEvent.notes}</p>
-                )}
               </GlassPanel>
             </motion.div>
           )}
@@ -339,13 +381,17 @@ function MemberCalendarView({ memberId, memberName }: { memberId: string; member
             .map(e => (
               <button
                 key={e.id}
-                onClick={() => setSelectedEvent(e)}
+                onClick={() => {
+                  setSelectedDay(e.startDate.getDate());
+                  setSelectedEvent(e);
+                }}
                 className={cn("w-full flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all hover:bg-muted/30", eventColor(e.type))}
               >
-                {eventIcon(e.type)}
+                <span className="text-sm">{eventEmoji(e.type)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium truncate">{e.title}</p>
                   <p className="text-[10px] opacity-70">
+                    {e.time ? `${e.time} · ` : ""}
                     {e.startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     {e.startDate.getTime() !== e.endDate.getTime() && ` – ${e.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
                   </p>
