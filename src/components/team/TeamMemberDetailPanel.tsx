@@ -83,53 +83,86 @@ interface CalendarEvent {
   title: string;
   startDate: Date;
   endDate: Date;
-  type: "travel" | "meeting" | "office";
+  type: "travel" | "meeting" | "call" | "client" | "focus" | "office";
   location?: string;
   notes?: string;
+  time?: string;
+  participants?: string[];
 }
 
 function getMockCalendarEvents(memberId: string): CalendarEvent[] {
   const eventsMap: Record<string, CalendarEvent[]> = {
     "1": [ // Sarah Chen
       { id: "s1", title: "New York, NY — Product Summit", startDate: new Date(2026, 0, 15), endDate: new Date(2026, 0, 18), type: "travel", location: "New York, NY", notes: "Annual product summit with partners" },
-      { id: "s2", title: "Product Planning Meeting", startDate: new Date(2026, 0, 22), endDate: new Date(2026, 0, 22), type: "meeting", location: "San Francisco HQ", notes: "Q1 roadmap planning" },
-      { id: "s3", title: "Engineering Sync", startDate: new Date(2026, 0, 26), endDate: new Date(2026, 0, 26), type: "meeting", location: "Virtual", notes: "Cross-team alignment" },
-      { id: "s4", title: "Feature Roadmap Review", startDate: new Date(2026, 1, 3), endDate: new Date(2026, 1, 3), type: "meeting", location: "San Francisco HQ", notes: "Review Q2 feature priorities" },
+      { id: "s2", title: "Product Planning Meeting", startDate: new Date(2026, 0, 22), endDate: new Date(2026, 0, 22), type: "meeting", location: "San Francisco HQ", notes: "Q1 roadmap planning", time: "10:00 AM", participants: ["Emily Watson", "David Kim"] },
+      { id: "s2b", title: "Design Review Call", startDate: new Date(2026, 0, 22), endDate: new Date(2026, 0, 22), type: "call", location: "Zoom", time: "2:00 PM", participants: ["David Kim", "UX Team"] },
+      { id: "s3", title: "Engineering Sync", startDate: new Date(2026, 0, 26), endDate: new Date(2026, 0, 26), type: "call", location: "Google Meet", time: "11:00 AM", participants: ["Emily Watson", "Dev Team"] },
+      { id: "s3b", title: "Focus Work — Roadmap Draft", startDate: new Date(2026, 0, 26), endDate: new Date(2026, 0, 26), type: "focus", time: "2:00 PM – 5:00 PM" },
+      { id: "s4", title: "Feature Roadmap Review", startDate: new Date(2026, 1, 3), endDate: new Date(2026, 1, 3), type: "meeting", location: "San Francisco HQ", notes: "Review Q2 feature priorities", time: "9:30 AM", participants: ["Marcus Johnson", "James Wilson"] },
+      { id: "s4b", title: "Stakeholder Update Call", startDate: new Date(2026, 1, 3), endDate: new Date(2026, 1, 3), type: "call", location: "Zoom", time: "1:00 PM", participants: ["Leadership Team"] },
       { id: "s5", title: "Office Day", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 10), type: "office", location: "San Francisco HQ" },
+      { id: "s5b", title: "1:1 with Emily Watson", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 10), type: "meeting", time: "11:00 AM", location: "Conference Room B", participants: ["Emily Watson"] },
+      { id: "s5c", title: "Product Demo Prep", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 10), type: "focus", time: "3:00 PM – 5:00 PM" },
       { id: "s6", title: "Boston — Client Workshop", startDate: new Date(2026, 2, 2), endDate: new Date(2026, 2, 4), type: "travel", location: "Boston, MA", notes: "Enterprise client workshop" },
+      { id: "s7", title: "Sprint Retrospective", startDate: new Date(2026, 2, 9), endDate: new Date(2026, 2, 9), type: "meeting", time: "10:00 AM", location: "Virtual", participants: ["Product Team"] },
+      { id: "s8", title: "Client Check-in — Acme Corp", startDate: new Date(2026, 2, 11), endDate: new Date(2026, 2, 11), type: "client", time: "2:00 PM", location: "Zoom", participants: ["Acme Corp PM", "Lisa Martinez"] },
     ],
     "2": [ // Marcus Johnson
       { id: "m1", title: "Chicago, IL — Sales Conference", startDate: new Date(2026, 0, 20), endDate: new Date(2026, 0, 22), type: "travel", location: "Chicago, IL", notes: "National sales conference" },
-      { id: "m2", title: "Pipeline Review", startDate: new Date(2026, 0, 27), endDate: new Date(2026, 0, 27), type: "meeting", location: "San Francisco HQ", notes: "Q1 pipeline deep dive" },
+      { id: "m2", title: "Pipeline Review", startDate: new Date(2026, 0, 27), endDate: new Date(2026, 0, 27), type: "meeting", location: "San Francisco HQ", notes: "Q1 pipeline deep dive", time: "10:00 AM", participants: ["Sales Team"] },
+      { id: "m2b", title: "Sales Strategy Call", startDate: new Date(2026, 0, 27), endDate: new Date(2026, 0, 27), type: "call", location: "Zoom", time: "2:00 PM", participants: ["Lisa Martinez", "Regional Leads"] },
       { id: "m3", title: "Office Day", startDate: new Date(2026, 1, 5), endDate: new Date(2026, 1, 5), type: "office" },
-      { id: "m4", title: "Dallas — Enterprise Deal", startDate: new Date(2026, 1, 16), endDate: new Date(2026, 1, 18), type: "travel", location: "Dallas, TX", notes: "Enterprise closing meetings" },
-      { id: "m5", title: "Sales Team Standup", startDate: new Date(2026, 2, 3), endDate: new Date(2026, 2, 3), type: "meeting", location: "Virtual" },
+      { id: "m3b", title: "1:1 with Lisa Martinez", startDate: new Date(2026, 1, 5), endDate: new Date(2026, 1, 5), type: "meeting", time: "11:00 AM", location: "Conference Room A", participants: ["Lisa Martinez"] },
+      { id: "m3c", title: "Forecast Prep", startDate: new Date(2026, 1, 5), endDate: new Date(2026, 1, 5), type: "focus", time: "2:00 PM – 4:00 PM" },
+      { id: "m4", title: "Client Check-in — Acme Corp", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 10), type: "client", time: "10:00 AM", location: "Zoom", participants: ["Acme Corp CRO", "Sarah Chen"] },
+      { id: "m4b", title: "Internal Planning Call", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "call", time: "1:30 PM", location: "Google Meet", participants: ["Sales Ops"] },
+      { id: "m5", title: "Dallas — Enterprise Deal", startDate: new Date(2026, 1, 16), endDate: new Date(2026, 1, 18), type: "travel", location: "Dallas, TX", notes: "Enterprise closing meetings" },
+      { id: "m6", title: "Sales Team Standup", startDate: new Date(2026, 2, 3), endDate: new Date(2026, 2, 3), type: "call", location: "Google Meet", time: "9:00 AM", participants: ["Sales Team"] },
+      { id: "m6b", title: "Finance Review Meeting", startDate: new Date(2026, 2, 3), endDate: new Date(2026, 2, 3), type: "meeting", time: "11:00 AM", location: "San Francisco HQ", participants: ["James Wilson"] },
+      { id: "m7", title: "Focus Work — Q2 Targets", startDate: new Date(2026, 2, 5), endDate: new Date(2026, 2, 5), type: "focus", time: "9:00 AM – 12:00 PM" },
     ],
     "3": [ // Emily Watson
       { id: "e1", title: "San Francisco, CA — Tech Summit", startDate: new Date(2026, 0, 25), endDate: new Date(2026, 0, 28), type: "travel", location: "San Francisco, CA", notes: "Engineering leadership summit" },
-      { id: "e2", title: "Sprint Planning", startDate: new Date(2026, 1, 2), endDate: new Date(2026, 1, 2), type: "meeting", location: "Virtual", notes: "Sprint 14 planning" },
-      { id: "e3", title: "Architecture Review", startDate: new Date(2026, 1, 9), endDate: new Date(2026, 1, 9), type: "meeting", location: "San Francisco HQ" },
+      { id: "e2", title: "Sprint Planning", startDate: new Date(2026, 1, 2), endDate: new Date(2026, 1, 2), type: "meeting", location: "Virtual", notes: "Sprint 14 planning", time: "10:00 AM", participants: ["Engineering Team"] },
+      { id: "e2b", title: "Code Review Session", startDate: new Date(2026, 1, 2), endDate: new Date(2026, 1, 2), type: "focus", time: "2:00 PM – 4:00 PM" },
+      { id: "e3", title: "Architecture Review", startDate: new Date(2026, 1, 9), endDate: new Date(2026, 1, 9), type: "meeting", location: "San Francisco HQ", time: "9:30 AM", participants: ["David Kim", "Tech Leads"] },
+      { id: "e3b", title: "Vendor Call — AWS", startDate: new Date(2026, 1, 9), endDate: new Date(2026, 1, 9), type: "call", location: "Zoom", time: "1:00 PM", participants: ["AWS Account Manager"] },
+      { id: "e3c", title: "Focus Work — System Design", startDate: new Date(2026, 1, 9), endDate: new Date(2026, 1, 9), type: "focus", time: "3:00 PM – 5:30 PM" },
       { id: "e4", title: "Office Day", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "office" },
+      { id: "e4b", title: "1:1 with Sarah Chen", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "meeting", time: "11:00 AM", location: "Conference Room C", participants: ["Sarah Chen"] },
       { id: "e5", title: "Seattle — AWS Summit", startDate: new Date(2026, 2, 9), endDate: new Date(2026, 2, 11), type: "travel", location: "Seattle, WA", notes: "AWS re:Invent satellite event" },
+      { id: "e6", title: "Engineering All-Hands", startDate: new Date(2026, 2, 16), endDate: new Date(2026, 2, 16), type: "meeting", time: "10:00 AM", location: "Virtual", participants: ["All Engineering"] },
     ],
     "4": [ // David Kim
-      { id: "d1", title: "Design System Workshop", startDate: new Date(2026, 0, 28), endDate: new Date(2026, 0, 28), type: "meeting", location: "San Francisco HQ" },
+      { id: "d1", title: "Design System Workshop", startDate: new Date(2026, 0, 28), endDate: new Date(2026, 0, 28), type: "meeting", location: "San Francisco HQ", time: "10:00 AM", participants: ["UX Team", "Emily Watson"] },
+      { id: "d1b", title: "Focus Work — Prototyping", startDate: new Date(2026, 0, 28), endDate: new Date(2026, 0, 28), type: "focus", time: "2:00 PM – 5:00 PM" },
       { id: "d2", title: "Office Day", startDate: new Date(2026, 1, 4), endDate: new Date(2026, 1, 4), type: "office" },
-      { id: "d3", title: "Usability Testing", startDate: new Date(2026, 1, 11), endDate: new Date(2026, 1, 11), type: "meeting", location: "San Francisco HQ", notes: "User research sessions" },
+      { id: "d2b", title: "Design Critique", startDate: new Date(2026, 1, 4), endDate: new Date(2026, 1, 4), type: "meeting", time: "11:00 AM", location: "Design Studio", participants: ["UX Team"] },
+      { id: "d3", title: "Usability Testing", startDate: new Date(2026, 1, 11), endDate: new Date(2026, 1, 11), type: "meeting", location: "San Francisco HQ", notes: "User research sessions", time: "9:00 AM", participants: ["Research Team"] },
+      { id: "d3b", title: "Client Feedback Call", startDate: new Date(2026, 1, 11), endDate: new Date(2026, 1, 11), type: "client", time: "2:00 PM", location: "Zoom", participants: ["Beta Testers"] },
       { id: "d4", title: "Portland — Design Conference", startDate: new Date(2026, 2, 16), endDate: new Date(2026, 2, 18), type: "travel", location: "Portland, OR", notes: "Annual design conference" },
+      { id: "d5", title: "Design Handoff Review", startDate: new Date(2026, 2, 23), endDate: new Date(2026, 2, 23), type: "meeting", time: "10:00 AM", location: "Virtual", participants: ["Emily Watson", "Dev Team"] },
     ],
     "5": [ // Lisa Martinez
       { id: "l1", title: "Austin, TX — Client Visit", startDate: new Date(2026, 1, 5), endDate: new Date(2026, 1, 7), type: "travel", location: "Austin, TX", notes: "Key account review" },
-      { id: "l2", title: "Sales Strategy Call", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "meeting", location: "Virtual" },
+      { id: "l2", title: "Sales Strategy Call", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "call", location: "Zoom", time: "10:00 AM", participants: ["Marcus Johnson", "Sales Team"] },
+      { id: "l2b", title: "Client Presentation Prep", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 12), type: "focus", time: "1:00 PM – 3:00 PM" },
       { id: "l3", title: "Office Day", startDate: new Date(2026, 1, 18), endDate: new Date(2026, 1, 18), type: "office" },
-      { id: "l4", title: "Miami — Partner Summit", startDate: new Date(2026, 2, 23), endDate: new Date(2026, 2, 25), type: "travel", location: "Miami, FL", notes: "Partner ecosystem summit" },
+      { id: "l3b", title: "Account Review — TechCo", startDate: new Date(2026, 1, 18), endDate: new Date(2026, 1, 18), type: "client", time: "2:00 PM", location: "San Francisco HQ", participants: ["TechCo Account Team"] },
+      { id: "l4", title: "Pipeline Standup", startDate: new Date(2026, 2, 3), endDate: new Date(2026, 2, 3), type: "call", time: "9:30 AM", location: "Google Meet", participants: ["Sales Ops"] },
+      { id: "l5", title: "Miami — Partner Summit", startDate: new Date(2026, 2, 23), endDate: new Date(2026, 2, 25), type: "travel", location: "Miami, FL", notes: "Partner ecosystem summit" },
     ],
     "6": [ // James Wilson
       { id: "j1", title: "London, UK — Investor Meetings", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 14), type: "travel", location: "London, UK", notes: "Series C investor roadshow" },
-      { id: "j2", title: "Executive Budget Review", startDate: new Date(2026, 1, 18), endDate: new Date(2026, 1, 18), type: "meeting", location: "San Francisco HQ", notes: "10:00 AM — Annual budget review" },
-      { id: "j3", title: "Finance Strategy Call", startDate: new Date(2026, 1, 21), endDate: new Date(2026, 1, 21), type: "meeting", location: "Virtual", notes: "Quarterly financial strategy" },
-      { id: "j4", title: "Board Preparation Meeting", startDate: new Date(2026, 1, 25), endDate: new Date(2026, 1, 25), type: "meeting", location: "San Francisco HQ", notes: "Board deck preparation" },
+      { id: "j2", title: "Executive Budget Review", startDate: new Date(2026, 1, 18), endDate: new Date(2026, 1, 18), type: "meeting", location: "San Francisco HQ", notes: "Annual budget review", time: "10:00 AM", participants: ["Executive Team"] },
+      { id: "j2b", title: "Board Prep Call", startDate: new Date(2026, 1, 18), endDate: new Date(2026, 1, 18), type: "call", time: "2:00 PM", location: "Zoom", participants: ["CFO Team"] },
+      { id: "j3", title: "Finance Strategy Call", startDate: new Date(2026, 1, 21), endDate: new Date(2026, 1, 21), type: "call", location: "Zoom", notes: "Quarterly financial strategy", time: "11:00 AM", participants: ["Finance Team"] },
+      { id: "j3b", title: "Focus Work — Board Deck", startDate: new Date(2026, 1, 21), endDate: new Date(2026, 1, 21), type: "focus", time: "2:00 PM – 5:00 PM" },
+      { id: "j4", title: "Board Preparation Meeting", startDate: new Date(2026, 1, 25), endDate: new Date(2026, 1, 25), type: "meeting", location: "San Francisco HQ", notes: "Board deck preparation", time: "9:00 AM", participants: ["Sarah Chen", "Marcus Johnson"] },
+      { id: "j4b", title: "Investor Relations Call", startDate: new Date(2026, 1, 25), endDate: new Date(2026, 1, 25), type: "call", time: "1:00 PM", location: "Zoom", participants: ["IR Team"] },
+      { id: "j4c", title: "Budget Planning", startDate: new Date(2026, 1, 25), endDate: new Date(2026, 1, 25), type: "meeting", time: "3:00 PM", location: "San Francisco HQ", participants: ["Finance Team"] },
       { id: "j5", title: "Office Day", startDate: new Date(2026, 2, 2), endDate: new Date(2026, 2, 2), type: "office" },
+      { id: "j5b", title: "1:1 with Marcus Johnson", startDate: new Date(2026, 2, 2), endDate: new Date(2026, 2, 2), type: "meeting", time: "11:00 AM", location: "Executive Suite", participants: ["Marcus Johnson"] },
       { id: "j6", title: "Tokyo — Asia Expansion", startDate: new Date(2026, 2, 16), endDate: new Date(2026, 2, 20), type: "travel", location: "Tokyo, Japan", notes: "Asia market expansion meetings" },
     ],
   };
@@ -158,10 +191,15 @@ function MemberCalendarView({ memberId, memberName }: { memberId: string; member
     return events.filter(e => date >= new Date(e.startDate.getFullYear(), e.startDate.getMonth(), e.startDate.getDate()) && date <= new Date(e.endDate.getFullYear(), e.endDate.getMonth(), e.endDate.getDate()));
   };
 
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
   const eventColor = (type: CalendarEvent["type"]) => {
     switch (type) {
       case "travel": return "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
       case "meeting": return "bg-primary/15 text-primary border-primary/30";
+      case "call": return "bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30";
+      case "client": return "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30";
+      case "focus": return "bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30";
       case "office": return "bg-muted text-muted-foreground border-border/50";
     }
   };
@@ -169,8 +207,22 @@ function MemberCalendarView({ memberId, memberName }: { memberId: string; member
   const eventIcon = (type: CalendarEvent["type"]) => {
     switch (type) {
       case "travel": return <Plane className="w-3 h-3 shrink-0" />;
-      case "meeting": return <Calendar className="w-3 h-3 shrink-0" />;
+      case "meeting": return <Users className="w-3 h-3 shrink-0" />;
+      case "call": return <Phone className="w-3 h-3 shrink-0" />;
+      case "client": return <Briefcase className="w-3 h-3 shrink-0" />;
+      case "focus": return <Clock className="w-3 h-3 shrink-0" />;
       case "office": return <Building2 className="w-3 h-3 shrink-0" />;
+    }
+  };
+
+  const eventEmoji = (type: CalendarEvent["type"]) => {
+    switch (type) {
+      case "travel": return "✈️";
+      case "meeting": return "👥";
+      case "call": return "📞";
+      case "client": return "🤝";
+      case "focus": return "🧠";
+      case "office": return "🏢";
     }
   };
 
@@ -214,22 +266,35 @@ function MemberCalendarView({ memberId, memberName }: { memberId: string; member
             if (day === null) return <div key={`empty-${i}`} className="h-9" />;
             const dayEvents = getEventsForDay(day);
             const hasEvents = dayEvents.length > 0;
+            const isSelected = selectedDay === day;
             return (
               <button
                 key={day}
-                onClick={() => { if (dayEvents.length > 0) setSelectedEvent(dayEvents[0]); }}
+                onClick={() => {
+                  if (hasEvents) {
+                    setSelectedDay(isSelected ? null : day);
+                    setSelectedEvent(null);
+                  }
+                }}
                 className={cn(
                   "h-9 rounded-lg text-xs font-medium relative transition-all",
                   hasEvents ? "hover:bg-muted/60 cursor-pointer" : "text-muted-foreground/60",
-                  dayEvents.some(e => e.type === "travel") && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-                  dayEvents.some(e => e.type === "meeting") && !dayEvents.some(e => e.type === "travel") && "bg-primary/10 text-primary",
+                  isSelected && "ring-2 ring-primary/40 bg-primary/10",
+                  !isSelected && dayEvents.some(e => e.type === "travel") && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                  !isSelected && dayEvents.some(e => e.type === "meeting" || e.type === "call" || e.type === "client") && !dayEvents.some(e => e.type === "travel") && "bg-primary/10 text-primary",
                 )}
               >
                 {day}
                 {hasEvents && (
                   <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
-                    {dayEvents.slice(0, 3).map((e, j) => (
-                      <div key={j} className={cn("w-1 h-1 rounded-full", e.type === "travel" ? "bg-emerald-500" : e.type === "meeting" ? "bg-primary" : "bg-muted-foreground/40")} />
+                    {dayEvents.slice(0, 4).map((e, j) => (
+                      <div key={j} className={cn("w-1 h-1 rounded-full",
+                        e.type === "travel" ? "bg-emerald-500" :
+                        e.type === "call" ? "bg-violet-500" :
+                        e.type === "client" ? "bg-amber-500" :
+                        e.type === "focus" ? "bg-sky-500" :
+                        e.type === "meeting" ? "bg-primary" : "bg-muted-foreground/40"
+                      )} />
                     ))}
                   </div>
                 )}
@@ -238,41 +303,70 @@ function MemberCalendarView({ memberId, memberName }: { memberId: string; member
           })}
         </div>
 
-        {/* Event popup */}
+        {/* Day schedule view */}
         <AnimatePresence mode="wait">
-          {selectedEvent && (
+          {selectedDay !== null && (
             <motion.div
-              key={selectedEvent.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.15 }}
+              key={`day-${selectedDay}`}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
             >
-              <GlassPanel className="p-4 rounded-2xl space-y-2">
-                <div className="flex items-start justify-between">
-                  <div className={cn("flex items-center gap-2 text-xs font-medium px-2 py-1 rounded-full border", eventColor(selectedEvent.type))}>
-                    {eventIcon(selectedEvent.type)}
-                    <span className="capitalize">{selectedEvent.type}</span>
-                  </div>
-                  <button onClick={() => setSelectedEvent(null)} className="p-1 rounded-md hover:bg-muted/50 text-muted-foreground">
+              <GlassPanel className="p-4 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-foreground">
+                    {MONTHS[month]} {selectedDay}
+                  </h4>
+                  <button onClick={() => setSelectedDay(null)} className="p-1 rounded-md hover:bg-muted/50 text-muted-foreground">
                     <X className="w-3 h-3" />
                   </button>
                 </div>
-                <h4 className="text-sm font-semibold text-foreground">{selectedEvent.title}</h4>
-                {selectedEvent.location && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <MapPin className="w-3 h-3" />
-                    {selectedEvent.location}
-                  </div>
-                )}
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
-                  {selectedEvent.startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  {selectedEvent.startDate.getTime() !== selectedEvent.endDate.getTime() && ` – ${selectedEvent.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                <div className="space-y-2">
+                  {getEventsForDay(selectedDay)
+                    .sort((a, b) => (a.time || "ZZZ").localeCompare(b.time || "ZZZ"))
+                    .map(ev => (
+                    <button
+                      key={ev.id}
+                      onClick={() => setSelectedEvent(selectedEvent?.id === ev.id ? null : ev)}
+                      className={cn(
+                        "w-full text-left p-3 rounded-xl border transition-all hover:shadow-sm",
+                        selectedEvent?.id === ev.id ? "ring-2 ring-primary/30" : "",
+                        eventColor(ev.type)
+                      )}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-sm mt-0.5">{eventEmoji(ev.type)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold truncate">{ev.title}</p>
+                          {ev.time && <p className="text-[10px] opacity-70 mt-0.5">{ev.time}</p>}
+                          {ev.location && <p className="text-[10px] opacity-60 mt-0.5">{ev.location}</p>}
+                        </div>
+                      </div>
+                      {/* Expanded detail */}
+                      <AnimatePresence>
+                        {selectedEvent?.id === ev.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-2 pt-2 border-t border-current/10 space-y-1.5"
+                          >
+                            {ev.notes && (
+                              <p className="text-[11px] opacity-70">{ev.notes}</p>
+                            )}
+                            {ev.participants && ev.participants.length > 0 && (
+                              <div className="flex items-center gap-1.5 text-[10px] opacity-60">
+                                <Users className="w-3 h-3" />
+                                <span>{ev.participants.join(", ")}</span>
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </button>
+                  ))}
                 </div>
-                {selectedEvent.notes && (
-                  <p className="text-xs text-muted-foreground/80 pt-1 border-t border-border/20">{selectedEvent.notes}</p>
-                )}
               </GlassPanel>
             </motion.div>
           )}
@@ -287,13 +381,17 @@ function MemberCalendarView({ memberId, memberName }: { memberId: string; member
             .map(e => (
               <button
                 key={e.id}
-                onClick={() => setSelectedEvent(e)}
+                onClick={() => {
+                  setSelectedDay(e.startDate.getDate());
+                  setSelectedEvent(e);
+                }}
                 className={cn("w-full flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all hover:bg-muted/30", eventColor(e.type))}
               >
-                {eventIcon(e.type)}
+                <span className="text-sm">{eventEmoji(e.type)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium truncate">{e.title}</p>
                   <p className="text-[10px] opacity-70">
+                    {e.time ? `${e.time} · ` : ""}
                     {e.startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     {e.startDate.getTime() !== e.endDate.getTime() && ` – ${e.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
                   </p>
