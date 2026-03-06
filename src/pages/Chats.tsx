@@ -7,6 +7,7 @@ import { ConversationCanvas, ExpenseMetadataForContext } from "@/components/chat
 import { SmartTripAssistant } from "@/components/chats/SmartTripAssistant";
 import { Platform } from "@/components/chats/PlatformSelector";
 import { ChatContextPanel } from "@/components/chats/ChatContextPanel";
+import { ExpenseApprovalQueue, mockApprovals } from "@/components/chats/ExpenseApprovalQueue";
 import { mockSyncedConversations, mockDetectedTrips } from "@/data/mockSyncedConversations";
 import { Button } from "@/components/ui/button";
 import { useChats, ExpenseMetadata } from "@/hooks/useChats";
@@ -79,7 +80,7 @@ export default function Chats() {
     return [...expenseChats, ...mockSyncedConversations];
   }, [chats, getMemberById]);
 
-  // Filter by platform — for "flyby" tab, show only expense approvals
+  // Filter by platform — for "flyby" tab, we now show the dedicated approval queue
   const filteredConversations = useMemo(() => {
     if (selectedPlatform === "all") return allConversations;
     if (selectedPlatform === "flyby") {
@@ -91,7 +92,7 @@ export default function Chats() {
   const platformCounts = useMemo(() => ({
     slack: allConversations.filter(c => c.source === "slack").length,
     teams: allConversations.filter(c => c.source === "teams").length,
-    flyby: allConversations.filter(c => c.source === "flyby" && ((c as any).type === "expense_approval" || (c as any).expenseId)).length,
+    flyby: mockApprovals.filter(a => a.status === "pending").length,
   }), [allConversations]);
 
   const [selectedId, setSelectedId] = useState<string | null>(() => {
@@ -162,6 +163,8 @@ export default function Chats() {
     toast.success(`Message sent via ${selectedConversation?.source || "Flyby"}`);
   };
 
+  const isExpenseApprovalsTab = selectedPlatform === "flyby";
+
   return (
     <div className="h-[calc(100vh-8rem)] animate-fade-in">
       {/* Header with tabs */}
@@ -184,7 +187,7 @@ export default function Chats() {
           {platformTabs.map((tab) => {
             const isActive = selectedPlatform === tab.id;
             const count = tab.id === "all" 
-              ? platformCounts.slack + platformCounts.teams + platformCounts.flyby 
+              ? platformCounts.slack + platformCounts.teams
               : platformCounts[tab.id as keyof typeof platformCounts] || 0;
             return (
               <button
@@ -213,69 +216,77 @@ export default function Chats() {
         </div>
       </div>
 
-      {/* 2-Panel Layout: Channels | Conversation */}
-      <div className="h-[calc(100%-7rem)] flex gap-3">
-        {/* Left: Channels */}
-        <div className="w-72 shrink-0">
-          <ChannelsContainer
-            conversations={filteredConversations}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            connectedPlatforms={{ slack: true, teams: true }}
-          />
-        </div>
+      {/* Content Area */}
+      <div className="h-[calc(100%-7rem)]">
+        {isExpenseApprovalsTab ? (
+          /* Expense Approval Queue — dedicated full-width view */
+          <ExpenseApprovalQueue />
+        ) : (
+          /* Standard 2-Panel Layout: Channels | Conversation */
+          <div className="h-full flex gap-3">
+            {/* Left: Channels */}
+            <div className="w-72 shrink-0">
+              <ChannelsContainer
+                conversations={filteredConversations}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                connectedPlatforms={{ slack: true, teams: true }}
+              />
+            </div>
 
-        {/* Right: Conversation Canvas + Context */}
-        <div className="flex-1 flex gap-3 min-w-0">
-          <div className="flex-1 bg-card rounded-2xl border shadow-sm overflow-hidden relative border-border/60">
-            <AnimatePresence mode="wait">
-              {selectedConversation ? (
-                <motion.div
-                  key={selectedConversation.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="h-full"
-                >
-                  <ConversationCanvas
-                    conversation={selectedConversation}
-                    onSendMessage={handleSendMessage}
-                    expenseMetadata={selectedExpenseMetadata}
-                    expenseStatus={selectedExpenseStatus}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="h-full flex flex-col items-center justify-center text-muted-foreground"
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-                    <MessageSquare className="w-6 h-6 opacity-40" />
+            {/* Right: Conversation Canvas + Context */}
+            <div className="flex-1 flex gap-3 min-w-0">
+              <div className="flex-1 bg-card rounded-2xl border shadow-sm overflow-hidden relative border-border/60">
+                <AnimatePresence mode="wait">
+                  {selectedConversation ? (
+                    <motion.div
+                      key={selectedConversation.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="h-full"
+                    >
+                      <ConversationCanvas
+                        conversation={selectedConversation}
+                        onSendMessage={handleSendMessage}
+                        expenseMetadata={selectedExpenseMetadata}
+                        expenseStatus={selectedExpenseStatus}
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="h-full flex flex-col items-center justify-center text-muted-foreground"
+                    >
+                      <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                        <MessageSquare className="w-6 h-6 opacity-40" />
+                      </div>
+                      <p className="text-sm font-medium">Select a conversation</p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">
+                        Choose a channel to view messages
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {detectedTrip && (
+                  <div className="absolute bottom-24 right-6 z-10">
+                    <SmartTripAssistant detectedTrip={detectedTrip} onReviewTrip={() => {
+                      toast.success("Trip review opened — navigating to Trips");
+                      navigate("/trips");
+                    }} />
                   </div>
-                  <p className="text-sm font-medium">Select a conversation</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">
-                    Choose a channel to view messages
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {detectedTrip && (
-              <div className="absolute bottom-24 right-6 z-10">
-                <SmartTripAssistant detectedTrip={detectedTrip} onReviewTrip={() => {
-                  toast.success("Trip review opened — navigating to Trips");
-                  navigate("/trips");
-                }} />
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="w-56 shrink-0 bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden hidden xl:block">
-            <ChatContextPanel conversation={selectedConversation || null} />
+              <div className="w-56 shrink-0 bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden hidden xl:block">
+                <ChatContextPanel conversation={selectedConversation || null} />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* AI Status */}
