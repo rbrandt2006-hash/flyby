@@ -620,11 +620,11 @@ export default function Trips() {
         onConfirm={handleConfirmDraftTrip}
       />
 
-      {/* Trip Calendar View */}
+      {/* Trip Calendar View - merge local + backend trips */}
       <TripCalendarView
         open={calendarViewOpen}
         onClose={() => setCalendarViewOpen(false)}
-        trips={localTrips}
+        trips={allCalendarTrips}
       />
 
       {/* Manager Approval Panel (for demo) */}
