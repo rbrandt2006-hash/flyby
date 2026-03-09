@@ -47,7 +47,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
           className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50"
         >
-          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="max-w-[90rem] mx-auto px-6 lg:px-10">
             <div className="flex items-center justify-between h-14">
               {/* Logo */}
               <Link to="/" className="flex items-center shrink-0">
