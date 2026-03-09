@@ -118,7 +118,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             animate={{ opacity: contentReady ? 1 : 0, y: contentReady ? 0 : 8 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            className="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-8 py-8"
+            className="flex-1 w-full max-w-[90rem] mx-auto px-6 lg:px-10 py-8"
           >
             {children}
           </motion.main>
