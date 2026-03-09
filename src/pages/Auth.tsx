@@ -10,10 +10,12 @@ import { ArrowRight, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { TwoFactorVerifyStep } from "@/components/auth/TwoFactorVerifyStep";
+import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
+import { validatePassword } from "@/lib/passwordPolicy";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(10, "Password must be at least 10 characters"),
   fullName: z.string().min(2, "Name must be at least 2 characters").optional(),
   orgName: z.string().min(2, "Organization name must be at least 2 characters").optional(),
 });
