@@ -172,10 +172,14 @@ export default function Auth() {
         <Card className="border-border/50 shadow-xl">
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl">
-              {isLogin ? "Welcome back" : "Create your account"}
+              {isLogin ? "Welcome back" : isAdminSignup ? "Register your organization" : "Create your account"}
             </CardTitle>
             <CardDescription className="text-base">
-              {isLogin ? "Sign in to access your travel dashboard" : "Start automating your business travel"}
+              {isLogin 
+                ? "Sign in to access your travel dashboard" 
+                : isAdminSignup 
+                  ? "Set up your organization's travel management" 
+                  : "Start automating your business travel"}
             </CardDescription>
           </CardHeader>
 
