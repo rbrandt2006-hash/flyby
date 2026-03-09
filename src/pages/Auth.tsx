@@ -52,6 +52,15 @@ export default function Auth() {
         });
       }
     }
+
+    // Enforce strong password policy on signup
+    if (!isLogin) {
+      const pwCheck = validatePassword(password);
+      if (!pwCheck.valid) {
+        newErrors.password = pwCheck.errors[0] || "Password does not meet requirements";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
