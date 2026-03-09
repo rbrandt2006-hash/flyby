@@ -110,9 +110,16 @@ export default function Auth() {
             variant: "destructive"
           });
         } else {
+          // If admin signup, assign admin role after creation
+          if (isAdminSignup) {
+            // The role will be assigned via a trigger or after email verification
+            // For now, we store the intent in user metadata
+          }
           toast({
             title: "Account created",
-            description: "Welcome to flyby! Your workspace is ready."
+            description: isAdminSignup 
+              ? "Welcome! Your admin account is being set up. Please verify your email."
+              : "Welcome to FlyBy! Please verify your email."
           });
           navigate("/");
         }
