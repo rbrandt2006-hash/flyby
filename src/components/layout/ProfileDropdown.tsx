@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import {
   DropdownMenu,
