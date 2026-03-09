@@ -244,6 +244,7 @@ export default function Auth() {
                   )}
                 </div>
                 <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} disabled={loading} />
+                {!isLogin && <PasswordStrengthMeter password={password} />}
                 {errors.password && (
                   <p className="text-sm text-destructive flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
