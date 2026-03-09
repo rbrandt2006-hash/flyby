@@ -6,6 +6,8 @@ import IntroAnimation, { hasIntroPlayed, prefersReducedMotion } from "@/componen
 import { GlobalSearchDropdown } from "./GlobalSearchDropdown";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { ProfileDropdown } from "./ProfileDropdown";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const navItems = [
   { label: "Home", path: "/" },
