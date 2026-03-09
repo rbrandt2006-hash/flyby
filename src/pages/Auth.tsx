@@ -256,17 +256,61 @@ export default function Auth() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
               <button
                 type="button"
                 onClick={() => {
                   setIsLogin(!isLogin);
+                  setIsAdminSignup(false);
                   setErrors({});
                 }}
                 className="text-sm transition-colors text-primary"
               >
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>
+              {isLogin && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLogin(false);
+                      setIsAdminSignup(true);
+                      setErrors({});
+                    }}
+                    className="text-sm transition-colors text-muted-foreground hover:text-primary"
+                  >
+                    Register your organization →
+                  </button>
+                </div>
+              )}
+              {!isLogin && !isAdminSignup && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAdminSignup(true);
+                      setErrors({});
+                    }}
+                    className="text-sm transition-colors text-muted-foreground hover:text-primary"
+                  >
+                    Registering an organization? Sign up as Admin →
+                  </button>
+                </div>
+              )}
+              {isAdminSignup && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAdminSignup(false);
+                      setErrors({});
+                    }}
+                    className="text-sm transition-colors text-muted-foreground hover:text-primary"
+                  >
+                    ← Back to standard signup
+                  </button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
