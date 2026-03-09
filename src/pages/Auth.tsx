@@ -10,10 +10,12 @@ import { ArrowRight, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { TwoFactorVerifyStep } from "@/components/auth/TwoFactorVerifyStep";
+import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
+import { validatePassword } from "@/lib/passwordPolicy";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(10, "Password must be at least 10 characters"),
   fullName: z.string().min(2, "Name must be at least 2 characters").optional(),
   orgName: z.string().min(2, "Organization name must be at least 2 characters").optional(),
 });
@@ -50,6 +52,15 @@ export default function Auth() {
         });
       }
     }
+
+    // Enforce strong password policy on signup
+    if (!isLogin) {
+      const pwCheck = validatePassword(password);
+      if (!pwCheck.valid) {
+        newErrors.password = pwCheck.errors[0] || "Password does not meet requirements";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -233,6 +244,7 @@ export default function Auth() {
                   )}
                 </div>
                 <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} disabled={loading} />
+                {!isLogin && <PasswordStrengthMeter password={password} />}
                 {errors.password && (
                   <p className="text-sm text-destructive flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />

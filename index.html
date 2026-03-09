@@ -39,6 +39,12 @@
       form-action 'self';
       base-uri 'self';
       object-src 'none';
+      upgrade-insecure-requests;
+    " />
+    
+    <!-- Permissions Policy - restrict browser features -->
+    <meta http-equiv="Permissions-Policy" content="
+      camera=(), microphone=(self), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()
     " />
   </head>
 

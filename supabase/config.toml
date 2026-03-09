@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.search-travel]
 verify_jwt = false
+
+[functions.audit-login]
+verify_jwt = false

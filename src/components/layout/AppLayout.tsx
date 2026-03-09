@@ -6,6 +6,8 @@ import IntroAnimation, { hasIntroPlayed, prefersReducedMotion } from "@/componen
 import { GlobalSearchDropdown } from "./GlobalSearchDropdown";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { ProfileDropdown } from "./ProfileDropdown";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const navItems = [
   { label: "Home", path: "/" },
@@ -18,6 +20,8 @@ const navItems = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const { isAdmin } = useUserRole();
+  useSessionTimeout({ isAdmin });
 
   // Intro animation state - only show on initial app load
   const [showIntro, setShowIntro] = useState(() => {
