@@ -62,7 +62,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Link>
 
               {/* Center Navigation Tabs */}
-              <nav className="hidden md:flex items-center gap-6 absolute left-[45%] -translate-x-1/2">
+              <nav className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
