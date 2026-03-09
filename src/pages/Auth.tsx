@@ -186,16 +186,30 @@ export default function Auth() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full name</Label>
-                  <Input id="fullName" type="text" placeholder="Alex Johnson" value={fullName} onChange={e => setFullName(e.target.value)} disabled={loading} />
-                  {errors.fullName && (
-                    <p className="text-sm text-destructive flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      {errors.fullName}
-                    </p>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full name</Label>
+                    <Input id="fullName" type="text" placeholder="Alex Johnson" value={fullName} onChange={e => setFullName(e.target.value)} disabled={loading} />
+                    {errors.fullName && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {errors.fullName}
+                      </p>
+                    )}
+                  </div>
+                  {isAdminSignup && (
+                    <div className="space-y-2">
+                      <Label htmlFor="orgName">Organization name</Label>
+                      <Input id="orgName" type="text" placeholder="Acme Corp" value={orgName} onChange={e => setOrgName(e.target.value)} disabled={loading} />
+                      {errors.orgName && (
+                        <p className="text-sm text-destructive flex items-center gap-1">
+                          <AlertCircle className="w-4 h-4" />
+                          {errors.orgName}
+                        </p>
+                      )}
+                    </div>
                   )}
-                </div>
+                </>
               )}
 
               <div className="space-y-2">
