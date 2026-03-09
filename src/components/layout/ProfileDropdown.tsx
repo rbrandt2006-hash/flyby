@@ -195,9 +195,15 @@ export function ProfileDropdown() {
             {isAdmin && (
               <>
                 <DropdownMenuItem asChild className="px-4 py-2.5 cursor-pointer focus:bg-primary/5 data-[highlighted]:bg-primary/5">
+                  <Link to="/admin" className="flex items-center">
+                    <Shield className="w-4 h-4 mr-3 text-muted-foreground" />
+                    <span>Admin Dashboard</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="px-4 py-2.5 cursor-pointer focus:bg-primary/5 data-[highlighted]:bg-primary/5">
                   <Link to="/team" className="flex items-center">
                     <Users className="w-4 h-4 mr-3 text-muted-foreground" />
-                    <span>Admin Console</span>
+                    <span>Team Management</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem 
