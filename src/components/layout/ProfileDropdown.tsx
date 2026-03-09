@@ -36,18 +36,10 @@ export function ProfileDropdown() {
   const { user, signOut } = useAuth();
   const { profile } = useUserProfileContext();
   const { theme, setTheme } = useTheme();
+  const { isAdmin } = useUserRole();
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    // Check for admin role - using simulated check for now
-    // In production, this would query a user_roles table
-    const isAdminUser = user.email?.includes("admin") || user.user_metadata?.role === "admin";
-    setIsAdmin(isAdminUser);
-  }, [user]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
