@@ -47,7 +47,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
           className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50"
         >
-          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="max-w-[90rem] mx-auto px-6 lg:px-10">
             <div className="flex items-center justify-between h-14">
               {/* Logo */}
               <Link to="/" className="flex items-center shrink-0">
@@ -62,7 +62,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Link>
 
               {/* Center Navigation Tabs */}
-              <nav className="hidden md:flex items-center gap-6 absolute left-[45%] -translate-x-1/2">
+              <nav className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
@@ -70,7 +70,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       key={item.path}
                       to={item.path}
                       className={cn(
-                        "relative px-4 py-2.5 text-sm font-medium capitalize tracking-normal transition-colors duration-200",
+                        "relative px-5 py-2.5 text-sm font-medium capitalize tracking-normal transition-colors duration-200",
                         isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                       )}
                     >
@@ -118,7 +118,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             animate={{ opacity: contentReady ? 1 : 0, y: contentReady ? 0 : 8 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            className="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-8 py-8"
+            className="flex-1 w-full max-w-[90rem] mx-auto px-6 lg:px-10 py-8"
           >
             {children}
           </motion.main>
@@ -126,7 +126,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         {/* Mobile bottom navigation */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border/50 flex justify-around py-2 px-4 z-50">
-          {navItems.slice(0, 4).map((item) => {
+          {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
