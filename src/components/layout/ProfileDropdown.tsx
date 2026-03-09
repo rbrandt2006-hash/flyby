@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -35,18 +36,10 @@ export function ProfileDropdown() {
   const { user, signOut } = useAuth();
   const { profile } = useUserProfileContext();
   const { theme, setTheme } = useTheme();
+  const { isAdmin } = useUserRole();
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    // Check for admin role - using simulated check for now
-    // In production, this would query a user_roles table
-    const isAdminUser = user.email?.includes("admin") || user.user_metadata?.role === "admin";
-    setIsAdmin(isAdminUser);
-  }, [user]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -202,9 +195,15 @@ export function ProfileDropdown() {
             {isAdmin && (
               <>
                 <DropdownMenuItem asChild className="px-4 py-2.5 cursor-pointer focus:bg-primary/5 data-[highlighted]:bg-primary/5">
+                  <Link to="/admin" className="flex items-center">
+                    <Shield className="w-4 h-4 mr-3 text-muted-foreground" />
+                    <span>Admin Dashboard</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="px-4 py-2.5 cursor-pointer focus:bg-primary/5 data-[highlighted]:bg-primary/5">
                   <Link to="/team" className="flex items-center">
                     <Users className="w-4 h-4 mr-3 text-muted-foreground" />
-                    <span>Admin Console</span>
+                    <span>Team Management</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem 

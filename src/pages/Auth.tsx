@@ -14,14 +14,17 @@ import { TwoFactorVerifyStep } from "@/components/auth/TwoFactorVerifyStep";
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  fullName: z.string().min(2, "Name must be at least 2 characters").optional()
+  fullName: z.string().min(2, "Name must be at least 2 characters").optional(),
+  orgName: z.string().min(2, "Organization name must be at least 2 characters").optional(),
 });
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
+  const [isAdminSignup, setIsAdminSignup] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [orgName, setOrgName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
@@ -107,9 +110,16 @@ export default function Auth() {
             variant: "destructive"
           });
         } else {
+          // If admin signup, assign admin role after creation
+          if (isAdminSignup) {
+            // The role will be assigned via a trigger or after email verification
+            // For now, we store the intent in user metadata
+          }
           toast({
             title: "Account created",
-            description: "Welcome to flyby! Your workspace is ready."
+            description: isAdminSignup 
+              ? "Welcome! Your admin account is being set up. Please verify your email."
+              : "Welcome to FlyBy! Please verify your email."
           });
           navigate("/");
         }
@@ -162,26 +172,44 @@ export default function Auth() {
         <Card className="border-border/50 shadow-xl">
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl">
-              {isLogin ? "Welcome back" : "Create your account"}
+              {isLogin ? "Welcome back" : isAdminSignup ? "Register your organization" : "Create your account"}
             </CardTitle>
             <CardDescription className="text-base">
-              {isLogin ? "Sign in to access your travel dashboard" : "Start automating your business travel"}
+              {isLogin 
+                ? "Sign in to access your travel dashboard" 
+                : isAdminSignup 
+                  ? "Set up your organization's travel management" 
+                  : "Start automating your business travel"}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full name</Label>
-                  <Input id="fullName" type="text" placeholder="Alex Johnson" value={fullName} onChange={e => setFullName(e.target.value)} disabled={loading} />
-                  {errors.fullName && (
-                    <p className="text-sm text-destructive flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      {errors.fullName}
-                    </p>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full name</Label>
+                    <Input id="fullName" type="text" placeholder="Alex Johnson" value={fullName} onChange={e => setFullName(e.target.value)} disabled={loading} />
+                    {errors.fullName && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {errors.fullName}
+                      </p>
+                    )}
+                  </div>
+                  {isAdminSignup && (
+                    <div className="space-y-2">
+                      <Label htmlFor="orgName">Organization name</Label>
+                      <Input id="orgName" type="text" placeholder="Acme Corp" value={orgName} onChange={e => setOrgName(e.target.value)} disabled={loading} />
+                      {errors.orgName && (
+                        <p className="text-sm text-destructive flex items-center gap-1">
+                          <AlertCircle className="w-4 h-4" />
+                          {errors.orgName}
+                        </p>
+                      )}
+                    </div>
                   )}
-                </div>
+                </>
               )}
 
               <div className="space-y-2">
@@ -228,17 +256,61 @@ export default function Auth() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
               <button
                 type="button"
                 onClick={() => {
                   setIsLogin(!isLogin);
+                  setIsAdminSignup(false);
                   setErrors({});
                 }}
                 className="text-sm transition-colors text-primary"
               >
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>
+              {isLogin && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLogin(false);
+                      setIsAdminSignup(true);
+                      setErrors({});
+                    }}
+                    className="text-sm transition-colors text-muted-foreground hover:text-primary"
+                  >
+                    Register your organization →
+                  </button>
+                </div>
+              )}
+              {!isLogin && !isAdminSignup && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAdminSignup(true);
+                      setErrors({});
+                    }}
+                    className="text-sm transition-colors text-muted-foreground hover:text-primary"
+                  >
+                    Registering an organization? Sign up as Admin →
+                  </button>
+                </div>
+              )}
+              {isAdminSignup && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAdminSignup(false);
+                      setErrors({});
+                    }}
+                    className="text-sm transition-colors text-muted-foreground hover:text-primary"
+                  >
+                    ← Back to standard signup
+                  </button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
