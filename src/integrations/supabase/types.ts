@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_sessions: {
+        Row: {
+          browser: string | null
+          created_at: string
+          device_info: string | null
+          id: string
+          ip_address: string | null
+          last_active_at: string
+          revoked: boolean
+          revoked_at: string | null
+          session_token_hash: string
+          user_id: string
+        }
+        Insert: {
+          browser?: string | null
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          last_active_at?: string
+          revoked?: boolean
+          revoked_at?: string | null
+          session_token_hash: string
+          user_id: string
+        }
+        Update: {
+          browser?: string | null
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          last_active_at?: string
+          revoked?: boolean
+          revoked_at?: string | null
+          session_token_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          success: boolean
+          target_id: string | null
+          target_type: string | null
+          tenant_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          success?: boolean
+          target_id?: string | null
+          target_type?: string | null
+          tenant_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          success?: boolean
+          target_id?: string | null
+          target_type?: string | null
+          tenant_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_suggestions: {
         Row: {
           calendar_event_id: string
@@ -188,6 +277,44 @@ export type Database = {
             columns: ["trip_id"]
             isOneToOne: false
             referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_upload_policies: {
+        Row: {
+          allowed_types: string[]
+          created_at: string
+          id: string
+          max_file_size_mb: number
+          require_scan: boolean
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          allowed_types?: string[]
+          created_at?: string
+          id?: string
+          max_file_size_mb?: number
+          require_scan?: boolean
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allowed_types?: string[]
+          created_at?: string
+          id?: string
+          max_file_size_mb?: number
+          require_scan?: boolean
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_upload_policies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]

@@ -15,6 +15,7 @@ import {
 import { useTrips } from "@/hooks/useTrips";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import SecurityAdminPanel from "@/components/admin/SecurityAdminPanel";
 
 // Mock org data for MVP
 const mockOrgMembers = [
@@ -51,7 +52,7 @@ const itemVariants = {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "team" | "approvals">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "team" | "approvals" | "security">("overview");
 
   const totalTrips = mockOrgMembers.reduce((s, m) => s + m.trips, 0);
   const totalSpend = mockOrgMembers.reduce((s, m) => s + m.spend, 0);
@@ -73,6 +74,7 @@ export default function AdminDashboard() {
     { id: "overview" as const, label: "Overview", icon: BarChart3 },
     { id: "team" as const, label: "Team", icon: Users },
     { id: "approvals" as const, label: "Approvals", icon: Clock },
+    { id: "security" as const, label: "Security", icon: Shield },
   ];
 
   return (
@@ -332,6 +334,13 @@ export default function AdminDashboard() {
               ))}
             </div>
           )}
+        </motion.div>
+      )}
+
+      {/* Security Tab */}
+      {activeTab === "security" && (
+        <motion.div variants={itemVariants}>
+          <SecurityAdminPanel />
         </motion.div>
       )}
     </motion.div>
