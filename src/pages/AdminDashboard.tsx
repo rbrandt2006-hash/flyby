@@ -336,6 +336,13 @@ export default function AdminDashboard() {
           )}
         </motion.div>
       )}
+
+      {/* Security Tab */}
+      {activeTab === "security" && (
+        <motion.div variants={itemVariants}>
+          <SecurityAdminPanel />
+        </motion.div>
+      )}
     </motion.div>
   );
 }
