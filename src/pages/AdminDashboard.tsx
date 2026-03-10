@@ -52,7 +52,7 @@ const itemVariants = {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "team" | "approvals">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "team" | "approvals" | "security">("overview");
 
   const totalTrips = mockOrgMembers.reduce((s, m) => s + m.trips, 0);
   const totalSpend = mockOrgMembers.reduce((s, m) => s + m.spend, 0);
