@@ -49,7 +49,7 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<void> {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    await supabase.from("audit_logs").insert({
+    await (supabase.from("audit_logs") as any).insert({
       user_id: user.id,
       tenant_id: profile?.company_id ?? null,
       action: entry.action,
@@ -57,7 +57,6 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<void> {
       target_id: entry.targetId ?? null,
       metadata: entry.metadata ?? {},
       success: entry.success ?? true,
-      // IP/user-agent captured server-side in edge functions
     });
   } catch (err) {
     console.warn("[audit] Failed to log event:", err);
