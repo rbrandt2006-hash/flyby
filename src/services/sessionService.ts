@@ -37,8 +37,7 @@ export async function getActiveSessions() {
  * Revokes a specific session.
  */
 export async function revokeSession(sessionId: string) {
-  return supabase
-    .from("active_sessions")
+  return (supabase.from("active_sessions") as any)
     .update({ revoked: true, revoked_at: new Date().toISOString() })
     .eq("id", sessionId);
 }
