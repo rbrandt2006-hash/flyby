@@ -74,6 +74,7 @@ export default function AdminDashboard() {
     { id: "overview" as const, label: "Overview", icon: BarChart3 },
     { id: "team" as const, label: "Team", icon: Users },
     { id: "approvals" as const, label: "Approvals", icon: Clock },
+    { id: "security" as const, label: "Security", icon: Shield },
   ];
 
   return (
