@@ -15,6 +15,7 @@ import {
 import { useTrips } from "@/hooks/useTrips";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import SecurityAdminPanel from "@/components/admin/SecurityAdminPanel";
 
 // Mock org data for MVP
 const mockOrgMembers = [
