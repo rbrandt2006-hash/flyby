@@ -27,8 +27,7 @@ export async function trackSession(): Promise<void> {
  * Fetches active sessions for the current user.
  */
 export async function getActiveSessions() {
-  return supabase
-    .from("active_sessions")
+  return (supabase.from("active_sessions") as any)
     .select("*")
     .eq("revoked", false)
     .order("last_active_at", { ascending: false });
