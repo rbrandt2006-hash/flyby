@@ -49,8 +49,7 @@ export async function revokeAllOtherSessions(currentSessionId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  return supabase
-    .from("active_sessions")
+  return (supabase.from("active_sessions") as any)
     .update({ revoked: true, revoked_at: new Date().toISOString() })
     .eq("user_id", user.id)
     .eq("revoked", false)

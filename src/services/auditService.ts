@@ -71,8 +71,7 @@ export async function fetchAuditLogs(options?: {
   action?: string;
   userId?: string;
 }) {
-  let query = supabase
-    .from("audit_logs")
+  let query = (supabase.from("audit_logs") as any)
     .select("*")
     .order("created_at", { ascending: false })
     .limit(options?.limit ?? 100);
