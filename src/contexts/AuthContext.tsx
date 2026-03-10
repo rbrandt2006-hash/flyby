@@ -25,6 +25,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Handle token refresh failures - force re-login
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          console.warn('[Auth] Token refresh failed, signing out');
+          supabase.auth.signOut();
+        }
+
+        if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+        }
       }
     );
 
