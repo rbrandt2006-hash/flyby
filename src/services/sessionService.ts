@@ -12,7 +12,7 @@ export async function trackSession(): Promise<void> {
     const browser = detectBrowser(ua);
     const tokenHash = simpleHash(user.id + Date.now().toString());
 
-    await supabase.from("active_sessions").insert({
+    await (supabase.from("active_sessions") as any).insert({
       user_id: user.id,
       session_token_hash: tokenHash,
       device_info: ua.slice(0, 200),
