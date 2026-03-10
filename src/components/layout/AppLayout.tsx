@@ -52,9 +52,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50"
         >
           <div className="max-w-[90rem] mx-auto px-6 lg:px-10">
-            <div className="flex items-center justify-between h-14">
+            <div className="flex items-center h-14">
               {/* Logo */}
-              <Link to="/" className="flex items-center shrink-0">
+              <Link to="/" className="flex items-center shrink-0 mr-10">
                 <motion.img
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -65,8 +65,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 />
               </Link>
 
-              {/* Center Navigation Tabs */}
-              <nav className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+              {/* Center-left Navigation Tabs */}
+              <nav className="hidden md:flex items-center gap-7 flex-1">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
@@ -74,16 +74,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       key={item.path}
                       to={item.path}
                       className={cn(
-                        "relative px-5 py-2.5 text-sm font-medium capitalize tracking-normal transition-colors duration-200",
+                        "relative px-1 py-2.5 text-sm font-medium capitalize tracking-normal transition-colors duration-200 whitespace-nowrap",
                         isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                       )}
                     >
                       {item.label}
-                      {/* Animated underline indicator */}
                       {isActive && (
                         <motion.div
                           layoutId="activeTabIndicator"
-                          className="absolute bottom-0 left-2 right-2 h-0.5 bg-foreground rounded-full"
+                          className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full"
                           initial={false}
                           transition={{
                             type: "spring",
@@ -97,17 +96,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 })}
               </nav>
 
-              {/* Right side: Search, Notifications, User */}
-              <div className="flex items-center gap-3">
-                {/* Search */}
+              {/* Right side: Search, Notifications, User — separated with gap */}
+              <div className="flex items-center gap-4 ml-12 shrink-0">
                 <div className="hidden lg:block">
                   <GlobalSearchDropdown />
                 </div>
-
-                {/* Notifications */}
                 <NotificationDropdown />
-
-                {/* User Avatar Dropdown */}
                 <ProfileDropdown />
               </div>
             </div>
