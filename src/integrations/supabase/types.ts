@@ -153,6 +153,8 @@ export type Database = {
           domain: string
           id: string
           name: string
+          settings: Json | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -160,6 +162,8 @@ export type Database = {
           domain: string
           id?: string
           name: string
+          settings?: Json | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -167,6 +171,8 @@ export type Database = {
           domain?: string
           id?: string
           name?: string
+          settings?: Json | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -354,6 +360,51 @@ export type Database = {
           },
         ]
       }
+      mfa_credentials: {
+        Row: {
+          backup_codes: string[] | null
+          created_at: string
+          credential_id: string | null
+          device_name: string | null
+          encrypted_secret: string | null
+          id: string
+          is_active: boolean
+          public_key: string | null
+          sign_count: number | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          backup_codes?: string[] | null
+          created_at?: string
+          credential_id?: string | null
+          device_name?: string | null
+          encrypted_secret?: string | null
+          id?: string
+          is_active?: boolean
+          public_key?: string | null
+          sign_count?: number | null
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          backup_codes?: string[] | null
+          created_at?: string
+          credential_id?: string | null
+          device_name?: string | null
+          encrypted_secret?: string | null
+          id?: string
+          is_active?: boolean
+          public_key?: string | null
+          sign_count?: number | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pending_2fa_verifications: {
         Row: {
           created_at: string
@@ -378,6 +429,33 @@ export type Database = {
           phone_number?: string
           session_token?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      permissions: {
+        Row: {
+          action: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          resource: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          resource: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          resource?: string
         }
         Relationships: []
       }
@@ -452,6 +530,88 @@ export type Database = {
           {
             foreignKeyName: "profiles_company_id_fkey"
             columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission_id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          tenant_id: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          tenant_id?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          tenant_id?: string | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
@@ -677,6 +837,10 @@ export type Database = {
       current_user_company_id: { Args: never; Returns: string }
       get_or_create_company: { Args: { email_input: string }; Returns: string }
       get_user_role: { Args: { _user_id: string }; Returns: string }
+      has_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
