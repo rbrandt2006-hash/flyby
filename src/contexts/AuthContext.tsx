@@ -28,13 +28,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Handle token refresh failures - force re-login
+        // Audit auth events
+        if (event === 'SIGNED_IN' && session?.user) {
+          logAuditEvent({ action: "login_success" });
+          trackSession();
+        }
+
         if (event === 'TOKEN_REFRESHED' && !session) {
           console.warn('[Auth] Token refresh failed, signing out');
           supabase.auth.signOut();
         }
 
         if (event === 'SIGNED_OUT') {
+          logAuditEvent({ action: "logout" });
           setSession(null);
           setUser(null);
         }
