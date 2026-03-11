@@ -14,6 +14,7 @@ interface TravelerInfo {
   totalSteps: number;
   statusType: "info" | "success" | "warning";
   initials: string;
+  tripId?: string;
 }
 
 interface TravelerDetailPanelProps {
@@ -22,7 +23,6 @@ interface TravelerDetailPanelProps {
   onClose: () => void;
 }
 
-// Mock detailed data per status
 function getStatusDetails(status: string, name: string, destination: string) {
   switch (status) {
     case "Boarded plane":
@@ -104,18 +104,20 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
 
   const handleMessageTraveler = () => {
     onClose();
-    navigate("/chats", { 
+    navigate("/team", { 
       state: { 
-        openChatId: null, 
         travelerName: traveler.name,
-        travelerDestination: traveler.destination,
       } 
     });
   };
 
   const handleViewItinerary = () => {
     onClose();
-    navigate("/trips");
+    if (traveler.tripId) {
+      navigate(`/trips/${traveler.tripId}`);
+    } else {
+      navigate("/trips");
+    }
   };
 
   return (
@@ -210,9 +212,15 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
                   <MessageSquare className="w-4 h-4" />
                   Message traveler
                 </Button>
-                <Button variant="outline" className="flex-1 gap-2" size="sm" onClick={handleViewItinerary}>
+                <Button 
+                  variant="outline" 
+                  className="flex-1 gap-2 group/btn" 
+                  size="sm" 
+                  onClick={handleViewItinerary}
+                >
                   <Calendar className="w-4 h-4" />
                   View itinerary
+                  <span className="opacity-0 group-hover/btn:opacity-100 transition-opacity">→</span>
                 </Button>
               </div>
             </motion.div>
