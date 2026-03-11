@@ -37,11 +37,12 @@ interface ExpenseHistoryTableProps {
   onEdit?: (expense: DemoExpense) => void;
   onDelete?: (expense: DemoExpense) => void;
   onTripClick?: (tripName: string) => void;
+  onRowClick?: (expense: DemoExpense) => void;
 }
 
 type FilterStatus = "all" | "pending" | "approved" | "disputed";
 
-export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete, onTripClick }: ExpenseHistoryTableProps) {
+export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete, onTripClick, onRowClick }: ExpenseHistoryTableProps) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [filterTrip, setFilterTrip] = useState<string>("all");
@@ -168,9 +169,9 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                 filtered.map((expense) => {
                   const CategoryIcon = categoryIcons[expense.category] || Receipt;
                   const status = statusConfig[expense.status] || statusConfig.pending;
-                  const isPending = expense.status === "pending";
+                  const isEditable = expense.status === "pending" || expense.status === "disputed";
                   return (
-                    <TableRow key={expense.id} className="group">
+                    <TableRow key={expense.id} className="group cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onRowClick?.(expense)}>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                         {expense.date}
                       </TableCell>
@@ -191,7 +192,7 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                       <TableCell>
                         {expense.tripName ? (
                           <button
-                            onClick={() => onTripClick?.(expense.tripName || "")}
+                            onClick={(e) => { e.stopPropagation(); onTripClick?.(expense.tripName || ""); }}
                             className="text-sm text-primary hover:underline"
                           >
                             {expense.tripName}
@@ -214,7 +215,7 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                             variant="ghost"
                             size="sm"
                             className="text-xs text-primary gap-1 h-7"
-                            onClick={() => onViewReceipt?.(expense)}
+                            onClick={(e) => { e.stopPropagation(); onViewReceipt?.(expense); }}
                           >
                             <Eye className="w-3.5 h-3.5" />
                             View
@@ -224,13 +225,13 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {isPending ? (
+                        {isEditable ? (
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => onEdit?.(expense)}
+                              onClick={(e) => { e.stopPropagation(); onEdit?.(expense); }}
                             >
                               <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                             </Button>
@@ -238,7 +239,7 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => onDelete?.(expense)}
+                              onClick={(e) => { e.stopPropagation(); onDelete?.(expense); }}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>

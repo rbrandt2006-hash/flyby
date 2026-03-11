@@ -17,6 +17,8 @@ import { ExpenseAnalyticsModal } from "@/components/expenses/ExpenseAnalyticsMod
 import { AIExpenseInsights } from "@/components/expenses/AIExpenseInsights";
 import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
 import { ExpenseHistoryTable } from "@/components/expenses/ExpenseHistoryTable";
+import { EditExpenseDrawer } from "@/components/expenses/EditExpenseDrawer";
+import { ExpenseViewDrawer } from "@/components/expenses/ExpenseViewDrawer";
 import { demoExpenses, demoStats, type DemoExpense } from "@/components/expenses/demoExpenseData";
 import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
@@ -81,7 +83,8 @@ export default function Expenses() {
   const [demoDrawerStatus, setDemoDrawerStatus] = useState<DemoExpense["status"] | null>(null);
   const [demoExpenseList, setDemoExpenseList] = useState<DemoExpense[]>(demoExpenses);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
-
+  const [editingExpense, setEditingExpense] = useState<DemoExpense | null>(null);
+  const [viewingExpense, setViewingExpense] = useState<DemoExpense | null>(null);
   const drawerTitle = useMemo(() => {
     if (demoDrawerStatus === "pending") return "Pending Approvals";
     if (demoDrawerStatus === "approved") return "Approved Expenses";
@@ -97,6 +100,17 @@ export default function Expenses() {
   const handleUpdateDemoExpense = (id: string, status: DemoExpense["status"]) => {
     setDemoExpenseList(prev => prev.map(e => e.id === id ? { ...e, status } : e));
   };
+
+  const handleEditDemoExpense = (id: string, updates: Partial<DemoExpense>) => {
+    setDemoExpenseList(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+    toast.success("Expense updated successfully");
+  };
+
+  const uniqueTripNames = useMemo(() => {
+    const trips = new Set<string>();
+    demoExpenseList.forEach(e => { if (e.tripName) trips.add(e.tripName); });
+    return Array.from(trips);
+  }, [demoExpenseList]);
 
   // Live totals from demo data
   const livePending = useMemo(() => demoExpenseList.filter(e => e.status === "pending").reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
@@ -533,13 +547,14 @@ export default function Expenses() {
         <h2 className="text-lg font-semibold">Recent Expenses</h2>
         <ExpenseHistoryTable
           expenses={demoExpenseList}
-          onViewReceipt={(expense) => toast.info(`Receipt for ${expense.vendor} — preview coming soon`)}
-          onEdit={(expense) => toast.info(`Edit ${expense.vendor} — opening editor`)}
+          onViewReceipt={(expense) => setViewingExpense(expense)}
+          onEdit={(expense) => setEditingExpense(expense)}
           onDelete={(expense) => {
             setDemoExpenseList(prev => prev.filter(e => e.id !== expense.id));
             toast.success(`${expense.vendor} expense deleted`);
           }}
           onTripClick={(tripName) => toast.info(`Viewing expenses for ${tripName}`)}
+          onRowClick={(expense) => setViewingExpense(expense)}
         />
       </motion.div>
 
@@ -576,6 +591,28 @@ export default function Expenses() {
 
       {/* Analytics modal */}
       <ExpenseAnalyticsModal open={analyticsOpen} onOpenChange={setAnalyticsOpen} />
+
+      {/* View Expense Drawer */}
+      <ExpenseViewDrawer
+        expense={viewingExpense}
+        open={!!viewingExpense}
+        onOpenChange={(open) => { if (!open) setViewingExpense(null); }}
+        onEdit={(expense) => { setViewingExpense(null); setEditingExpense(expense); }}
+        onDelete={(expense) => {
+          setViewingExpense(null);
+          setDemoExpenseList(prev => prev.filter(e => e.id !== expense.id));
+          toast.success(`${expense.vendor} expense deleted`);
+        }}
+      />
+
+      {/* Edit Expense Drawer */}
+      <EditExpenseDrawer
+        expense={editingExpense}
+        open={!!editingExpense}
+        onOpenChange={(open) => { if (!open) setEditingExpense(null); }}
+        onSave={handleEditDemoExpense}
+        trips={uniqueTripNames}
+      />
     </motion.div>
   );
 }
