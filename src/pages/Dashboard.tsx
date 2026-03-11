@@ -21,6 +21,7 @@ import type { CalendarEvent } from "@/services/mockCalendarService";
 import { cn } from "@/lib/utils";
 import { getRandomHeadline } from "@/data/heroHeadlines";
 import { TravelerDetailPanel } from "@/components/home/TravelerDetailPanel";
+import { TripSpendSlideOver, getTripSpendData } from "@/components/home/TripSpendSlideOver";
 
 interface TripPlan {
   destination: string;
