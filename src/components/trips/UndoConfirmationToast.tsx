@@ -96,8 +96,8 @@ export function useUndoConfirmation({
   const [visible, setVisible] = useState(false);
   const [countdown, setCountdown] = useState(duration);
   const [tripDestination, setTripDestination] = useState("");
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearTimers = () => {
     if (timerRef.current) {
