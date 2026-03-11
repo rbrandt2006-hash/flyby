@@ -225,7 +225,7 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {isPending ? (
+                        {isEditable ? (
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
