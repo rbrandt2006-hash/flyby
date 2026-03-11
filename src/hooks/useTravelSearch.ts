@@ -70,7 +70,7 @@ export function useTravelSearch() {
     hotels: [],
     ground: [],
   });
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const search = useCallback(async (params: SearchParams) => {
