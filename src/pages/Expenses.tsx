@@ -83,7 +83,8 @@ export default function Expenses() {
   const [demoDrawerStatus, setDemoDrawerStatus] = useState<DemoExpense["status"] | null>(null);
   const [demoExpenseList, setDemoExpenseList] = useState<DemoExpense[]>(demoExpenses);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
-
+  const [editingExpense, setEditingExpense] = useState<DemoExpense | null>(null);
+  const [viewingExpense, setViewingExpense] = useState<DemoExpense | null>(null);
   const drawerTitle = useMemo(() => {
     if (demoDrawerStatus === "pending") return "Pending Approvals";
     if (demoDrawerStatus === "approved") return "Approved Expenses";
