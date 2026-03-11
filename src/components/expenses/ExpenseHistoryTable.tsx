@@ -169,7 +169,7 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                 filtered.map((expense) => {
                   const CategoryIcon = categoryIcons[expense.category] || Receipt;
                   const status = statusConfig[expense.status] || statusConfig.pending;
-                  const isPending = expense.status === "pending";
+                  const isEditable = expense.status === "pending" || expense.status === "disputed";
                   return (
                     <TableRow key={expense.id} className="group cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onRowClick?.(expense)}>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
