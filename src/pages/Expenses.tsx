@@ -547,13 +547,14 @@ export default function Expenses() {
         <h2 className="text-lg font-semibold">Recent Expenses</h2>
         <ExpenseHistoryTable
           expenses={demoExpenseList}
-          onViewReceipt={(expense) => toast.info(`Receipt for ${expense.vendor} — preview coming soon`)}
-          onEdit={(expense) => toast.info(`Edit ${expense.vendor} — opening editor`)}
+          onViewReceipt={(expense) => setViewingExpense(expense)}
+          onEdit={(expense) => setEditingExpense(expense)}
           onDelete={(expense) => {
             setDemoExpenseList(prev => prev.filter(e => e.id !== expense.id));
             toast.success(`${expense.vendor} expense deleted`);
           }}
           onTripClick={(tripName) => toast.info(`Viewing expenses for ${tripName}`)}
+          onRowClick={(expense) => setViewingExpense(expense)}
         />
       </motion.div>
 
