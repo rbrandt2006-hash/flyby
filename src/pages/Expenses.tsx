@@ -101,6 +101,17 @@ export default function Expenses() {
     setDemoExpenseList(prev => prev.map(e => e.id === id ? { ...e, status } : e));
   };
 
+  const handleEditDemoExpense = (id: string, updates: Partial<DemoExpense>) => {
+    setDemoExpenseList(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+    toast.success("Expense updated successfully");
+  };
+
+  const uniqueTripNames = useMemo(() => {
+    const trips = new Set<string>();
+    demoExpenseList.forEach(e => { if (e.tripName) trips.add(e.tripName); });
+    return Array.from(trips);
+  }, [demoExpenseList]);
+
   // Live totals from demo data
   const livePending = useMemo(() => demoExpenseList.filter(e => e.status === "pending").reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
   const liveApproved = useMemo(() => demoExpenseList.filter(e => e.status === "approved").reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
