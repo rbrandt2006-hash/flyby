@@ -26,7 +26,7 @@ export default function GetStarted() {
         <motion.img
           src={flybyLogo}
           alt="Flyby"
-          className="h-12 mb-10"
+          className="h-20 w-auto mb-10"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.15, duration: 0.5 }}
