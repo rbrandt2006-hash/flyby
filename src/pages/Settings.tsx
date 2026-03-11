@@ -53,7 +53,18 @@ import {
   Loader2,
   X,
   Palette,
+  LogOut,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Nav sections configuration
 const navSections = [
@@ -161,7 +172,7 @@ const mealOptions = [
 // Integration data removed - now using IntegrationsSettings component
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { profile, updateAvatarUrl } = useUserProfileContext();
   const location = useLocation();
   const navigate = useNavigate();
@@ -178,6 +189,8 @@ export default function Settings() {
   const [contactSupportOpen, setContactSupportOpen] = useState(false);
   const [productTourOpen, setProductTourOpen] = useState(false);
   const [avatarUploadOpen, setAvatarUploadOpen] = useState(false);
+  const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // 2FA state - now using real hook
   const { enabled: is2FAEnabled, maskedPhone: twoFactorMaskedPhone, isLoading: is2FALoading, updateStatus: update2FAStatus } = useTwoFactorAuth();
@@ -857,6 +870,19 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+
+          {/* Sign Out */}
+          <div className="pt-6 pb-8">
+            <Separator className="mb-6" />
+            <Button
+              variant="outline"
+              className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+              onClick={() => setSignOutDialogOpen(true)}
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -901,6 +927,42 @@ export default function Settings() {
           onAvatarUpdated={updateAvatarUrl}
         />
       )}
+
+      {/* Sign Out Confirmation */}
+      <AlertDialog open={signOutDialogOpen} onOpenChange={setSignOutDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to sign out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will be redirected to the Get Started screen and will need to sign in again to access your account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSigningOut}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isSigningOut}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async (e) => {
+                e.preventDefault();
+                setIsSigningOut(true);
+                try {
+                  await signOut();
+                  toast.success("Signed out successfully");
+                  navigate("/get-started");
+                } catch {
+                  toast.error("Failed to sign out");
+                } finally {
+                  setIsSigningOut(false);
+                  setSignOutDialogOpen(false);
+                }
+              }}
+            >
+              {isSigningOut ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <LogOut className="w-4 h-4 mr-2" />}
+              Sign out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }
