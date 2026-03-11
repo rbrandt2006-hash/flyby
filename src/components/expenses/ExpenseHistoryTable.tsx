@@ -192,7 +192,7 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                       <TableCell>
                         {expense.tripName ? (
                           <button
-                            onClick={() => onTripClick?.(expense.tripName || "")}
+                            onClick={(e) => { e.stopPropagation(); onTripClick?.(expense.tripName || ""); }}
                             className="text-sm text-primary hover:underline"
                           >
                             {expense.tripName}
