@@ -439,7 +439,6 @@ function TabBar({ view, onChangeView }: { view: DetailView; onChangeView: (v: De
 export function TeamMemberDetailPanel({ member, open, onClose }: TeamMemberDetailPanelProps) {
   const [view, setView] = useState<DetailView>("main");
   const overlayRef = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
