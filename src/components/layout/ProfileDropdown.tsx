@@ -46,7 +46,7 @@ export function ProfileDropdown() {
     try {
       await signOut();
       toast.success("Signed out successfully");
-      navigate("/auth");
+      navigate("/get-started");
     } catch (error) {
       toast.error("Failed to sign out");
     } finally {
