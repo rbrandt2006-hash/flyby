@@ -37,6 +37,7 @@ interface ExpenseHistoryTableProps {
   onEdit?: (expense: DemoExpense) => void;
   onDelete?: (expense: DemoExpense) => void;
   onTripClick?: (tripName: string) => void;
+  onRowClick?: (expense: DemoExpense) => void;
 }
 
 type FilterStatus = "all" | "pending" | "approved" | "disputed";
