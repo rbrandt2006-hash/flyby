@@ -25,6 +25,7 @@ import { GlassPanel } from "./GlassPanel";
 import { cn } from "@/lib/utils";
 import type { TeamMember } from "./TeamMemberCard";
 import { motion, AnimatePresence } from "framer-motion";
+import { TeamChatView } from "./TeamChatView";
 
 type DetailView = "main" | "message" | "itinerary" | "profile" | "calendar";
 
