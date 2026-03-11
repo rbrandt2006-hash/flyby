@@ -231,7 +231,7 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => onEdit?.(expense)}
+                              onClick={(e) => { e.stopPropagation(); onEdit?.(expense); }}
                             >
                               <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                             </Button>
@@ -239,7 +239,7 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => onDelete?.(expense)}
+                              onClick={(e) => { e.stopPropagation(); onDelete?.(expense); }}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
