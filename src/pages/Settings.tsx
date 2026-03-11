@@ -189,6 +189,8 @@ export default function Settings() {
   const [contactSupportOpen, setContactSupportOpen] = useState(false);
   const [productTourOpen, setProductTourOpen] = useState(false);
   const [avatarUploadOpen, setAvatarUploadOpen] = useState(false);
+  const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // 2FA state - now using real hook
   const { enabled: is2FAEnabled, maskedPhone: twoFactorMaskedPhone, isLoading: is2FALoading, updateStatus: update2FAStatus } = useTwoFactorAuth();
