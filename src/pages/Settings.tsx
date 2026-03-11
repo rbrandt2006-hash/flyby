@@ -172,7 +172,7 @@ const mealOptions = [
 // Integration data removed - now using IntegrationsSettings component
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { profile, updateAvatarUrl } = useUserProfileContext();
   const location = useLocation();
   const navigate = useNavigate();
