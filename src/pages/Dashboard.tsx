@@ -21,6 +21,7 @@ import type { CalendarEvent } from "@/services/mockCalendarService";
 import { cn } from "@/lib/utils";
 import { getRandomHeadline } from "@/data/heroHeadlines";
 import { TravelerDetailPanel } from "@/components/home/TravelerDetailPanel";
+import { TripSpendSlideOver, getTripSpendData } from "@/components/home/TripSpendSlideOver";
 
 interface TripPlan {
   destination: string;
@@ -99,10 +100,10 @@ const travelJourneyStatuses = [
 ];
 
 const teamTraveling = [
-  { name: "Julia Chen", destination: "Seattle, WA", status: "Boarded plane", journeyStep: 2, totalSteps: 5, statusType: "info" as const, initials: "JC" },
-  { name: "Mark Thompson", destination: "Chicago, IL", status: "Checked into hotel", journeyStep: 4, totalSteps: 5, statusType: "success" as const, initials: "MT" },
-  { name: "Priya Patel", destination: "New York, NY", status: "Heading to airport", journeyStep: 5, totalSteps: 5, statusType: "warning" as const, initials: "PP" },
-  { name: "Alex Rivera", destination: "San Francisco, CA", status: "In meeting", journeyStep: 4, totalSteps: 6, statusType: "success" as const, initials: "AR" },
+  { name: "Julia Chen", destination: "Seattle, WA", status: "Boarded plane", journeyStep: 2, totalSteps: 5, statusType: "info" as const, initials: "JC", tripId: "demo_trip_seattle_2025" },
+  { name: "Mark Thompson", destination: "Chicago, IL", status: "Checked into hotel", journeyStep: 4, totalSteps: 5, statusType: "success" as const, initials: "MT", tripId: "demo_trip_chi_2025" },
+  { name: "Priya Patel", destination: "New York, NY", status: "Heading to airport", journeyStep: 5, totalSteps: 5, statusType: "warning" as const, initials: "PP", tripId: "demo_trip_nyc_2025" },
+  { name: "Alex Rivera", destination: "San Francisco, CA", status: "In meeting", journeyStep: 4, totalSteps: 6, statusType: "success" as const, initials: "AR", tripId: "demo_trip_sf_2025" },
 ];
 
 export default function Dashboard() {
@@ -120,6 +121,7 @@ export default function Dashboard() {
   const [isRefineOpen, setIsRefineOpen] = useState(false);
   const [kpiDrawer, setKpiDrawer] = useState<{ open: boolean; type: KPIType }>({ open: false, type: "upcomingTrips" });
   const [selectedTraveler, setSelectedTraveler] = useState<typeof teamTraveling[number] | null>(null);
+  const [selectedSpendTrip, setSelectedSpendTrip] = useState<ReturnType<typeof getTripSpendData>>(null);
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
 
@@ -554,7 +556,7 @@ export default function Dashboard() {
                 <div className="space-y-1.5">
                   <div 
                     className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                    onClick={() => navigate("/trips", { state: { openTripId: "demo_trip_london_2025" } })}
+                    onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_london_2025"))}
                   >
                     <div className="flex items-center gap-2">
                       <Plane className="w-3.5 h-3.5 text-muted-foreground" />
@@ -567,7 +569,7 @@ export default function Dashboard() {
                   </div>
                   <div 
                     className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                    onClick={() => navigate("/trips", { state: { openTripId: "demo_trip_tokyo_2025" } })}
+                    onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_tokyo_2025"))}
                   >
                     <div className="flex items-center gap-2">
                       <Plane className="w-3.5 h-3.5 text-muted-foreground" />
@@ -656,6 +658,13 @@ export default function Dashboard() {
         traveler={selectedTraveler}
         open={!!selectedTraveler}
         onClose={() => setSelectedTraveler(null)}
+      />
+
+      {/* Trip Spend Slide-Over */}
+      <TripSpendSlideOver
+        trip={selectedSpendTrip}
+        open={!!selectedSpendTrip}
+        onClose={() => setSelectedSpendTrip(null)}
       />
 
       {/* ─── Refine Modal ─── */}
