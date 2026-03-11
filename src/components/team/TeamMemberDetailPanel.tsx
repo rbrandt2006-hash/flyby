@@ -454,7 +454,6 @@ export function TeamMemberDetailPanel({ member, open, onClose }: TeamMemberDetai
   if (!member) return null;
 
   const initials = member.name.split(" ").map((n) => n[0]).join("").toUpperCase();
-  const messages = getMockMessages(member.name, member.upcomingTrip?.destination);
   const itinerary = getMockItinerary(member.name, member.upcomingTrip);
 
   const viewTitle = view === "main" ? "Overview" : view === "message" ? "Message" : view === "itinerary" ? "Itinerary" : view === "calendar" ? "Calendar" : "Profile";
