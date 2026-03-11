@@ -42,7 +42,7 @@ interface ExpenseHistoryTableProps {
 
 type FilterStatus = "all" | "pending" | "approved" | "disputed";
 
-export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete, onTripClick }: ExpenseHistoryTableProps) {
+export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete, onTripClick, onRowClick }: ExpenseHistoryTableProps) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [filterTrip, setFilterTrip] = useState<string>("all");
