@@ -15,7 +15,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Trips from "./pages/Trips";
 import TripDetail from "./pages/TripDetail";
 import Team from "./pages/Team";
-import Chats from "./pages/Chats";
+
 import Expenses from "./pages/Expenses";
 import Settings from "./pages/Settings";
 import IntegrationManage from "./pages/IntegrationManage";
