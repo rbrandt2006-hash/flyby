@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
-import flybyLogo from "@/assets/flyby-logo-new.png";
+import flybyLogo from "@/assets/flyby-logo-icon.png";
 
 export default function GetStarted() {
   const { signInAsGuest } = useAuth();
