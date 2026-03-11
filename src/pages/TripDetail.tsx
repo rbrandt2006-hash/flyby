@@ -141,6 +141,46 @@ export default function TripDetail() {
         reviewCount: 1923,
       },
     },
+    "demo_trip_chi_2025": {
+      id: "demo_trip_chi_2025",
+      destination: "Chicago, IL",
+      startDate: "2025-01-20T00:00:00.000Z",
+      endDate: "2025-01-23T00:00:00.000Z",
+      status: "confirmed",
+      purpose: "Partner summit",
+      estimatedCost: 1650,
+      flight: { airline: "American Airlines", flightNumber: "AA 892", departTime: "6:45 AM", returnTime: "7:15 PM", price: 380 },
+      hotel: {
+        name: "The Palmer House Hilton", location: "The Loop", address: "17 E Monroe St, Chicago, IL 60603",
+        pricePerNight: 259, rating: 4.4,
+        amenities: ["Free Wi-Fi", "Pool", "Gym", "Restaurant", "Bar"],
+        images: [
+          "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=500&fit=crop",
+        ],
+        description: "Historic luxury in the heart of Chicago's Loop.",
+        reviewCount: 3421,
+      },
+    },
+    "demo_trip_nyc_2025": {
+      id: "demo_trip_nyc_2025",
+      destination: "New York, NY",
+      startDate: "2025-01-12T00:00:00.000Z",
+      endDate: "2025-01-14T00:00:00.000Z",
+      status: "confirmed",
+      purpose: "Client presentation",
+      estimatedCost: 2400,
+      flight: { airline: "Delta Air Lines", flightNumber: "DL 402", departTime: "9:00 AM", returnTime: "5:30 PM", price: 520 },
+      hotel: {
+        name: "The Westin New York Grand Central", location: "Midtown East", address: "212 E 42nd St, New York, NY 10017",
+        pricePerNight: 329, rating: 4.3,
+        amenities: ["Free Wi-Fi", "Gym", "Restaurant", "Room Service", "Business Center"],
+        images: [
+          "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=500&fit=crop",
+        ],
+        description: "Steps from Grand Central in the heart of Manhattan.",
+        reviewCount: 2156,
+      },
+    },
   };
 
   // Load trip data
