@@ -2,6 +2,19 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+const guestProfile: UserProfile = {
+  id: "guest-profile",
+  user_id: "guest-user-id",
+  email: "guest@flyby.app",
+  full_name: "Guest User",
+  avatar_url: null,
+  job_title: "Travel Manager",
+  phone: null,
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  company_id: null,
+  theme_preference: null,
+};
+
 export interface UserProfile {
   id: string;
   user_id: string;
@@ -16,12 +29,18 @@ export interface UserProfile {
 }
 
 export function useUserProfile() {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
+    if (isGuest) {
+      setProfile(guestProfile);
+      setIsLoading(false);
+      return;
+    }
+
     if (!user?.id) {
       setProfile(null);
       setIsLoading(false);
@@ -49,7 +68,7 @@ export function useUserProfile() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, isGuest]);
 
   // Fetch profile on mount and when user changes
   useEffect(() => {
