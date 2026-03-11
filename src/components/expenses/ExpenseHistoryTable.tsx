@@ -215,7 +215,7 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                             variant="ghost"
                             size="sm"
                             className="text-xs text-primary gap-1 h-7"
-                            onClick={() => onViewReceipt?.(expense)}
+                            onClick={(e) => { e.stopPropagation(); onViewReceipt?.(expense); }}
                           >
                             <Eye className="w-3.5 h-3.5" />
                             View
