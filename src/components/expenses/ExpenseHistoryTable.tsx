@@ -171,7 +171,7 @@ export function ExpenseHistoryTable({ expenses, onViewReceipt, onEdit, onDelete,
                   const status = statusConfig[expense.status] || statusConfig.pending;
                   const isPending = expense.status === "pending";
                   return (
-                    <TableRow key={expense.id} className="group">
+                    <TableRow key={expense.id} className="group cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onRowClick?.(expense)}>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                         {expense.date}
                       </TableCell>
