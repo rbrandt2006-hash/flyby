@@ -68,7 +68,7 @@ export function useUserProfile() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, isGuest]);
 
   // Fetch profile on mount and when user changes
   useEffect(() => {
