@@ -29,12 +29,18 @@ export interface UserProfile {
 }
 
 export function useUserProfile() {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
+    if (isGuest) {
+      setProfile(guestProfile);
+      setIsLoading(false);
+      return;
+    }
+
     if (!user?.id) {
       setProfile(null);
       setIsLoading(false);
