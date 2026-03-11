@@ -100,10 +100,10 @@ const travelJourneyStatuses = [
 ];
 
 const teamTraveling = [
-  { name: "Julia Chen", destination: "Seattle, WA", status: "Boarded plane", journeyStep: 2, totalSteps: 5, statusType: "info" as const, initials: "JC" },
-  { name: "Mark Thompson", destination: "Chicago, IL", status: "Checked into hotel", journeyStep: 4, totalSteps: 5, statusType: "success" as const, initials: "MT" },
-  { name: "Priya Patel", destination: "New York, NY", status: "Heading to airport", journeyStep: 5, totalSteps: 5, statusType: "warning" as const, initials: "PP" },
-  { name: "Alex Rivera", destination: "San Francisco, CA", status: "In meeting", journeyStep: 4, totalSteps: 6, statusType: "success" as const, initials: "AR" },
+  { name: "Julia Chen", destination: "Seattle, WA", status: "Boarded plane", journeyStep: 2, totalSteps: 5, statusType: "info" as const, initials: "JC", tripId: "demo_trip_seattle_2025" },
+  { name: "Mark Thompson", destination: "Chicago, IL", status: "Checked into hotel", journeyStep: 4, totalSteps: 5, statusType: "success" as const, initials: "MT", tripId: "demo_trip_chi_2025" },
+  { name: "Priya Patel", destination: "New York, NY", status: "Heading to airport", journeyStep: 5, totalSteps: 5, statusType: "warning" as const, initials: "PP", tripId: "demo_trip_nyc_2025" },
+  { name: "Alex Rivera", destination: "San Francisco, CA", status: "In meeting", journeyStep: 4, totalSteps: 6, statusType: "success" as const, initials: "AR", tripId: "demo_trip_sf_2025" },
 ];
 
 export default function Dashboard() {
