@@ -164,8 +164,27 @@ export default function Expenses() {
   };
 
   const handleAddExpense = (expenseData: Omit<Expense, "id">, submitNow: boolean) => {
-    addExpense(expenseData);
-    toast.success(submitNow ? "Expense submitted for approval" : "Expense added");
+    const saved = addExpense(expenseData);
+
+    // Also add to the demo expense list so it appears in the Recent Expenses table
+    const newDemo: DemoExpense = {
+      id: saved.id,
+      employee: "You",
+      employeeInitials: "YO",
+      tripName: expenseData.tripName || "Unassigned",
+      vendor: expenseData.merchant,
+      amount: expenseData.amount,
+      date: expenseData.date,
+      category: (["flight","hotel","meals","transportation","conference","other"].includes(expenseData.category)
+        ? expenseData.category
+        : "other") as DemoExpense["category"],
+      status: submitNow ? "pending" : "pending",
+      hasReceipt: false,
+      notes: expenseData.description,
+    };
+    setDemoExpenseList(prev => [...prev, newDemo]);
+
+    toast.success(submitNow ? "Expense submitted for approval" : "Expense added successfully");
     setIsAddExpenseOpen(false);
   };
 
