@@ -591,6 +591,28 @@ export default function Expenses() {
 
       {/* Analytics modal */}
       <ExpenseAnalyticsModal open={analyticsOpen} onOpenChange={setAnalyticsOpen} />
+
+      {/* View Expense Drawer */}
+      <ExpenseViewDrawer
+        expense={viewingExpense}
+        open={!!viewingExpense}
+        onOpenChange={(open) => { if (!open) setViewingExpense(null); }}
+        onEdit={(expense) => { setViewingExpense(null); setEditingExpense(expense); }}
+        onDelete={(expense) => {
+          setViewingExpense(null);
+          setDemoExpenseList(prev => prev.filter(e => e.id !== expense.id));
+          toast.success(`${expense.vendor} expense deleted`);
+        }}
+      />
+
+      {/* Edit Expense Drawer */}
+      <EditExpenseDrawer
+        expense={editingExpense}
+        open={!!editingExpense}
+        onOpenChange={(open) => { if (!open) setEditingExpense(null); }}
+        onSave={handleEditDemoExpense}
+        trips={uniqueTripNames}
+      />
     </motion.div>
   );
 }
