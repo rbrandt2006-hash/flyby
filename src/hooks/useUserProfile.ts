@@ -2,6 +2,19 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+const guestProfile: UserProfile = {
+  id: "guest-profile",
+  user_id: "guest-user-id",
+  email: "guest@flyby.app",
+  full_name: "Guest User",
+  avatar_url: null,
+  job_title: "Travel Manager",
+  phone: null,
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  company_id: null,
+  theme_preference: null,
+};
+
 export interface UserProfile {
   id: string;
   user_id: string;
