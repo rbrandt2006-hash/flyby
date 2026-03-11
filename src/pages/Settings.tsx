@@ -868,6 +868,19 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+
+          {/* Sign Out */}
+          <div className="pt-6 pb-8">
+            <Separator className="mb-6" />
+            <Button
+              variant="outline"
+              className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+              onClick={() => setSignOutDialogOpen(true)}
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </Button>
+          </div>
         </div>
       </div>
 
