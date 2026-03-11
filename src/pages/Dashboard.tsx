@@ -556,7 +556,7 @@ export default function Dashboard() {
                 <div className="space-y-1.5">
                   <div 
                     className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                    onClick={() => navigate("/trips", { state: { openTripId: "demo_trip_london_2025" } })}
+                    onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_london_2025"))}
                   >
                     <div className="flex items-center gap-2">
                       <Plane className="w-3.5 h-3.5 text-muted-foreground" />
@@ -569,7 +569,7 @@ export default function Dashboard() {
                   </div>
                   <div 
                     className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                    onClick={() => navigate("/trips", { state: { openTripId: "demo_trip_tokyo_2025" } })}
+                    onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_tokyo_2025"))}
                   >
                     <div className="flex items-center gap-2">
                       <Plane className="w-3.5 h-3.5 text-muted-foreground" />
