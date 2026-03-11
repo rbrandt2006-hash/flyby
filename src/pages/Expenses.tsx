@@ -17,6 +17,8 @@ import { ExpenseAnalyticsModal } from "@/components/expenses/ExpenseAnalyticsMod
 import { AIExpenseInsights } from "@/components/expenses/AIExpenseInsights";
 import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
 import { ExpenseHistoryTable } from "@/components/expenses/ExpenseHistoryTable";
+import { EditExpenseDrawer } from "@/components/expenses/EditExpenseDrawer";
+import { ExpenseViewDrawer } from "@/components/expenses/ExpenseViewDrawer";
 import { demoExpenses, demoStats, type DemoExpense } from "@/components/expenses/demoExpenseData";
 import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
