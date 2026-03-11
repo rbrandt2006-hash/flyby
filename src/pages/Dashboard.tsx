@@ -660,6 +660,13 @@ export default function Dashboard() {
         onClose={() => setSelectedTraveler(null)}
       />
 
+      {/* Trip Spend Slide-Over */}
+      <TripSpendSlideOver
+        trip={selectedSpendTrip}
+        open={!!selectedSpendTrip}
+        onClose={() => setSelectedSpendTrip(null)}
+      />
+
       {/* ─── Refine Modal ─── */}
       {planResult && <RefineModal open={isRefineOpen} onOpenChange={setIsRefineOpen} destination={planResult.destination} dates={planResult.dates} currentFlight={planResult.flight} currentHotel={planResult.hotel} currentGroundTransport={planResult.groundTransport} currentCost={planResult.estimatedCost} onSave={handleRefineSave} />}
     </motion.div>

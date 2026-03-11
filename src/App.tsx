@@ -67,7 +67,7 @@ function AppRoutes() {
       <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
       <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
       <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
-      <Route path="/chats" element={<ProtectedRoute><Chats /></ProtectedRoute>} />
+      
       <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/settings/integrations/:provider" element={<ProtectedRoute><IntegrationManage /></ProtectedRoute>} />
