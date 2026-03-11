@@ -25,6 +25,7 @@ import { GlassPanel } from "./GlassPanel";
 import { cn } from "@/lib/utils";
 import type { TeamMember } from "./TeamMemberCard";
 import { motion, AnimatePresence } from "framer-motion";
+import { TeamChatView } from "./TeamChatView";
 
 type DetailView = "main" | "message" | "itinerary" | "profile" | "calendar";
 
@@ -437,7 +438,6 @@ function TabBar({ view, onChangeView }: { view: DetailView; onChangeView: (v: De
 
 export function TeamMemberDetailPanel({ member, open, onClose }: TeamMemberDetailPanelProps) {
   const [view, setView] = useState<DetailView>("main");
-  const [messageInput, setMessageInput] = useState("");
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -453,7 +453,6 @@ export function TeamMemberDetailPanel({ member, open, onClose }: TeamMemberDetai
   if (!member) return null;
 
   const initials = member.name.split(" ").map((n) => n[0]).join("").toUpperCase();
-  const messages = getMockMessages(member.name, member.upcomingTrip?.destination);
   const itinerary = getMockItinerary(member.name, member.upcomingTrip);
 
   const viewTitle = view === "main" ? "Overview" : view === "message" ? "Message" : view === "itinerary" ? "Itinerary" : view === "calendar" ? "Calendar" : "Profile";
@@ -534,38 +533,7 @@ export function TeamMemberDetailPanel({ member, open, onClose }: TeamMemberDetai
 
                   {view === "message" && (
                     <motion.div key="message" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.15 }} className="flex flex-col h-full">
-                      <div className="px-6 pb-3 border-b border-border/20 shrink-0">
-                        <h3 className="text-sm font-semibold text-foreground">Chat with {member.name}</h3>
-                        <p className="text-xs text-muted-foreground">{messages.length} messages</p>
-                      </div>
-                      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-                        {messages.map((msg) => (
-                          <div key={msg.id} className={cn("flex", msg.isMe ? "justify-end" : "justify-start")}>
-                            <div className={cn(
-                              "max-w-[80%] rounded-2xl px-4 py-2.5",
-                              msg.isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted/60 text-foreground rounded-bl-md"
-                            )}>
-                              <p className="text-sm leading-relaxed">{msg.text}</p>
-                              <p className={cn("text-[10px] mt-1", msg.isMe ? "text-primary-foreground/60" : "text-muted-foreground")}>{msg.time}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="px-6 pb-4 pt-3 border-t border-border/20 shrink-0">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={messageInput}
-                            onChange={(e) => setMessageInput(e.target.value)}
-                            placeholder="Type a message..."
-                            className="flex-1 bg-muted/40 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/30"
-                            onKeyDown={(e) => { if (e.key === "Enter") setMessageInput(""); }}
-                          />
-                          <Button size="icon" className="rounded-xl shrink-0" onClick={() => setMessageInput("")}>
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <TeamChatView member={member} />
                     </motion.div>
                   )}
 
