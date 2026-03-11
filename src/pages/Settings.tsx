@@ -927,6 +927,42 @@ export default function Settings() {
           onAvatarUpdated={updateAvatarUrl}
         />
       )}
+
+      {/* Sign Out Confirmation */}
+      <AlertDialog open={signOutDialogOpen} onOpenChange={setSignOutDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to sign out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will be redirected to the Get Started screen and will need to sign in again to access your account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSigningOut}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isSigningOut}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async (e) => {
+                e.preventDefault();
+                setIsSigningOut(true);
+                try {
+                  await signOut();
+                  toast.success("Signed out successfully");
+                  navigate("/get-started");
+                } catch {
+                  toast.error("Failed to sign out");
+                } finally {
+                  setIsSigningOut(false);
+                  setSignOutDialogOpen(false);
+                }
+              }}
+            >
+              {isSigningOut ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <LogOut className="w-4 h-4 mr-2" />}
+              Sign out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }
