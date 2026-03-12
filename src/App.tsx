@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import AppLayout from "@/components/layout/AppLayout";
+import { useUserRole } from "@/hooks/useUserRole";
 import GetStarted from "./pages/GetStarted";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -43,6 +44,33 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const { isAdmin, loading: roleLoading } = useUserRole();
+  
+  if (loading || roleLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/get-started" replace />;
+  }
+  
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return (
+    <UserProfileProvider>
+      <AppLayout>{children}</AppLayout>
+    </UserProfileProvider>
+  );
+}
+
 function AppRoutes() {
   const { user, loading } = useAuth();
 
@@ -59,7 +87,7 @@ function AppRoutes() {
       <Route path="/get-started" element={user ? <Navigate to="/" replace /> : <GetStarted />} />
       <Route path="/auth" element={<Navigate to="/get-started" replace />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
       <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
       <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
       <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
