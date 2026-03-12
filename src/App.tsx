@@ -44,6 +44,33 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const { isAdmin, loading: roleLoading } = useUserRole();
+  
+  if (loading || roleLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/get-started" replace />;
+  }
+  
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return (
+    <UserProfileProvider>
+      <AppLayout>{children}</AppLayout>
+    </UserProfileProvider>
+  );
+}
+
 function AppRoutes() {
   const { user, loading } = useAuth();
 
