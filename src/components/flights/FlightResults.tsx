@@ -29,7 +29,8 @@ interface FlightResultsProps {
   returnDate?: Date;
   tripType: string;
   passengers: number;
-  onSelect: (flight: Flight) => void;
+  selectingFlightId?: string | null;
+  onSelect: (flight: Flight) => void | Promise<void>;
   onBack: () => void;
 }
 
@@ -39,6 +40,7 @@ export function FlightResults({
   returnDate, 
   tripType, 
   passengers,
+  selectingFlightId,
   onSelect,
   onBack 
 }: FlightResultsProps) {
