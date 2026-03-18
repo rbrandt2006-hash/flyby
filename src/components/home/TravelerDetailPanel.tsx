@@ -124,7 +124,12 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
 
   const statusInfo = getStatusDetails(traveler.status, traveler.destination);
 
-  const conversationPreview = (existingChat?.messages ?? []).slice(-8).map((message) => ({
+  const conversationPreview: Array<{
+    id: string;
+    text: string;
+    createdAt: string;
+    sender: "me" | "traveler" | "system";
+  }> = (existingChat?.messages ?? []).slice(-8).map((message) => ({
     id: message.id,
     text: message.text,
     createdAt: message.createdAt,
