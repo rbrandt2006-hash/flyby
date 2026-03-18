@@ -1,10 +1,13 @@
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { X, MessageSquare, MapPin, Plane, Building2, Clock, Calendar, Users, Video, Navigation, Shield } from "lucide-react";
+import { X, MessageSquare, MapPin, Plane, Building2, Calendar, Users, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import flybyLogo from "@/assets/flyby-logo-new.png";
+import { TravelerMessageComposer } from "@/components/home/TravelerMessageComposer";
+import { useChats } from "@/hooks/useChats";
 
 interface TravelerInfo {
   name: string;
@@ -23,7 +26,7 @@ interface TravelerDetailPanelProps {
   onClose: () => void;
 }
 
-function getStatusDetails(status: string, name: string, destination: string) {
+function getStatusDetails(status: string, destination: string) {
   switch (status) {
     case "Boarded plane":
       return {
@@ -95,20 +98,70 @@ function getStatusDetails(status: string, name: string, destination: string) {
   }
 }
 
+function createTravelerParticipantId(name: string) {
+  return `traveler:${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
+}
+
 export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailPanelProps) {
   const navigate = useNavigate();
+  const { currentUser, findExistingChat, createChat, sendMessage } = useChats();
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [messageDraft, setMessageDraft] = useState("");
+  const [showSentState, setShowSentState] = useState(false);
+
+  const participantId = useMemo(() => (traveler ? createTravelerParticipantId(traveler.name) : ""), [traveler]);
+  const existingChat = useMemo(() => (participantId ? findExistingChat(participantId) : null), [participantId, findExistingChat]);
+
+  useEffect(() => {
+    if (!open || !traveler) {
+      setComposerOpen(false);
+      setMessageDraft("");
+      setShowSentState(false);
+    }
+  }, [open, traveler]);
 
   if (!traveler) return null;
 
-  const statusInfo = getStatusDetails(traveler.status, traveler.name, traveler.destination);
+  const statusInfo = getStatusDetails(traveler.status, traveler.destination);
+
+  const conversationPreview: Array<{
+    id: string;
+    text: string;
+    createdAt: string;
+    sender: "me" | "traveler" | "system";
+  }> = (existingChat?.messages ?? []).slice(-8).map((message) => ({
+    id: message.id,
+    text: message.text,
+    createdAt: message.createdAt,
+    sender:
+      message.senderId === currentUser.id
+        ? "me"
+        : message.senderId === "system"
+          ? "system"
+          : "traveler",
+  }));
 
   const handleMessageTraveler = () => {
-    onClose();
-    navigate("/team", { 
-      state: { 
-        travelerName: traveler.name,
-      } 
-    });
+    setComposerOpen(true);
+    setShowSentState(false);
+  };
+
+  const handleSendMessage = () => {
+    const text = messageDraft.trim();
+    if (!text) return;
+
+    let chat = existingChat;
+    if (!chat) {
+      chat = createChat(`Chat with ${traveler.name}`, [participantId], {
+        type: "general",
+        participantIds: [currentUser.id, participantId],
+      });
+    }
+
+    sendMessage(chat.id, text, currentUser.id, false);
+    setMessageDraft("");
+    setShowSentState(true);
+    window.setTimeout(() => setShowSentState(false), 1800);
   };
 
   const handleViewItinerary = () => {
@@ -137,21 +190,22 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="w-full max-w-md pointer-events-auto bg-background rounded-2xl shadow-2xl border border-border/60 overflow-hidden max-h-[90vh] flex flex-col"
+              className="relative w-full max-w-md pointer-events-auto bg-background rounded-2xl shadow-2xl border border-border/60 overflow-hidden max-h-[90vh] flex flex-col"
             >
-              {/* Header */}
               <div className="px-6 py-5 border-b border-border/40 flex items-start justify-between shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="relative">
                     <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
                       {traveler.initials}
                     </div>
-                    <div className={cn(
-                      "absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-background",
-                      traveler.statusType === "success" && "bg-success",
-                      traveler.statusType === "warning" && "bg-warning",
-                      traveler.statusType === "info" && "bg-primary",
-                    )} />
+                    <div
+                      className={cn(
+                        "absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-background",
+                        traveler.statusType === "success" && "bg-success",
+                        traveler.statusType === "warning" && "bg-warning",
+                        traveler.statusType === "info" && "bg-primary",
+                      )}
+                    />
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-foreground">{traveler.name}</h2>
@@ -168,7 +222,6 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
                 </div>
               </div>
 
-              {/* Status Badge */}
               <div className="px-6 py-3 bg-muted/30 shrink-0">
                 <Badge
                   variant="secondary"
@@ -184,21 +237,23 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
                 </Badge>
               </div>
 
-              {/* Details */}
               <div className="px-6 py-5 space-y-3 flex-1 min-h-0 overflow-y-auto">
                 <h3 className="text-sm font-semibold text-foreground mb-3">{statusInfo.title}</h3>
-                {statusInfo.details.map((d, i) => (
-                  <div key={i} className="flex items-start justify-between py-2 border-b border-border/30 last:border-0">
-                    <span className="text-sm text-muted-foreground">{d.label}</span>
+                {statusInfo.details.map((detail) => (
+                  <div key={`${detail.label}-${detail.value}`} className="flex items-start justify-between py-2 border-b border-border/30 last:border-0">
+                    <span className="text-sm text-muted-foreground">{detail.label}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground text-right max-w-[200px]">{d.value}</span>
-                      {d.badge && (
-                        <Badge variant="secondary" className={cn(
-                          "text-[10px]",
-                          d.badge === "success" && "bg-success/10 text-success",
-                          d.badge === "info" && "bg-primary/10 text-primary",
-                        )}>
-                          {d.badge === "success" ? "✓" : "●"}
+                      <span className="text-sm font-medium text-foreground text-right max-w-[200px]">{detail.value}</span>
+                      {detail.badge && (
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            "text-[10px]",
+                            detail.badge === "success" && "bg-success/10 text-success",
+                            detail.badge === "info" && "bg-primary/10 text-primary",
+                          )}
+                        >
+                          {detail.badge === "success" ? "✓" : "●"}
                         </Badge>
                       )}
                     </div>
@@ -206,23 +261,33 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
                 ))}
               </div>
 
-              {/* Actions */}
               <div className="px-6 py-4 border-t border-border/40 bg-muted/20 flex gap-3 shrink-0">
                 <Button variant="default" className="flex-1 gap-2" size="sm" onClick={handleMessageTraveler}>
                   <MessageSquare className="w-4 h-4" />
                   Message traveler
                 </Button>
-                <Button 
-                  variant="outline" 
-                  className="flex-1 gap-2 group/btn" 
-                  size="sm" 
-                  onClick={handleViewItinerary}
-                >
+                <Button variant="outline" className="flex-1 gap-2 group/btn" size="sm" onClick={handleViewItinerary}>
                   <Calendar className="w-4 h-4" />
                   View itinerary
                   <span className="opacity-0 group-hover/btn:opacity-100 transition-opacity">→</span>
                 </Button>
               </div>
+
+              <TravelerMessageComposer
+                open={composerOpen}
+                traveler={{
+                  name: traveler.name,
+                  initials: traveler.initials,
+                  destination: traveler.destination,
+                  statusType: traveler.statusType,
+                }}
+                messages={conversationPreview}
+                value={messageDraft}
+                onValueChange={setMessageDraft}
+                onClose={() => setComposerOpen(false)}
+                onSend={handleSendMessage}
+                sentStateVisible={showSentState}
+              />
             </motion.div>
           </div>
         </>
