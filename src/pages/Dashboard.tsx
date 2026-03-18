@@ -312,10 +312,25 @@ export default function Dashboard() {
               <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
               <motion.input
                 type="text"
-                placeholder="What do you need? Try a command…"
+                placeholder="Search anywhere: Paris, Texas, Tokyo, Japan, or ‘NYC to London April 10–20’"
                 value={tripInput}
-                onChange={e => { setTripInput(e.target.value); if (inputError) setInputError(null); }}
-                onKeyDown={e => { if (e.key === 'Enter' && !isPlanning && voiceRecording.state === 'idle') handlePlanTrip(); }}
+                onChange={e => { setTripInput(e.target.value); setActiveSuggestionIndex(0); if (inputError) setInputError(null); }}
+                onKeyDown={e => {
+                  if (destinationSuggestions.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    e.preventDefault();
+                    setActiveSuggestionIndex((prev) => {
+                      const delta = e.key === 'ArrowDown' ? 1 : -1;
+                      return (prev + delta + destinationSuggestions.length) % destinationSuggestions.length;
+                    });
+                    return;
+                  }
+                  if (e.key === 'Enter' && destinationSuggestions.length > 0 && destinationQuery.trim()) {
+                    e.preventDefault();
+                    handleSelectSuggestion(destinationSuggestions[activeSuggestionIndex] ?? destinationSuggestions[0]);
+                    return;
+                  }
+                  if (e.key === 'Enter' && !isPlanning && voiceRecording.state === 'idle') handlePlanTrip();
+                }}
                 whileFocus={{ scale: 1.005 }}
                 transition={{ duration: 0.15 }}
                 disabled={voiceRecording.state !== 'idle'}
