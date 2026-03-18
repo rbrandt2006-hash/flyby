@@ -110,6 +110,7 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected }: Fli
   const resetForm = () => {
     setShowResults(false);
     setFlights([]);
+    setSelectingFlightId(null);
   };
 
   const handleOpenChange = (isOpen: boolean) => {
