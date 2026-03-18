@@ -40,6 +40,7 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected }: Fli
   const [showResults, setShowResults] = useState(false);
   const [flights, setFlights] = useState<Flight[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectingFlightId, setSelectingFlightId] = useState<string | null>(null);
 
   const handleSearch = async () => {
     setIsSearching(true);
