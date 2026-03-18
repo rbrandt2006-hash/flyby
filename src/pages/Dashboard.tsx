@@ -171,15 +171,15 @@ export default function Dashboard() {
     finally { setIsPlanning(false); }
   };
 
-  const handleSelectCity = (city: string) => {
-    const newPrompt = `${tripInput} to ${city}`;
-    setTripInput(newPrompt);
+  const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
+    const query = extractDestinationSearchQuery(tripInput);
+    const nextInput = query && query !== tripInput
+      ? tripInput.replace(new RegExp(`${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"), suggestion.label)
+      : suggestion.label;
+
+    setTripInput(nextInput);
     setNeedsDestination(false);
-    setIsPlanning(true);
-    setPlanResult(null);
-    generateTripPlan(newPrompt).then(result => {
-      if (!("needsDestination" in result)) setPlanResult(result);
-    }).finally(() => setIsPlanning(false));
+    setActiveSuggestionIndex(0);
   };
 
   const handleRefine = () => { setIsRefineOpen(true); };
