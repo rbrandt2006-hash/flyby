@@ -143,6 +143,7 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected }: Fli
             returnDate={returnDate}
             tripType={tripType}
             passengers={parseInt(passengers)}
+            selectingFlightId={selectingFlightId}
             onSelect={handleSelectFlight}
             onBack={handleBack}
           />
