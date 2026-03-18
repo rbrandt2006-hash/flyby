@@ -25,6 +25,21 @@ export interface TripAIReasoning {
 
 export type ApprovalStatus = "none" | "pending" | "approved" | "rejected";
 
+export interface LocalTripFlight {
+  airline: string;
+  departTime: string;
+  returnTime: string;
+  flightNumber?: string;
+  departureAirport?: string;
+  arrivalAirport?: string;
+  arrivalTime?: string;
+  duration?: string;
+  stops?: number;
+  cabinClass?: string;
+  price?: number;
+  emissions?: string;
+}
+
 export interface LocalTrip {
   id: string;
   destination: string;
@@ -37,11 +52,7 @@ export interface LocalTrip {
   calendarSyncError: string | null;
   participants: string[];
   chatId: string | null;
-  flight: {
-    airline: string;
-    departTime: string;
-    returnTime: string;
-  } | null;
+  flight: LocalTripFlight | null;
   hotel: {
     name: string;
     location: string;
@@ -120,7 +131,7 @@ export function useTrips() {
     startDate: string;
     endDate: string;
     purpose: string;
-    flight: { airline: string; departTime: string; returnTime: string } | null;
+    flight: LocalTripFlight | null;
     hotel: { name: string; location: string } | null;
     groundTransport: string | null;
     estimatedCost: number;

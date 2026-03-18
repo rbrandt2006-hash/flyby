@@ -9,7 +9,7 @@ import { CalendarDays } from "lucide-react";
 import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw, Check, Clock } from "lucide-react";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
-import { FlightSearchDialog } from "@/components/flights/FlightSearchDialog";
+import { FlightSearchDialog, type FlightSelectionDraft } from "@/components/flights/FlightSearchDialog";
 import { TripCard, type Trip } from "@/components/trips/TripCard";
 import { TripEditDrawer } from "@/components/trips/TripEditDrawer";
 import { TripConfirmationModal } from "@/components/trips/TripConfirmationModal";
@@ -311,8 +311,33 @@ export default function Trips() {
     fetchTrips();
   }, [user]);
 
-  const handleTripCreated = () => {
-    fetchTrips();
+  const handleFlightSelected = (selection: FlightSelectionDraft) => {
+    const newTrip = createTrip({
+      destination: selection.destination,
+      startDate: selection.departureDate,
+      endDate: selection.returnDate,
+      purpose: `${selection.flight.airline} ${selection.flight.flightNumber}`,
+      flight: {
+        airline: selection.flight.airline,
+        departTime: selection.flight.departureTime,
+        returnTime: selection.flight.arrivalTime,
+        flightNumber: selection.flight.flightNumber,
+        departureAirport: selection.flight.origin,
+        arrivalAirport: selection.flight.destination,
+        arrivalTime: selection.flight.arrivalTime,
+        duration: selection.flight.duration,
+        stops: selection.flight.stops,
+        cabinClass: selection.flight.cabinClass,
+        price: selection.flight.price,
+        emissions: selection.flight.co2Emissions,
+      },
+      hotel: null,
+      groundTransport: null,
+      estimatedCost: selection.flight.price,
+      confidenceLevel: 84,
+    });
+
+    setSelectedDraft(newTrip);
   };
 
   const handleTripClick = (trip: Trip) => {
@@ -590,7 +615,7 @@ export default function Trips() {
       <FlightSearchDialog 
         open={bookingDialogOpen} 
         onOpenChange={setBookingDialogOpen}
-        onTripCreated={handleTripCreated}
+        onFlightSelected={handleFlightSelected}
       />
 
       <TripEditDrawer

@@ -12,17 +12,24 @@ import { AirportAutocomplete } from "./AirportAutocomplete";
 import { FlightResults, type Flight } from "./FlightResults";
 import { generateMockFlights } from "@/services/mockFlightService";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+
+export interface FlightSelectionDraft {
+  origin: string;
+  destination: string;
+  departureDate: string;
+  returnDate: string;
+  passengers: number;
+  tripType: string;
+  flight: Flight;
+}
 
 interface FlightSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onTripCreated?: () => void;
+  onFlightSelected?: (selection: FlightSelectionDraft) => void;
 }
 
-export function FlightSearchDialog({ open, onOpenChange, onTripCreated }: FlightSearchDialogProps) {
-  const { user } = useAuth();
+export function FlightSearchDialog({ open, onOpenChange, onFlightSelected }: FlightSearchDialogProps) {
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [departureDate, setDepartureDate] = useState<Date>();
@@ -33,6 +40,7 @@ export function FlightSearchDialog({ open, onOpenChange, onTripCreated }: Flight
   const [showResults, setShowResults] = useState(false);
   const [flights, setFlights] = useState<Flight[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectingFlightId, setSelectingFlightId] = useState<string | null>(null);
 
   const handleSearch = async () => {
     setIsSearching(true);
@@ -47,46 +55,52 @@ export function FlightSearchDialog({ open, onOpenChange, onTripCreated }: Flight
   };
 
   const handleSelectFlight = async (flight: Flight) => {
-    if (!user || !departureDate) return;
-
-    const endDate = returnDate || departureDate;
-    
-    const { error } = await supabase.from("trips").insert({
-      user_id: user.id,
-      title: `Trip to ${destination}`,
-      destination: destination,
-      start_date: format(departureDate, "yyyy-MM-dd"),
-      end_date: format(endDate, "yyyy-MM-dd"),
-      status: "draft",
-      purpose: `${flight.airline} ${flight.flightNumber}`,
-      total_estimated_cost: flight.price * parseInt(passengers),
-      flight_details: {
-        airline: flight.airline,
-        flightNumber: flight.flightNumber,
-        departureTime: flight.departureTime,
-        arrivalTime: flight.arrivalTime,
-        duration: flight.duration,
-        stops: flight.stops,
-        price: flight.price,
-        cabinClass: cabinClass,
-        passengers: parseInt(passengers),
-        origin: origin,
-      },
-    });
-
-    if (error) {
-      toast.error("Failed to create trip");
-      console.error(error);
+    if (!origin.trim()) {
+      toast.error("Missing origin");
       return;
     }
 
-    toast.success(`Trip created with ${flight.airline} ${flight.flightNumber}`, {
-      description: `$${flight.price * parseInt(passengers)} total for ${passengers} passenger(s)`
-    });
-    
-    onOpenChange(false);
-    resetForm();
-    onTripCreated?.();
+    if (!destination.trim()) {
+      toast.error("Missing destination");
+      return;
+    }
+
+    if (!departureDate) {
+      toast.error("Missing departure date");
+      return;
+    }
+
+    if (!onFlightSelected) {
+      toast.error("Unable to save selected flight");
+      return;
+    }
+
+    setSelectingFlightId(flight.id);
+
+    try {
+      onFlightSelected({
+        origin,
+        destination,
+        departureDate: format(departureDate, "yyyy-MM-dd"),
+        returnDate: format(returnDate || departureDate, "yyyy-MM-dd"),
+        passengers: parseInt(passengers),
+        tripType,
+        flight,
+      });
+
+      toast.success("Flight selected", {
+        description: `${flight.airline} ${flight.flightNumber} added to your draft trip`,
+      });
+
+      onOpenChange(false);
+      resetForm();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to save selected flight";
+      toast.error(message);
+      console.error(error);
+    } finally {
+      setSelectingFlightId(null);
+    }
   };
 
   const handleBack = () => {
@@ -96,6 +110,7 @@ export function FlightSearchDialog({ open, onOpenChange, onTripCreated }: Flight
   const resetForm = () => {
     setShowResults(false);
     setFlights([]);
+    setSelectingFlightId(null);
   };
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -128,6 +143,7 @@ export function FlightSearchDialog({ open, onOpenChange, onTripCreated }: Flight
             returnDate={returnDate}
             tripType={tripType}
             passengers={parseInt(passengers)}
+            selectingFlightId={selectingFlightId}
             onSelect={handleSelectFlight}
             onBack={handleBack}
           />
