@@ -55,28 +55,30 @@ interface TripPlan {
 
 // Generate trip plan based on parsed destination
 const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true }> => {
-  await new Promise(r => setTimeout(r, 900));
-  const template = findDestination(prompt);
-  if (!template) return { needsDestination: true };
+  await new Promise(r => setTimeout(r, 350));
+  const destination = resolveBestLocation(prompt);
+  if (!destination) return { needsDestination: true };
+
   const dateResult = parseDates(prompt);
   const purpose = parsePurpose(prompt);
-  const landmark = findLandmark(prompt, template);
-  const airline = template.airlines[Math.floor(Math.random() * template.airlines.length)];
-  const hotelData = template.hotels.find(h => h.locations.includes(landmark)) || template.hotels[0];
-  let confidence = 70;
-  if (!dateResult.assumed) confidence += 15;
-  if (purpose !== "business meeting") confidence += 10;
-  confidence += Math.floor(Math.random() * 5);
-  const costVariation = Math.floor(Math.random() * 300) - 150;
-  
-  // Use parsed dates or fallback to 7-10 days from now
+  const airportCode = destination.airportCodes[0] || "INTL";
+  const hotelBrands = ["Four Seasons", "Marriott", "Hyatt Regency", "Westin", "CitizenM", "InterContinental"];
+  const hotelAreas = ["City Center", "Financial District", "Waterfront", "Convention Quarter", "Old Town"];
+  const airlineOptions = ["Delta Air Lines", "United Airlines", "American Airlines", "Lufthansa", "Air France", "Singapore Airlines"];
+  const confidenceBase = destination.type === "city" ? 94 : destination.type === "state" ? 88 : 84;
+  const estimatedCostBase = destination.country === "USA" ? 1450 : 2850;
+  const hotelName = `${hotelBrands[Math.floor(Math.random() * hotelBrands.length)]} ${destination.city ?? destination.title}`;
+  const hotelLocation = destination.type === "city"
+    ? `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destination.title}`
+    : `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destination.label}`;
+
   const now = new Date();
   const startDate = dateResult.startDate || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const endDate = dateResult.endDate || new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
-  
+
   return {
-    destination: template.city,
-    dates: dateResult.dates,
+    destination: destination.label,
+    dates: dateResult.dates || `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
     startDate,
     endDate,
     datesAssumed: dateResult.assumed,
@@ -84,11 +86,15 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
     needsDateClarification: dateResult.needsClarification || false,
     monthIntent: dateResult.monthIntent,
     purpose,
-    flight: { airline, departTime: "7:45 AM", returnTime: "5:30 PM" },
-    hotel: { name: hotelData.name, location: landmark },
-    groundTransport: template.groundTransport,
-    estimatedCost: template.baseCost + costVariation,
-    confidenceLevel: Math.min(98, confidence),
+    flight: {
+      airline: airlineOptions[Math.floor(Math.random() * airlineOptions.length)],
+      departTime: "7:45 AM",
+      returnTime: "5:30 PM",
+    },
+    hotel: { name: hotelName, location: hotelLocation },
+    groundTransport: destination.type === "city" ? `Airport transfer from ${airportCode} + local mobility pass` : "Regional airport transfer + local mobility pass",
+    estimatedCost: estimatedCostBase + Math.floor(Math.random() * 450) - 125,
+    confidenceLevel: Math.min(98, confidenceBase + Math.floor(Math.random() * 4)),
     originalPrompt: prompt,
   };
 };
