@@ -615,7 +615,7 @@ export default function Trips() {
       <FlightSearchDialog 
         open={bookingDialogOpen} 
         onOpenChange={setBookingDialogOpen}
-        onTripCreated={handleTripCreated}
+        onFlightSelected={handleFlightSelected}
       />
 
       <TripEditDrawer
