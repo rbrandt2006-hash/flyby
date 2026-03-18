@@ -26,11 +26,10 @@ export interface FlightSelectionDraft {
 interface FlightSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onTripCreated?: () => void;
+  onFlightSelected?: (selection: FlightSelectionDraft) => void;
 }
 
-export function FlightSearchDialog({ open, onOpenChange, onTripCreated }: FlightSearchDialogProps) {
-  const { user } = useAuth();
+export function FlightSearchDialog({ open, onOpenChange, onFlightSelected }: FlightSearchDialogProps) {
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [departureDate, setDepartureDate] = useState<Date>();
