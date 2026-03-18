@@ -12,8 +12,16 @@ import { AirportAutocomplete } from "./AirportAutocomplete";
 import { FlightResults, type Flight } from "./FlightResults";
 import { generateMockFlights } from "@/services/mockFlightService";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+
+export interface FlightSelectionDraft {
+  origin: string;
+  destination: string;
+  departureDate: string;
+  returnDate: string;
+  passengers: number;
+  tripType: string;
+  flight: Flight;
+}
 
 interface FlightSearchDialogProps {
   open: boolean;
