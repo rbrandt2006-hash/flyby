@@ -14,7 +14,8 @@ import { useChats } from "@/hooks/useChats";
 import { usePreferences } from "@/hooks/usePreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { findDestination, findLandmark, parseDates, parsePurpose, destinationTemplates, ParsedDateResult } from "@/services/tripTemplates";
+import { parseDates, parsePurpose } from "@/services/tripTemplates";
+import { extractDestinationSearchQuery, resolveBestLocation, searchGlobalLocations, type LocationSuggestion } from "@/services/locationSearch";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
 import type { CalendarEvent } from "@/services/mockCalendarService";
@@ -54,28 +55,30 @@ interface TripPlan {
 
 // Generate trip plan based on parsed destination
 const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true }> => {
-  await new Promise(r => setTimeout(r, 900));
-  const template = findDestination(prompt);
-  if (!template) return { needsDestination: true };
+  await new Promise(r => setTimeout(r, 350));
+  const destination = resolveBestLocation(prompt);
+  if (!destination) return { needsDestination: true };
+
   const dateResult = parseDates(prompt);
   const purpose = parsePurpose(prompt);
-  const landmark = findLandmark(prompt, template);
-  const airline = template.airlines[Math.floor(Math.random() * template.airlines.length)];
-  const hotelData = template.hotels.find(h => h.locations.includes(landmark)) || template.hotels[0];
-  let confidence = 70;
-  if (!dateResult.assumed) confidence += 15;
-  if (purpose !== "business meeting") confidence += 10;
-  confidence += Math.floor(Math.random() * 5);
-  const costVariation = Math.floor(Math.random() * 300) - 150;
-  
-  // Use parsed dates or fallback to 7-10 days from now
+  const airportCode = destination.airportCodes[0] || "INTL";
+  const hotelBrands = ["Four Seasons", "Marriott", "Hyatt Regency", "Westin", "CitizenM", "InterContinental"];
+  const hotelAreas = ["City Center", "Financial District", "Waterfront", "Convention Quarter", "Old Town"];
+  const airlineOptions = ["Delta Air Lines", "United Airlines", "American Airlines", "Lufthansa", "Air France", "Singapore Airlines"];
+  const confidenceBase = destination.type === "city" ? 94 : destination.type === "state" ? 88 : 84;
+  const estimatedCostBase = destination.country === "USA" ? 1450 : 2850;
+  const hotelName = `${hotelBrands[Math.floor(Math.random() * hotelBrands.length)]} ${destination.city ?? destination.title}`;
+  const hotelLocation = destination.type === "city"
+    ? `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destination.title}`
+    : `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destination.label}`;
+
   const now = new Date();
   const startDate = dateResult.startDate || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const endDate = dateResult.endDate || new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
-  
+
   return {
-    destination: template.city,
-    dates: dateResult.dates,
+    destination: destination.label,
+    dates: dateResult.dates || `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
     startDate,
     endDate,
     datesAssumed: dateResult.assumed,
@@ -83,11 +86,15 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
     needsDateClarification: dateResult.needsClarification || false,
     monthIntent: dateResult.monthIntent,
     purpose,
-    flight: { airline, departTime: "7:45 AM", returnTime: "5:30 PM" },
-    hotel: { name: hotelData.name, location: landmark },
-    groundTransport: template.groundTransport,
-    estimatedCost: template.baseCost + costVariation,
-    confidenceLevel: Math.min(98, confidence),
+    flight: {
+      airline: airlineOptions[Math.floor(Math.random() * airlineOptions.length)],
+      departTime: "7:45 AM",
+      returnTime: "5:30 PM",
+    },
+    hotel: { name: hotelName, location: hotelLocation },
+    groundTransport: destination.type === "city" ? `Airport transfer from ${airportCode} + local mobility pass` : "Regional airport transfer + local mobility pass",
+    estimatedCost: estimatedCostBase + Math.floor(Math.random() * 450) - 125,
+    confidenceLevel: Math.min(98, confidenceBase + Math.floor(Math.random() * 4)),
     originalPrompt: prompt,
   };
 };
@@ -118,12 +125,15 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [needsDestination, setNeedsDestination] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [isRefineOpen, setIsRefineOpen] = useState(false);
   const [kpiDrawer, setKpiDrawer] = useState<{ open: boolean; type: KPIType }>({ open: false, type: "upcomingTrips" });
   const [selectedTraveler, setSelectedTraveler] = useState<typeof teamTraveling[number] | null>(null);
   const [selectedSpendTrip, setSelectedSpendTrip] = useState<ReturnType<typeof getTripSpendData>>(null);
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
+  const destinationQuery = useMemo(() => extractDestinationSearchQuery(tripInput) || tripInput, [tripInput]);
+  const destinationSuggestions = useMemo(() => searchGlobalLocations(destinationQuery, 8), [destinationQuery]);
 
   const handleTranscriptReady = useCallback((transcript: string) => {
     setTripInput(transcript);
@@ -161,15 +171,15 @@ export default function Dashboard() {
     finally { setIsPlanning(false); }
   };
 
-  const handleSelectCity = (city: string) => {
-    const newPrompt = `${tripInput} to ${city}`;
-    setTripInput(newPrompt);
+  const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
+    const query = extractDestinationSearchQuery(tripInput);
+    const nextInput = query && query !== tripInput
+      ? tripInput.replace(new RegExp(`${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"), suggestion.label)
+      : suggestion.label;
+
+    setTripInput(nextInput);
     setNeedsDestination(false);
-    setIsPlanning(true);
-    setPlanResult(null);
-    generateTripPlan(newPrompt).then(result => {
-      if (!("needsDestination" in result)) setPlanResult(result);
-    }).finally(() => setIsPlanning(false));
+    setActiveSuggestionIndex(0);
   };
 
   const handleRefine = () => { setIsRefineOpen(true); };
@@ -302,10 +312,25 @@ export default function Dashboard() {
               <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
               <motion.input
                 type="text"
-                placeholder="What do you need? Try a command…"
+                placeholder="Search anywhere: Paris, Texas, Tokyo, Japan, or ‘NYC to London April 10–20’"
                 value={tripInput}
-                onChange={e => { setTripInput(e.target.value); if (inputError) setInputError(null); }}
-                onKeyDown={e => { if (e.key === 'Enter' && !isPlanning && voiceRecording.state === 'idle') handlePlanTrip(); }}
+                onChange={e => { setTripInput(e.target.value); setActiveSuggestionIndex(0); if (inputError) setInputError(null); }}
+                onKeyDown={e => {
+                  if (destinationSuggestions.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    e.preventDefault();
+                    setActiveSuggestionIndex((prev) => {
+                      const delta = e.key === 'ArrowDown' ? 1 : -1;
+                      return (prev + delta + destinationSuggestions.length) % destinationSuggestions.length;
+                    });
+                    return;
+                  }
+                  if (e.key === 'Enter' && destinationSuggestions.length > 0 && destinationQuery.trim()) {
+                    e.preventDefault();
+                    handleSelectSuggestion(destinationSuggestions[activeSuggestionIndex] ?? destinationSuggestions[0]);
+                    return;
+                  }
+                  if (e.key === 'Enter' && !isPlanning && voiceRecording.state === 'idle') handlePlanTrip();
+                }}
                 whileFocus={{ scale: 1.005 }}
                 transition={{ duration: 0.15 }}
                 disabled={voiceRecording.state !== 'idle'}
@@ -386,15 +411,37 @@ export default function Dashboard() {
             )}
           </AnimatePresence>
 
-          {/* City selection */}
+          {/* Global destination suggestions */}
           <AnimatePresence>
-            {needsDestination && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-4 text-center space-y-3">
-                <p className="text-sm text-muted-foreground">Which city are you traveling to?</p>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {["New York City", "Washington, DC", "Chicago", "San Francisco", "Los Angeles", "Seattle", "Austin", "Boston"].map(city => (
-                    <Button key={city} variant="outline" size="sm" onClick={() => handleSelectCity(city)} className="hover:bg-primary/5 hover:border-primary/30">{city}</Button>
-                  ))}
+            {(destinationSuggestions.length > 0 || needsDestination) && !planResult && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-4 max-w-3xl mx-auto">
+                <div className="rounded-2xl border border-border bg-card/95 shadow-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border/60 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    {needsDestination ? "Choose a destination" : "Global destination search"}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto p-2 space-y-1">
+                    {destinationSuggestions.map((suggestion, index) => (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(suggestion)}
+                        className={cn(
+                          "w-full rounded-xl px-4 py-3 text-left transition-colors flex items-center gap-3",
+                          index === activeSuggestionIndex ? "bg-accent text-accent-foreground" : "hover:bg-secondary"
+                        )}
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-base shrink-0">{suggestion.emoji}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                            <span className="truncate">{suggestion.title}</span>
+                            <Badge variant="secondary" className="text-[10px] uppercase">{suggestion.type}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">{suggestion.subtitle}</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             )}
