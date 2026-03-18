@@ -131,7 +131,7 @@ export function useTrips() {
     startDate: string;
     endDate: string;
     purpose: string;
-    flight: { airline: string; departTime: string; returnTime: string } | null;
+    flight: LocalTripFlight | null;
     hotel: { name: string; location: string } | null;
     groundTransport: string | null;
     estimatedCost: number;
