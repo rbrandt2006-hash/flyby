@@ -2,33 +2,19 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   X,
   Plane,
-  Building2,
   Calendar as CalendarIcon,
   MapPin,
   DollarSign,
-  Save,
-  RefreshCw,
   Pencil,
-  ChevronDown,
-  Star,
-  Sparkles,
+  Clock,
+  ArrowRight,
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import type { DateRange } from "react-day-picker";
 
 interface TripEditorData {
   destination: string;
@@ -42,6 +28,10 @@ interface TripEditorData {
     departTime?: string;
     returnTime?: string;
     price?: number;
+    departCity?: string;
+    arriveCity?: string;
+    gate?: string;
+    boardingTime?: string;
   } | null;
   hotel?: {
     name?: string;
@@ -60,6 +50,7 @@ interface TripSlideEditorProps {
   tripData: TripEditorData;
   onSave: (data: TripEditorData) => void;
   onChangeHotel?: () => void;
+  onChangeFlight?: () => void;
   isSaving?: boolean;
 }
 
@@ -68,17 +59,14 @@ export function TripSlideEditor({
   onClose,
   tripData,
   onSave,
-  onChangeHotel,
+  onChangeFlight,
   isSaving = false,
 }: TripSlideEditorProps) {
   const [draft, setDraft] = useState<TripEditorData>(tripData);
-  const [showRefreshBanner, setShowRefreshBanner] = useState(false);
 
-  // Sync draft when tripData changes or panel opens
   useEffect(() => {
     if (open) {
       setDraft(tripData);
-      setShowRefreshBanner(false);
     }
   }, [open, tripData]);
 
@@ -90,49 +78,23 @@ export function TripSlideEditor({
   const hotelCost = (draft.hotel?.pricePerNight || 0) * nights;
   const totalCost = flightCost + hotelCost || draft.estimatedCost;
 
-  const updateField = useCallback(<K extends keyof TripEditorData>(key: K, value: TripEditorData[K]) => {
-    setDraft(prev => ({ ...prev, [key]: value }));
-  }, []);
-
-  const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
-    if (range?.from) {
-      const newStart = range.from.toISOString();
-      const newEnd = (range.to || range.from).toISOString();
-      setDraft(prev => ({
-        ...prev,
-        startDate: newStart,
-        endDate: newEnd,
-        hotel: prev.hotel ? {
-          ...prev.hotel,
-          checkIn: format(range.from!, "yyyy-MM-dd"),
-          checkOut: format(range.to || range.from!, "yyyy-MM-dd"),
-        } : prev.hotel,
-      }));
-      setShowRefreshBanner(true);
-    }
-  }, []);
-
-  const handleSave = useCallback(() => {
-    onSave({ ...draft, estimatedCost: totalCost });
-  }, [draft, totalCost, onSave]);
-
-  const handleDismissRefresh = () => setShowRefreshBanner(false);
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
 
   const content = (
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px]"
-            onClick={onClose}
+            onClick={handleClose}
           />
 
-          {/* Slide-out panel */}
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
@@ -147,12 +109,12 @@ export function TripSlideEditor({
                   <Pencil className="w-4 h-4 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold text-foreground">Edit Trip</h2>
+                  <h2 className="text-base font-semibold text-foreground">Trip Details</h2>
                   <p className="text-xs text-muted-foreground">{draft.destination}</p>
                 </div>
               </div>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-2 rounded-lg hover:bg-muted transition-colors"
               >
                 <X className="w-5 h-5 text-muted-foreground" />
@@ -163,239 +125,131 @@ export function TripSlideEditor({
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
               <div className="p-6 space-y-6">
 
-                {/* Refresh suggestion banner */}
-                <AnimatePresence>
-                  {showRefreshBanner && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
-                        <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground">Refresh recommendations?</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Would you like FlyBy to refresh flight and hotel options for the new dates?
-                          </p>
-                          <div className="flex gap-2 mt-3">
-                            <Button size="sm" variant="default" className="h-7 text-xs" onClick={handleDismissRefresh}>
-                              <RefreshCw className="w-3 h-3 mr-1" />
-                              Refresh Options
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleDismissRefresh}>
-                              Keep Current
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
                 {/* Trip Overview */}
-                <EditorSection icon={<MapPin className="w-4 h-4" />} title="Trip Overview">
+                <ViewSection icon={<MapPin className="w-4 h-4" />} title="Trip Overview">
                   <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Destination</Label>
-                      <Input
-                        value={draft.destination}
-                        onChange={e => updateField("destination", e.target.value)}
-                        className="mt-1 h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Purpose</Label>
-                      <Input
-                        value={draft.purpose}
-                        onChange={e => updateField("purpose", e.target.value)}
-                        placeholder="e.g. Client meeting, Team offsite"
-                        className="mt-1 h-9 text-sm"
-                      />
-                    </div>
+                    <InfoRow label="Destination" value={draft.destination} />
+                    <InfoRow label="Purpose" value={draft.purpose || "—"} />
                   </div>
-                </EditorSection>
+                </ViewSection>
 
                 <Separator />
 
                 {/* Travel Dates */}
-                <EditorSection icon={<CalendarIcon className="w-4 h-4" />} title="Travel Dates">
+                <ViewSection icon={<CalendarIcon className="w-4 h-4" />} title="Travel Dates">
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Departure</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full mt-1 h-9 text-sm justify-start font-normal">
-                              <CalendarIcon className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
-                              {format(new Date(draft.startDate), "MMM d, yyyy")}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="range"
-                              selected={{
-                                from: new Date(draft.startDate),
-                                to: new Date(draft.endDate),
-                              }}
-                              onSelect={handleDateRangeChange}
-                              numberOfMonths={1}
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Return</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full mt-1 h-9 text-sm justify-start font-normal">
-                              <CalendarIcon className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
-                              {format(new Date(draft.endDate), "MMM d, yyyy")}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="range"
-                              selected={{
-                                from: new Date(draft.startDate),
-                                to: new Date(draft.endDate),
-                              }}
-                              onSelect={handleDateRangeChange}
-                              numberOfMonths={1}
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
+                      <DateBlock
+                        label="Departure"
+                        date={draft.startDate}
+                      />
+                      <DateBlock
+                        label="Return"
+                        date={draft.endDate}
+                      />
                     </div>
                     <div className="bg-muted/50 rounded-lg px-3 py-2 text-xs text-muted-foreground">
                       {nights} night{nights !== 1 ? "s" : ""} · {format(new Date(draft.startDate), "EEEE")} to {format(new Date(draft.endDate), "EEEE")}
                     </div>
                   </div>
-                </EditorSection>
+                </ViewSection>
 
                 <Separator />
 
-                {/* Flight */}
-                <EditorSection icon={<Plane className="w-4 h-4" />} title="Flight">
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Airline</Label>
-                        <Input
-                          value={draft.flight?.airline || ""}
-                          onChange={e => updateField("flight", { ...draft.flight, airline: e.target.value })}
-                          placeholder="e.g. United Airlines"
-                          className="mt-1 h-9 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Flight #</Label>
-                        <Input
-                          value={draft.flight?.flightNumber || ""}
-                          onChange={e => updateField("flight", { ...draft.flight, flightNumber: e.target.value })}
-                          placeholder="e.g. UA 1234"
-                          className="mt-1 h-9 text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Departure Time</Label>
-                        <Input
-                          value={draft.flight?.departTime || ""}
-                          onChange={e => updateField("flight", { ...draft.flight, departTime: e.target.value })}
-                          placeholder="e.g. 8:00 AM"
-                          className="mt-1 h-9 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Return Time</Label>
-                        <Input
-                          value={draft.flight?.returnTime || ""}
-                          onChange={e => updateField("flight", { ...draft.flight, returnTime: e.target.value })}
-                          placeholder="e.g. 6:30 PM"
-                          className="mt-1 h-9 text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Flight Cost</Label>
-                      <div className="relative mt-1">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                        <Input
-                          type="number"
-                          value={draft.flight?.price || ""}
-                          onChange={e => updateField("flight", { ...draft.flight, price: Number(e.target.value) || 0 })}
-                          placeholder="0"
-                          className="h-9 text-sm pl-8"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </EditorSection>
-
-                <Separator />
-
-                {/* Hotel */}
-                <EditorSection icon={<Building2 className="w-4 h-4" />} title="Hotel">
-                  {draft.hotel?.name ? (
-                    <div className="space-y-3">
-                      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-                        <p className="text-sm font-medium text-foreground">{draft.hotel.name}</p>
-                        {draft.hotel.location && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {draft.hotel.location}
-                          </p>
-                        )}
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            {draft.hotel.rating && (
-                              <>
-                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                                {draft.hotel.rating}
-                              </>
-                            )}
-                          </span>
-                          {draft.hotel.pricePerNight && (
-                            <span className="font-medium text-foreground">
-                              ${draft.hotel.pricePerNight}/night
-                            </span>
-                          )}
+                {/* Flight — boarding-pass style */}
+                <ViewSection icon={<Plane className="w-4 h-4" />} title="Flight">
+                  {draft.flight?.airline ? (
+                    <div className="space-y-4">
+                      {/* Airline & flight number header */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{draft.flight.airline}</p>
+                          <p className="text-xs text-muted-foreground">{draft.flight.flightNumber || "—"}</p>
+                        </div>
+                        <div className="px-2.5 py-1 rounded-md bg-primary/10 text-primary text-[11px] font-medium tracking-wide uppercase">
+                          Confirmed
                         </div>
                       </div>
-                      <div className="bg-muted/50 rounded-lg px-3 py-2 text-xs text-muted-foreground flex justify-between">
-                        <span>{nights} night{nights !== 1 ? "s" : ""}</span>
-                        <span className="font-medium text-foreground">${hotelCost.toLocaleString()} total</span>
+
+                      {/* Route visualization */}
+                      <div className="rounded-xl border border-border bg-muted/20 p-4">
+                        <div className="flex items-center gap-3">
+                          {/* Departure */}
+                          <div className="flex-1 text-center">
+                            <p className="text-lg font-bold text-foreground tabular-nums">
+                              {draft.flight.departTime || "—"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {draft.flight.departCity || "Origin"}
+                            </p>
+                          </div>
+
+                          {/* Arrow */}
+                          <div className="flex flex-col items-center gap-1 px-2">
+                            <div className="w-16 h-px bg-border relative">
+                              <Plane className="w-3.5 h-3.5 text-primary absolute -top-[7px] right-0 rotate-0" />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">Direct</span>
+                          </div>
+
+                          {/* Arrival */}
+                          <div className="flex-1 text-center">
+                            <p className="text-lg font-bold text-foreground tabular-nums">
+                              {draft.flight.returnTime || "—"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {draft.destination}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full h-8 text-xs"
-                        onClick={() => { onClose(); onChangeHotel?.(); }}
-                      >
-                        <RefreshCw className="w-3 h-3 mr-1.5" />
-                        Change Hotel
-                      </Button>
+
+                      {/* Details grid */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <DetailBlock
+                          icon={<Clock className="w-3 h-3" />}
+                          label="Boarding"
+                          value={draft.flight.boardingTime || "—"}
+                        />
+                        <DetailBlock
+                          label="Gate"
+                          value={draft.flight.gate || "TBD"}
+                        />
+                        <DetailBlock
+                          icon={<DollarSign className="w-3 h-3" />}
+                          label="Fare"
+                          value={`$${flightCost.toLocaleString()}`}
+                        />
+                      </div>
+
+                      {onChangeFlight && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-8 text-xs"
+                          onClick={() => { handleClose(); onChangeFlight(); }}
+                        >
+                          Change Flight
+                        </Button>
+                      )}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center space-y-3">
-                      <Building2 className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-                      <p className="text-sm text-muted-foreground">No hotel selected</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => { onClose(); onChangeHotel?.(); }}
-                      >
-                        Add Hotel
-                      </Button>
+                    <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center space-y-2">
+                      <Plane className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                      <p className="text-sm text-muted-foreground">No flight selected</p>
+                      {onChangeFlight && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs mt-2"
+                          onClick={() => { handleClose(); onChangeFlight(); }}
+                        >
+                          Select Flight
+                        </Button>
+                      )}
                     </div>
                   )}
-                </EditorSection>
+                </ViewSection>
 
                 <Separator />
 
@@ -408,16 +262,18 @@ export function TripSlideEditor({
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Flight</span>
-                      <span className="font-medium">${flightCost.toLocaleString()}</span>
+                      <span className="font-medium tabular-nums">${flightCost.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Hotel ({nights} nights)</span>
-                      <span className="font-medium">${hotelCost.toLocaleString()}</span>
-                    </div>
+                    {hotelCost > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Hotel ({nights} nights)</span>
+                        <span className="font-medium tabular-nums">${hotelCost.toLocaleString()}</span>
+                      </div>
+                    )}
                     <Separator />
                     <div className="flex justify-between text-base">
                       <span className="font-semibold">Total</span>
-                      <span className="font-bold text-primary">${totalCost.toLocaleString()}</span>
+                      <span className="font-bold text-primary tabular-nums">${totalCost.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -425,30 +281,12 @@ export function TripSlideEditor({
             </div>
 
             {/* Footer */}
-            <div className="shrink-0 p-4 border-t border-border bg-background flex gap-3">
+            <div className="shrink-0 p-4 border-t border-border bg-background">
               <Button
-                variant="outline"
-                className="flex-1"
-                onClick={onClose}
-                disabled={isSaving}
+                className="w-full"
+                onClick={handleClose}
               >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleSave}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full mr-2"
-                  />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                {isSaving ? "Saving…" : "Save Changes"}
+                Done
               </Button>
             </div>
           </motion.div>
@@ -460,8 +298,9 @@ export function TripSlideEditor({
   return createPortal(content, document.body);
 }
 
-// Section component
-function EditorSection({
+/* ── Sub-components ── */
+
+function ViewSection({
   icon,
   title,
   children,
@@ -479,6 +318,46 @@ function EditorSection({
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       </div>
       <div className="pl-9">{children}</div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between items-baseline">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium text-foreground text-right max-w-[60%] truncate">{value}</span>
+    </div>
+  );
+}
+
+function DateBlock({ label, date }: { label: string; date: string }) {
+  const d = new Date(date);
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-3 text-center">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
+      <p className="text-lg font-bold text-foreground mt-1 tabular-nums">{format(d, "MMM d")}</p>
+      <p className="text-xs text-muted-foreground">{format(d, "yyyy")}</p>
+    </div>
+  );
+}
+
+function DetailBlock({
+  icon,
+  label,
+  value,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border/50 bg-muted/20 p-2.5 text-center">
+      <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+        {icon}
+        <span className="text-[10px] uppercase tracking-wider font-medium">{label}</span>
+      </div>
+      <p className="text-sm font-semibold text-foreground tabular-nums">{value}</p>
     </div>
   );
 }
