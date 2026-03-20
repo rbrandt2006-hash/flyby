@@ -12,11 +12,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { HotelDetailModal, type HotelInfo } from "@/components/trips/HotelDetailModal";
+import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
+import { getHotelsForDestination } from "@/services/mockHotelService";
 import { ItineraryEditor } from "@/components/itinerary/ItineraryEditor";
 import { TripSlideEditor } from "@/components/trips/TripSlideEditor";
 import { toast } from "sonner";
 import { AddExpenseModal } from "@/components/expenses/AddExpenseModal";
 import { useExpenses } from "@/hooks/useExpenses";
+import type { HotelOption } from "@/components/chats/booking/types";
 
 type TabType = "overview" | "itinerary" | "expenses";
 
@@ -91,11 +94,43 @@ export default function TripDetail() {
 
   // Hotel detail modal (for non-edit viewing)
   const [hotelModalOpen, setHotelModalOpen] = useState(false);
+  // Hotel picker (for selecting/changing hotel)
+  const [hotelPickerOpen, setHotelPickerOpen] = useState(false);
 
   const nights = useMemo(() => {
     if (!trip) return 2;
     return Math.max(1, differenceInDays(new Date(trip.endDate), new Date(trip.startDate)));
   }, [trip]);
+
+  // Generate hotel options based on destination
+  const hotelOptions = useMemo(() => {
+    if (!trip) return [];
+    return getHotelsForDestination({ destination: trip.destination, nights });
+  }, [trip?.destination, nights]);
+
+  const handleSelectHotel = useCallback((hotel: HotelOption) => {
+    if (!trip) return;
+    const updatedHotel = {
+      name: hotel.name,
+      location: hotel.area,
+      address: hotel.area,
+      pricePerNight: hotel.pricePerNight,
+      rating: hotel.rating,
+      amenities: hotel.amenities,
+      images: hotel.images,
+      description: hotel.description,
+      reviewCount: hotel.reviewCount,
+    };
+    setTrip({ ...trip, hotel: updatedHotel, estimatedCost: trip.estimatedCost + hotel.totalPrice });
+    // Sync to localStorage
+    if (localTrips.find(t => t.id === trip.id)) {
+      updateTrip(trip.id, {
+        hotel: { name: hotel.name, location: hotel.area },
+      });
+    }
+    setHotelPickerOpen(false);
+    toast.success(`${hotel.name} added to your trip`);
+  }, [trip, localTrips, updateTrip]);
 
   // Demo trips fallback data
   const demoTrips: Record<string, TripData> = {
@@ -498,7 +533,13 @@ export default function TripDetail() {
                     {/* Hotel Card */}
                     <Card
                       className="border border-border/50 group transition-all cursor-pointer hover:border-primary/30 hover:shadow-md"
-                      onClick={() => setHotelModalOpen(true)}
+                      onClick={() => {
+                        if (trip.hotel?.name) {
+                          setHotelModalOpen(true);
+                        } else {
+                          setHotelPickerOpen(true);
+                        }
+                      }}
                     >
                       <CardContent className="p-5">
                         <div className="flex items-start gap-4">
@@ -536,12 +577,32 @@ export default function TripDetail() {
                                     )}
                                   </>
                                 ) : (
-                                  <p className="font-medium text-muted-foreground">No hotel selected</p>
+                                  <div className="space-y-2">
+                                    <p className="font-medium text-muted-foreground">No hotel selected</p>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="gap-1.5"
+                                      onClick={(e) => { e.stopPropagation(); setHotelPickerOpen(true); }}
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                      Add Hotel
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                               <div className="flex items-center gap-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                <Pencil className="w-3.5 h-3.5" />
-                                <span className="text-xs">Edit</span>
+                                {trip.hotel?.name ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1 text-xs h-auto py-1 px-2"
+                                    onClick={(e) => { e.stopPropagation(); setHotelPickerOpen(true); }}
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    Change
+                                  </Button>
+                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -671,11 +732,22 @@ export default function TripDetail() {
             onClose={() => setHotelModalOpen(false)}
             onChangeHotel={() => {
               setHotelModalOpen(false);
-              setEditorOpen(true);
+              setHotelPickerOpen(true);
             }}
             nights={nights}
           />
         )}
+
+        {/* Hotel Picker (full-screen selection) */}
+        <HotelSelectionPage
+          open={hotelPickerOpen}
+          onClose={() => setHotelPickerOpen(false)}
+          hotels={hotelOptions}
+          selectedHotel={null}
+          onSelect={handleSelectHotel}
+          nights={nights}
+          venueName={trip?.destination || "destination"}
+        />
 
         {/* Add Expense Modal */}
         <AddExpenseModal

@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2 } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
@@ -18,6 +18,9 @@ import { parsePurpose } from "@/services/tripTemplates";
 import { parseTravelRequest } from "@/services/travelSearchParser";
 import { generateMockFlights } from "@/services/mockFlightService";
 import { FlightResults, type Flight } from "@/components/flights/FlightResults";
+import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
+import { getHotelsForDestination } from "@/services/mockHotelService";
+import type { HotelOption } from "@/components/chats/booking/types";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
 import type { CalendarEvent } from "@/services/mockCalendarService";
@@ -136,6 +139,9 @@ export default function Dashboard() {
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
   const [flightResults, setFlightResults] = useState<Flight[]>([]);
   const [selectedFlightFromResults, setSelectedFlightFromResults] = useState<Flight | null>(null);
+  const [showHotelStep, setShowHotelStep] = useState(false);
+  const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([]);
+  const [pendingPlanResult, setPendingPlanResult] = useState<TripPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [needsDestination, setNeedsDestination] = useState(false);
@@ -195,16 +201,16 @@ export default function Dashboard() {
   const handleSelectFlight = (flight: Flight) => {
     setSelectedFlightFromResults(flight);
     setFlightResults([]);
-    // Build planResult from the last search + selected flight
+    // Build partial plan, then show hotel step
     const parsed = parseTravelRequest(tripInput);
     const destAirport = parsed.destination?.airports[0];
     const now = new Date();
     const startDate = parsed.dates?.departure || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 24 * 60 * 60 * 1000);
-    const hotelBrands = ["Four Seasons", "Marriott", "Hyatt Regency", "Westin", "CitizenM"];
-    const hotelAreas = ["City Center", "Financial District", "Waterfront"];
     const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : flight.destination;
-    setPlanResult({
+    const nights = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+    const partialPlan: TripPlan = {
       destination: destLabel,
       dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
       startDate, endDate,
@@ -213,15 +219,39 @@ export default function Dashboard() {
       needsDateClarification: false,
       purpose: parsePurpose(tripInput),
       flight: { airline: flight.airline, departTime: flight.departureTime, returnTime: flight.arrivalTime },
-      hotel: {
-        name: `${hotelBrands[Math.floor(Math.random() * hotelBrands.length)]} ${destAirport?.city || "Hotel"}`,
-        location: `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destAirport?.city || flight.destination}`,
-      },
+      hotel: { name: "", location: "" },
       groundTransport: `Airport transfer from ${flight.destination} + local mobility pass`,
-      estimatedCost: flight.price + 800 + Math.floor(Math.random() * 300),
+      estimatedCost: flight.price,
       confidenceLevel: 96,
       originalPrompt: tripInput,
-    });
+    };
+
+    setPendingPlanResult(partialPlan);
+    // Generate hotel options for the destination
+    const hotels = getHotelsForDestination({ destination: destLabel, nights });
+    setHotelOptions(hotels);
+    setShowHotelStep(true);
+  };
+
+  const handleSelectHotelFromStep = (hotel: HotelOption) => {
+    if (!pendingPlanResult) return;
+    const finalPlan: TripPlan = {
+      ...pendingPlanResult,
+      hotel: { name: hotel.name, location: hotel.area },
+      estimatedCost: pendingPlanResult.estimatedCost + hotel.totalPrice,
+    };
+    setPlanResult(finalPlan);
+    setPendingPlanResult(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
+  };
+
+  const handleSkipHotel = () => {
+    if (!pendingPlanResult) return;
+    setPlanResult(pendingPlanResult);
+    setPendingPlanResult(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
   };
 
 
@@ -478,6 +508,17 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
+      {/* ─── HOTEL SELECTION STEP ─── */}
+      <HotelSelectionPage
+        open={showHotelStep}
+        onClose={handleSkipHotel}
+        hotels={hotelOptions}
+        selectedHotel={null}
+        onSelect={handleSelectHotelFromStep}
+        nights={pendingPlanResult ? Math.max(1, Math.ceil((pendingPlanResult.endDate.getTime() - pendingPlanResult.startDate.getTime()) / (1000 * 60 * 60 * 24))) : 2}
+        venueName={pendingPlanResult?.destination || "destination"}
+      />
+
       {/* ─── PROPOSED ITINERARY ─── */}
       <AnimatePresence>
         {planResult && (
@@ -510,8 +551,14 @@ export default function Dashboard() {
                     <div className="flex-1"><p className="font-medium">{planResult.flight.airline}</p><p className="text-sm text-muted-foreground">Depart {planResult.flight.departTime} · Return {planResult.flight.returnTime}</p></div>
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                    <Hotel className="w-5 h-5 text-primary" />
-                    <div className="flex-1"><p className="font-medium">{planResult.hotel.name}</p><p className="text-sm text-muted-foreground">{planResult.hotel.location}</p></div>
+                    <Building2 className="w-5 h-5 text-primary" />
+                    <div className="flex-1">
+                      {planResult.hotel.name ? (
+                        <><p className="font-medium">{planResult.hotel.name}</p><p className="text-sm text-muted-foreground">{planResult.hotel.location}</p></>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No hotel selected — you can add one later</p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/10">
