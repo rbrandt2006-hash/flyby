@@ -160,8 +160,26 @@ export function CalendarTripPreview({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border/40 bg-muted/30">
-          <Button className="w-full" size="sm" onClick={onViewTrip}>
+        <div className="p-4 border-t border-border/40 bg-muted/30 space-y-2">
+          {isDraft && onConfirmTrip && (
+            <Button 
+              className="w-full gap-2" 
+              size="sm" 
+              onClick={() => {
+                onConfirmTrip(trip.id);
+                onClose();
+              }}
+            >
+              <Check className="w-4 h-4" />
+              Confirm Flight
+            </Button>
+          )}
+          <Button 
+            className="w-full" 
+            size="sm" 
+            variant={isDraft && onConfirmTrip ? "outline" : "default"}
+            onClick={onViewTrip}
+          >
             <ExternalLink className="w-4 h-4 mr-2" />
             View Trip Details
           </Button>
