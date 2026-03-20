@@ -330,9 +330,12 @@ export default function Dashboard() {
                     e.preventDefault();
                     if (destinationSuggestions.length > 0 && destinationQuery.trim()) {
                       const suggestion = destinationSuggestions[activeSuggestionIndex] ?? destinationSuggestions[0];
-                      handleSelectSuggestion(suggestion);
-                      // Auto-plan after selecting suggestion with a micro-delay for state update
-                      setTimeout(() => handlePlanTrip(), 50);
+                      const query = extractDestinationSearchQuery(tripInput);
+                      const resolvedInput = query && query !== tripInput
+                        ? tripInput.replace(new RegExp(`${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"), suggestion.label)
+                        : suggestion.label;
+                      setActiveSuggestionIndex(0);
+                      handlePlanTrip(resolvedInput);
                     } else {
                       handlePlanTrip();
                     }
