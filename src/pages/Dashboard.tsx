@@ -461,6 +461,23 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
+      {/* ─── FLIGHT RESULTS ─── */}
+      <AnimatePresence>
+        {flightResults.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-3xl mx-auto">
+            <FlightResults
+              flights={flightResults}
+              departureDate={parseTravelRequest(tripInput).dates?.departure || new Date()}
+              returnDate={parseTravelRequest(tripInput).dates?.return}
+              tripType={parseTravelRequest(tripInput).tripType}
+              passengers={parseTravelRequest(tripInput).passengers || 1}
+              onSelect={handleSelectFlight}
+              onBack={() => setFlightResults([])}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ─── PROPOSED ITINERARY ─── */}
       <AnimatePresence>
         {planResult && (
