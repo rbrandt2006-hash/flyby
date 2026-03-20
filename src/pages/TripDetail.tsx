@@ -94,6 +94,38 @@ export default function TripDetail() {
 
   // Hotel detail modal (for non-edit viewing)
   const [hotelModalOpen, setHotelModalOpen] = useState(false);
+  // Hotel picker (for selecting/changing hotel)
+  const [hotelPickerOpen, setHotelPickerOpen] = useState(false);
+
+  // Generate hotel options based on destination
+  const hotelOptions = useMemo(() => {
+    if (!trip) return [];
+    return getHotelsForDestination({ destination: trip.destination, nights });
+  }, [trip?.destination, nights]);
+
+  const handleSelectHotel = useCallback((hotel: HotelOption) => {
+    if (!trip) return;
+    const updatedHotel = {
+      name: hotel.name,
+      location: hotel.area,
+      address: hotel.area,
+      pricePerNight: hotel.pricePerNight,
+      rating: hotel.rating,
+      amenities: hotel.amenities,
+      images: hotel.images,
+      description: hotel.description,
+      reviewCount: hotel.reviewCount,
+    };
+    setTrip({ ...trip, hotel: updatedHotel, estimatedCost: trip.estimatedCost + hotel.totalPrice });
+    // Sync to localStorage
+    if (localTrips.find(t => t.id === trip.id)) {
+      updateTrip(trip.id, {
+        hotel: { name: hotel.name, location: hotel.area },
+      });
+    }
+    setHotelPickerOpen(false);
+    toast.success(`${hotel.name} added to your trip`);
+  }, [trip, localTrips, updateTrip]);
 
   const nights = useMemo(() => {
     if (!trip) return 2;
