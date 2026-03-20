@@ -732,11 +732,22 @@ export default function TripDetail() {
             onClose={() => setHotelModalOpen(false)}
             onChangeHotel={() => {
               setHotelModalOpen(false);
-              setEditorOpen(true);
+              setHotelPickerOpen(true);
             }}
             nights={nights}
           />
         )}
+
+        {/* Hotel Picker (full-screen selection) */}
+        <HotelSelectionPage
+          open={hotelPickerOpen}
+          onClose={() => setHotelPickerOpen(false)}
+          hotels={hotelOptions}
+          selectedHotel={null}
+          onSelect={handleSelectHotel}
+          nights={nights}
+          venueName={trip?.destination || "destination"}
+        />
 
         {/* Add Expense Modal */}
         <AddExpenseModal
