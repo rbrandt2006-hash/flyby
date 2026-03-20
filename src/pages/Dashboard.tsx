@@ -253,7 +253,6 @@ export default function Dashboard() {
     setShowHotelStep(false);
     setHotelOptions([]);
   };
-  };
 
 
   const handleRefine = () => { setIsRefineOpen(true); };
