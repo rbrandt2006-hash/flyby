@@ -38,9 +38,10 @@ export function CalendarTripPreview({
   const startDate = parseISO(trip.startDate);
   const endDate = parseISO(trip.endDate);
   const nights = differenceInDays(endDate, startDate);
+  const isDraft = trip.status === "draft";
+  const isConfirmed = trip.status === "confirmed";
   const isPending = trip.approvalStatus === "pending";
   const isApproved = trip.approvalStatus === "approved";
-  const hasSynced = !!trip.calendarEventId;
 
   // Adjust position to stay within viewport
   const adjustedPosition = {
