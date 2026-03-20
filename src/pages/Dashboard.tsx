@@ -159,12 +159,14 @@ export default function Dashboard() {
 
   const handleEditVoice = useCallback(() => { voiceRecording.confirmTranscript(); }, [voiceRecording]);
 
-  const handlePlanTrip = async () => {
+  const handlePlanTrip = async (overrideInput?: string) => {
+    const input = overrideInput ?? tripInput;
     setError(null); setInputError(null); setNeedsDestination(false);
-    if (!tripInput.trim()) { setInputError("Please describe your trip first"); return; }
+    if (!input.trim()) { setInputError("Please describe your trip first"); return; }
+    if (overrideInput) setTripInput(overrideInput);
     setIsPlanning(true); setPlanResult(null);
     try {
-      const result = await generateTripPlan(tripInput);
+      const result = await generateTripPlan(input);
       if ("needsDestination" in result) setNeedsDestination(true);
       else setPlanResult(result);
     } catch { setError("Failed to generate trip plan. Please try again."); }
@@ -324,12 +326,20 @@ export default function Dashboard() {
                     });
                     return;
                   }
-                  if (e.key === 'Enter' && destinationSuggestions.length > 0 && destinationQuery.trim()) {
+                  if (e.key === 'Enter' && !isPlanning && voiceRecording.state === 'idle') {
                     e.preventDefault();
-                    handleSelectSuggestion(destinationSuggestions[activeSuggestionIndex] ?? destinationSuggestions[0]);
-                    return;
+                    if (destinationSuggestions.length > 0 && destinationQuery.trim()) {
+                      const suggestion = destinationSuggestions[activeSuggestionIndex] ?? destinationSuggestions[0];
+                      const query = extractDestinationSearchQuery(tripInput);
+                      const resolvedInput = query && query !== tripInput
+                        ? tripInput.replace(new RegExp(`${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"), suggestion.label)
+                        : suggestion.label;
+                      setActiveSuggestionIndex(0);
+                      handlePlanTrip(resolvedInput);
+                    } else {
+                      handlePlanTrip();
+                    }
                   }
-                  if (e.key === 'Enter' && !isPlanning && voiceRecording.state === 'idle') handlePlanTrip();
                 }}
                 whileFocus={{ scale: 1.005 }}
                 transition={{ duration: 0.15 }}
@@ -372,7 +382,7 @@ export default function Dashboard() {
                 variant="cta"
                 size="default"
                 className="shrink-0 rounded-xl gap-2"
-                onClick={handlePlanTrip}
+                onClick={() => handlePlanTrip()}
                 disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
               >
                 {isPlanning ? (
