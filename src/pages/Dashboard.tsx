@@ -393,7 +393,7 @@ export default function Dashboard() {
               </Button>
             </div>
 
-          </div>
+          </form>
 
           {/* Voice transcript confirmation */}
           <AnimatePresence>
