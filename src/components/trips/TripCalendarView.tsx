@@ -49,6 +49,7 @@ interface TripCalendarViewProps {
   open: boolean;
   onClose: () => void;
   trips: LocalTrip[];
+  onConfirmTrip?: (tripId: string) => void;
 }
 
 interface TripConflict {
