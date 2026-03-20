@@ -490,23 +490,33 @@ export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCa
                         className={cn(
                           "w-full text-left px-2 py-1.5 rounded-lg text-xs font-medium truncate transition-all group/trip",
                           "hover:shadow-sm hover:scale-[1.02]",
-                          isPending 
-                            ? "bg-warning/15 text-warning border border-warning/20 opacity-70"
-                            : "bg-primary/10 text-primary hover:bg-primary/20 border border-primary/10",
+                          trip.status === "draft"
+                            ? "bg-muted/60 text-muted-foreground border border-dashed border-border/60 opacity-80"
+                            : trip.status === "confirmed" && trip.approvalStatus !== "pending"
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20"
+                              : isPending 
+                                ? "bg-warning/15 text-warning border border-warning/20 opacity-70"
+                                : "bg-primary/10 text-primary hover:bg-primary/20 border border-primary/10",
                           hasConflict && "ring-2 ring-destructive/40",
                           isStart && "rounded-l-xl pl-2.5",
                           isEnd && "rounded-r-xl pr-2.5"
                         )}
                       >
                         <div className="flex items-center gap-1.5">
-                          <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center text-[8px] font-bold shrink-0">
+                          <div className={cn(
+                            "w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0",
+                            trip.status === "draft" ? "bg-muted-foreground/20" : "bg-primary/20"
+                          )}>
                             {initials.charAt(0)}
                           </div>
                           {hasConflict && (
                             <AlertTriangle className="w-3 h-3 text-destructive shrink-0" />
                           )}
-                          {hasSynced && !hasConflict && (
-                            <Check className="w-3 h-3 text-success shrink-0" />
+                          {trip.status === "draft" && !hasConflict && (
+                            <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
+                          )}
+                          {trip.status === "confirmed" && !hasConflict && (
+                            <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           )}
                           <span className="truncate">{trip.destination}</span>
                         </div>
