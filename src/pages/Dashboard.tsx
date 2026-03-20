@@ -134,6 +134,8 @@ export default function Dashboard() {
   const [tripInput, setTripInput] = useState("");
   const [isPlanning, setIsPlanning] = useState(false);
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
+  const [flightResults, setFlightResults] = useState<Flight[]>([]);
+  const [selectedFlightFromResults, setSelectedFlightFromResults] = useState<Flight | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [needsDestination, setNeedsDestination] = useState(false);
