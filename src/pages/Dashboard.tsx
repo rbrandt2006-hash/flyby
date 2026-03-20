@@ -355,14 +355,14 @@ export default function Dashboard() {
 
               {/* Plan trip CTA */}
               <Button
+                type="submit"
                 variant="cta"
                 size="default"
                 className="shrink-0 rounded-xl gap-2"
-                onClick={() => handlePlanTrip()}
                 disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
               >
                 {isPlanning ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Planning…</span></>
+                  <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Searching flights…</span></>
                 ) : (
                   <><Sparkles className="w-4 h-4" /><span>Plan trip</span></>
                 )}
