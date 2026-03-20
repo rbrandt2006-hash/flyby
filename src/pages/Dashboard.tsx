@@ -125,7 +125,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [needsDestination, setNeedsDestination] = useState(false);
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  
   const [isRefineOpen, setIsRefineOpen] = useState(false);
   const [kpiDrawer, setKpiDrawer] = useState<{ open: boolean; type: KPIType }>({ open: false, type: "upcomingTrips" });
   const [selectedTraveler, setSelectedTraveler] = useState<typeof teamTraveling[number] | null>(null);
