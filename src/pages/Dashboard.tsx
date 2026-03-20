@@ -397,41 +397,6 @@ export default function Dashboard() {
             )}
           </AnimatePresence>
 
-          {/* Global destination suggestions */}
-          <AnimatePresence>
-            {(destinationSuggestions.length > 0 || needsDestination) && !planResult && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-4 max-w-3xl mx-auto">
-                <div className="rounded-2xl border border-border bg-card/95 shadow-xl overflow-hidden">
-                  <div className="px-4 py-3 border-b border-border/60 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    {needsDestination ? "Choose a destination" : "Global destination search"}
-                  </div>
-                  <div className="max-h-80 overflow-y-auto p-2 space-y-1">
-                    {destinationSuggestions.map((suggestion, index) => (
-                      <button
-                        key={suggestion.id}
-                        type="button"
-                        onClick={() => handleSelectSuggestion(suggestion)}
-                        className={cn(
-                          "w-full rounded-xl px-4 py-3 text-left transition-colors flex items-center gap-3",
-                          index === activeSuggestionIndex ? "bg-accent text-accent-foreground" : "hover:bg-secondary"
-                        )}
-                      >
-                        <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-base shrink-0">{suggestion.emoji}</div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <span className="truncate">{suggestion.title}</span>
-                            <Badge variant="secondary" className="text-[10px] uppercase">{suggestion.type}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">{suggestion.subtitle}</p>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </motion.div>
       </ScrollReveal>
 
