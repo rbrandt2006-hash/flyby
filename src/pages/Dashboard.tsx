@@ -326,7 +326,7 @@ export default function Dashboard() {
               {/* Voice button */}
               {voiceRecording.state === 'idle' && (
                 <Button
-                  variant="ghost"
+                  type="button"
                   size="icon"
                   className="shrink-0 text-muted-foreground hover:text-foreground"
                   onClick={voiceRecording.startRecording}
