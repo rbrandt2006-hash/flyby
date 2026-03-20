@@ -59,7 +59,7 @@ interface TripConflict {
   overlapEnd: Date;
 }
 
-export function TripCalendarView({ open, onClose, trips }: TripCalendarViewProps) {
+export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCalendarViewProps) {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
