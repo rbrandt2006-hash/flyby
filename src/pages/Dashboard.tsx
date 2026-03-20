@@ -158,6 +158,7 @@ export default function Dashboard() {
   const handleEditVoice = useCallback(() => { voiceRecording.confirmTranscript(); }, [voiceRecording]);
 
   const handlePlanTrip = async (overrideInput?: string) => {
+    console.log("submitted");
     const input = overrideInput ?? tripInput;
     setError(null); setInputError(null); setNeedsDestination(false);
     if (!input.trim()) { setInputError("Please describe your trip first"); return; }
@@ -297,7 +298,13 @@ export default function Dashboard() {
           )}
 
           {/* Command input */}
-          <form onSubmit={e => { e.preventDefault(); if (!isPlanning && voiceRecording.state === 'idle') handlePlanTrip(); }} className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handlePlanTrip();
+            }}
+            className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl"
+          >
             <div className="flex items-center gap-3 px-5 py-4">
               <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
               <motion.input
