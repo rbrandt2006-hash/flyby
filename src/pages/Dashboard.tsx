@@ -171,16 +171,6 @@ export default function Dashboard() {
     finally { setIsPlanning(false); }
   };
 
-  const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
-    const query = extractDestinationSearchQuery(tripInput);
-    const nextInput = query && query !== tripInput
-      ? tripInput.replace(new RegExp(`${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"), suggestion.label)
-      : suggestion.label;
-
-    setTripInput(nextInput);
-    setNeedsDestination(false);
-    setActiveSuggestionIndex(0);
-  };
 
   const handleRefine = () => { setIsRefineOpen(true); };
 
