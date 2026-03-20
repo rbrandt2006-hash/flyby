@@ -97,6 +97,11 @@ export default function TripDetail() {
   // Hotel picker (for selecting/changing hotel)
   const [hotelPickerOpen, setHotelPickerOpen] = useState(false);
 
+  const nights = useMemo(() => {
+    if (!trip) return 2;
+    return Math.max(1, differenceInDays(new Date(trip.endDate), new Date(trip.startDate)));
+  }, [trip]);
+
   // Generate hotel options based on destination
   const hotelOptions = useMemo(() => {
     if (!trip) return [];
@@ -126,11 +131,6 @@ export default function TripDetail() {
     setHotelPickerOpen(false);
     toast.success(`${hotel.name} added to your trip`);
   }, [trip, localTrips, updateTrip]);
-
-  const nights = useMemo(() => {
-    if (!trip) return 2;
-    return Math.max(1, differenceInDays(new Date(trip.endDate), new Date(trip.startDate)));
-  }, [trip]);
 
   // Demo trips fallback data
   const demoTrips: Record<string, TripData> = {
