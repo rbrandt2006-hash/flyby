@@ -551,8 +551,14 @@ export default function Dashboard() {
                     <div className="flex-1"><p className="font-medium">{planResult.flight.airline}</p><p className="text-sm text-muted-foreground">Depart {planResult.flight.departTime} · Return {planResult.flight.returnTime}</p></div>
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                    <Hotel className="w-5 h-5 text-primary" />
-                    <div className="flex-1"><p className="font-medium">{planResult.hotel.name}</p><p className="text-sm text-muted-foreground">{planResult.hotel.location}</p></div>
+                    <Building2 className="w-5 h-5 text-primary" />
+                    <div className="flex-1">
+                      {planResult.hotel.name ? (
+                        <><p className="font-medium">{planResult.hotel.name}</p><p className="text-sm text-muted-foreground">{planResult.hotel.location}</p></>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No hotel selected — you can add one later</p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/10">
