@@ -68,6 +68,7 @@ export function TripSlideEditor({
   onClose,
   tripData,
   onSave,
+  onChangeHotel,
   isSaving = false,
 }: TripSlideEditorProps) {
   const [draft, setDraft] = useState<TripEditorData>(tripData);
