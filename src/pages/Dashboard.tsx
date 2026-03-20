@@ -159,12 +159,14 @@ export default function Dashboard() {
 
   const handleEditVoice = useCallback(() => { voiceRecording.confirmTranscript(); }, [voiceRecording]);
 
-  const handlePlanTrip = async () => {
+  const handlePlanTrip = async (overrideInput?: string) => {
+    const input = overrideInput ?? tripInput;
     setError(null); setInputError(null); setNeedsDestination(false);
-    if (!tripInput.trim()) { setInputError("Please describe your trip first"); return; }
+    if (!input.trim()) { setInputError("Please describe your trip first"); return; }
+    if (overrideInput) setTripInput(overrideInput);
     setIsPlanning(true); setPlanResult(null);
     try {
-      const result = await generateTripPlan(tripInput);
+      const result = await generateTripPlan(input);
       if ("needsDestination" in result) setNeedsDestination(true);
       else setPlanResult(result);
     } catch { setError("Failed to generate trip plan. Please try again."); }
