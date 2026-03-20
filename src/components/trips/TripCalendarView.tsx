@@ -544,6 +544,7 @@ export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCa
             position={previewPosition}
             onClose={() => setSelectedTrip(null)}
             onViewTrip={() => handleViewTrip(selectedTrip.id)}
+            onConfirmTrip={onConfirmTrip}
             hasConflict={conflictingTripIds.has(selectedTrip.id)}
           />
         )}
