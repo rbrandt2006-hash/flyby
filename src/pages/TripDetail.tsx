@@ -720,6 +720,7 @@ export default function TripDetail() {
               hotel: trip.hotel,
             }}
             onSave={handleEditorSave}
+            onChangeHotel={() => setHotelPickerOpen(true)}
             isSaving={isSaving}
           />
         )}
