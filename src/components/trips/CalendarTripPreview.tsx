@@ -89,6 +89,18 @@ export function CalendarTripPreview({
 
           {/* Status badges */}
           <div className="flex items-center gap-2 flex-wrap">
+            {isDraft && (
+              <Badge variant="outline" className="text-xs gap-1 bg-muted text-muted-foreground border-border">
+                <Clock className="w-3 h-3" />
+                Draft
+              </Badge>
+            )}
+            {isConfirmed && !isPending && !isApproved && (
+              <Badge variant="outline" className="text-xs gap-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                <Check className="w-3 h-3" />
+                Confirmed
+              </Badge>
+            )}
             {hasConflict && (
               <Badge variant="destructive" className="text-xs gap-1">
                 <AlertTriangle className="w-3 h-3" />
@@ -102,15 +114,9 @@ export function CalendarTripPreview({
               </Badge>
             )}
             {isApproved && (
-              <Badge variant="outline" className="text-xs gap-1 bg-success/10 text-success border-success/30">
+              <Badge variant="outline" className="text-xs gap-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                 <Check className="w-3 h-3" />
                 Approved
-              </Badge>
-            )}
-            {hasSynced && (
-              <Badge variant="outline" className="text-xs gap-1">
-                <Calendar className="w-3 h-3" />
-                Synced
               </Badge>
             )}
           </div>
