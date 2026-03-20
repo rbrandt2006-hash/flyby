@@ -412,9 +412,13 @@ export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCa
                       className={cn(
                         "absolute top-1.5 bottom-1.5 rounded-lg flex items-center px-3 text-xs font-medium transition-all",
                         "hover:shadow-md hover:brightness-110 cursor-pointer",
-                        isPending
-                          ? "bg-warning/20 text-warning border border-warning/30"
-                          : "bg-primary/15 text-primary border border-primary/20 hover:bg-primary/25"
+                        trip.status === "draft"
+                          ? "bg-muted/40 text-muted-foreground border border-dashed border-border/60"
+                          : trip.status === "confirmed" && trip.approvalStatus !== "pending"
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20"
+                            : isPending
+                              ? "bg-warning/20 text-warning border border-warning/30"
+                              : "bg-primary/15 text-primary border border-primary/20 hover:bg-primary/25"
                       )}
                       style={{
                         left: `${(clampedStart / totalDays) * 100}%`,
