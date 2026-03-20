@@ -508,6 +508,17 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
+      {/* ─── HOTEL SELECTION STEP ─── */}
+      <HotelSelectionPage
+        open={showHotelStep}
+        onClose={handleSkipHotel}
+        hotels={hotelOptions}
+        selectedHotel={null}
+        onSelect={handleSelectHotelFromStep}
+        nights={pendingPlanResult ? Math.max(1, Math.ceil((pendingPlanResult.endDate.getTime() - pendingPlanResult.startDate.getTime()) / (1000 * 60 * 60 * 24))) : 2}
+        venueName={pendingPlanResult?.destination || "destination"}
+      />
+
       {/* ─── PROPOSED ITINERARY ─── */}
       <AnimatePresence>
         {planResult && (
