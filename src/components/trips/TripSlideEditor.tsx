@@ -341,61 +341,60 @@ export function TripSlideEditor({
 
                 {/* Hotel */}
                 <EditorSection icon={<Building2 className="w-4 h-4" />} title="Hotel">
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Hotel Name</Label>
-                      <Input
-                        value={draft.hotel?.name || ""}
-                        onChange={e => updateField("hotel", { ...draft.hotel, name: e.target.value })}
-                        placeholder="e.g. The Westin St. Francis"
-                        className="mt-1 h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Location</Label>
-                      <Input
-                        value={draft.hotel?.location || ""}
-                        onChange={e => updateField("hotel", { ...draft.hotel, location: e.target.value })}
-                        placeholder="e.g. Union Square"
-                        className="mt-1 h-9 text-sm"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Price / Night</Label>
-                        <div className="relative mt-1">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                          <Input
-                            type="number"
-                            value={draft.hotel?.pricePerNight || ""}
-                            onChange={e => updateField("hotel", { ...draft.hotel, pricePerNight: Number(e.target.value) || 0 })}
-                            placeholder="0"
-                            className="h-9 text-sm pl-8"
-                          />
+                  {draft.hotel?.name ? (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                        <p className="text-sm font-medium text-foreground">{draft.hotel.name}</p>
+                        {draft.hotel.location && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {draft.hotel.location}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            {draft.hotel.rating && (
+                              <>
+                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                {draft.hotel.rating}
+                              </>
+                            )}
+                          </span>
+                          {draft.hotel.pricePerNight && (
+                            <span className="font-medium text-foreground">
+                              ${draft.hotel.pricePerNight}/night
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Rating</Label>
-                        <div className="relative mt-1">
-                          <Star className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                          <Input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="5"
-                            value={draft.hotel?.rating || ""}
-                            onChange={e => updateField("hotel", { ...draft.hotel, rating: Number(e.target.value) || 0 })}
-                            placeholder="4.5"
-                            className="h-9 text-sm pl-8"
-                          />
-                        </div>
+                      <div className="bg-muted/50 rounded-lg px-3 py-2 text-xs text-muted-foreground flex justify-between">
+                        <span>{nights} night{nights !== 1 ? "s" : ""}</span>
+                        <span className="font-medium text-foreground">${hotelCost.toLocaleString()} total</span>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-8 text-xs"
+                        onClick={() => { onClose(); onChangeHotel?.(); }}
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1.5" />
+                        Change Hotel
+                      </Button>
                     </div>
-                    <div className="bg-muted/50 rounded-lg px-3 py-2 text-xs text-muted-foreground flex justify-between">
-                      <span>{nights} night{nights !== 1 ? "s" : ""}</span>
-                      <span className="font-medium text-foreground">${hotelCost.toLocaleString()} total</span>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center space-y-3">
+                      <Building2 className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                      <p className="text-sm text-muted-foreground">No hotel selected</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => { onClose(); onChangeHotel?.(); }}
+                      >
+                        Add Hotel
+                      </Button>
                     </div>
-                  </div>
+                  )}
                 </EditorSection>
 
                 <Separator />
