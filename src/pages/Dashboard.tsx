@@ -56,49 +56,59 @@ interface TripPlan {
 }
 
 // Generate trip plan based on parsed destination
-const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true }> => {
+const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true; flights?: never }> => {
   await new Promise(r => setTimeout(r, 350));
-  const destination = resolveBestLocation(prompt);
-  if (!destination) return { needsDestination: true };
 
-  const dateResult = parseDates(prompt);
+  const parsed = parseTravelRequest(prompt);
+  const destAirport = parsed.destination?.airports[0];
+  if (!destAirport) return { needsDestination: true };
+
+  const originAirport = parsed.origin?.airports[0];
   const purpose = parsePurpose(prompt);
-  const airportCode = destination.airportCodes[0] || "INTL";
+
   const hotelBrands = ["Four Seasons", "Marriott", "Hyatt Regency", "Westin", "CitizenM", "InterContinental"];
   const hotelAreas = ["City Center", "Financial District", "Waterfront", "Convention Quarter", "Old Town"];
-  const airlineOptions = ["Delta Air Lines", "United Airlines", "American Airlines", "Lufthansa", "Air France", "Singapore Airlines"];
-  const confidenceBase = destination.type === "city" ? 94 : destination.type === "state" ? 88 : 84;
-  const estimatedCostBase = destination.country === "USA" ? 1450 : 2850;
-  const hotelName = `${hotelBrands[Math.floor(Math.random() * hotelBrands.length)]} ${destination.city ?? destination.title}`;
-  const hotelLocation = destination.type === "city"
-    ? `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destination.title}`
-    : `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destination.label}`;
 
   const now = new Date();
-  const startDate = dateResult.startDate || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const endDate = dateResult.endDate || new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+  const startDate = parsed.dates?.departure || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+  const datesAssumed = !parsed.dates?.departure;
+
+  const destLabel = `${destAirport.city}, ${destAirport.country}`;
+  const originCode = originAirport?.code || "---";
+  const destCode = destAirport.code;
+  const cabinClass = parsed.cabinClass || "economy";
+  const passengers = parsed.passengers || 1;
+
+  const hotelName = `${hotelBrands[Math.floor(Math.random() * hotelBrands.length)]} ${destAirport.city}`;
+  const hotelLocation = `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destAirport.city}`;
+  const estimatedCostBase = destAirport.country === "United States" || destAirport.country === "USA" ? 1450 : 2850;
+
+  // Generate flight results
+  const flights = generateMockFlights(originCode, destCode, cabinClass, passengers);
 
   return {
-    destination: destination.label,
-    dates: dateResult.dates || `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
+    destination: destLabel,
+    dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
     startDate,
     endDate,
-    datesAssumed: dateResult.assumed,
-    datesConfirmed: !dateResult.assumed,
-    needsDateClarification: dateResult.needsClarification || false,
-    monthIntent: dateResult.monthIntent,
+    datesAssumed,
+    datesConfirmed: !datesAssumed,
+    needsDateClarification: false,
     purpose,
     flight: {
-      airline: airlineOptions[Math.floor(Math.random() * airlineOptions.length)],
-      departTime: "7:45 AM",
-      returnTime: "5:30 PM",
+      airline: flights[0]?.airline || "United Airlines",
+      departTime: flights[0]?.departureTime || "7:45 AM",
+      returnTime: flights[0]?.arrivalTime || "5:30 PM",
     },
     hotel: { name: hotelName, location: hotelLocation },
-    groundTransport: destination.type === "city" ? `Airport transfer from ${airportCode} + local mobility pass` : "Regional airport transfer + local mobility pass",
-    estimatedCost: estimatedCostBase + Math.floor(Math.random() * 450) - 125,
-    confidenceLevel: Math.min(98, confidenceBase + Math.floor(Math.random() * 4)),
+    groundTransport: `Airport transfer from ${destCode} + local mobility pass`,
+    estimatedCost: flights[0]?.price || (estimatedCostBase + Math.floor(Math.random() * 450) - 125),
+    confidenceLevel: Math.min(98, 92 + Math.floor(Math.random() * 4)),
     originalPrompt: prompt,
-  };
+    _flights: flights,
+    _parsed: parsed,
+  } as TripPlan & { _flights: Flight[]; _parsed: ReturnType<typeof parseTravelRequest> };
 };
 
 // Demo team members traveling with live journey status
