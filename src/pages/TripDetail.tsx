@@ -533,7 +533,13 @@ export default function TripDetail() {
                     {/* Hotel Card */}
                     <Card
                       className="border border-border/50 group transition-all cursor-pointer hover:border-primary/30 hover:shadow-md"
-                      onClick={() => setHotelModalOpen(true)}
+                      onClick={() => {
+                        if (trip.hotel?.name) {
+                          setHotelModalOpen(true);
+                        } else {
+                          setHotelPickerOpen(true);
+                        }
+                      }}
                     >
                       <CardContent className="p-5">
                         <div className="flex items-start gap-4">
