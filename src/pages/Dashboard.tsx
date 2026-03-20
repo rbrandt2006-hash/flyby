@@ -158,6 +158,7 @@ export default function Dashboard() {
   const handleEditVoice = useCallback(() => { voiceRecording.confirmTranscript(); }, [voiceRecording]);
 
   const handlePlanTrip = async (overrideInput?: string) => {
+    console.log("submitted");
     const input = overrideInput ?? tripInput;
     setError(null); setInputError(null); setNeedsDestination(false);
     if (!input.trim()) { setInputError("Please describe your trip first"); return; }
@@ -170,134 +171,15 @@ export default function Dashboard() {
     } catch { setError("Failed to generate trip plan. Please try again."); }
     finally { setIsPlanning(false); }
   };
-
-
-  const handleRefine = () => { setIsRefineOpen(true); };
-
-  const handleRefineSave = (selections: {
-    flight: { airline: string; departTime: string; returnTime: string };
-    hotel: { name: string; location: string };
-    groundTransport: string;
-    estimatedCost: number;
-  }) => {
-    if (planResult) {
-      setPlanResult({ ...planResult, ...selections });
-      toast.success("Trip options updated");
-    }
-  };
-
-  const handleSaveDraft = () => {
-    if (!planResult) return;
-    const startDate = planResult.startDate.toISOString();
-    const endDate = planResult.endDate.toISOString();
-    createTrip({
-      destination: planResult.destination, startDate, endDate,
-      purpose: planResult.purpose, flight: planResult.flight,
-      hotel: planResult.hotel, groundTransport: null,
-      estimatedCost: planResult.estimatedCost, confidenceLevel: planResult.confidenceLevel,
-    });
-    createChat(`${planResult.destination} Trip`, []);
-    const isEarly = planResult.flight.departTime.includes("AM") && parseInt(planResult.flight.departTime) < 10;
-    recordBookingChoice({ isEarlyFlight: isEarly, isDirect: true, isBudgetOption: planResult.estimatedCost < 2000 });
-    toast.success("Trip booked and added to calendar.", {
-      action: { label: "View Calendar", onClick: () => navigate("/trips") },
-    });
-    setPlanResult(null);
-    setTripInput("");
-    navigate("/trips");
-  };
-
-  const { trips: localTrips } = useTrips();
-
-  const formatTripDates = useCallback((startDate: string | undefined, endDate: string | undefined): string => {
-    try {
-      if (!startDate || !endDate) return "TBD";
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) return "TBD";
-      return `${format(start, 'MMM d')}-${format(end, 'd, yyyy')}`;
-    } catch { return "TBD"; }
-  }, []);
-
-  const upcomingTrips = useMemo(() => {
-    if (!Array.isArray(localTrips)) return getDemoTrips();
-    const activeLocalTrips = localTrips.filter(t => t && t.id && (t.status === 'draft' || t.status === 'pending' || t.status === 'confirmed'));
-    if (activeLocalTrips.length > 0) {
-      return activeLocalTrips.slice(0, 4).map(t => ({
-        id: t.id, destination: t.destination || "Unknown destination",
-        dates: formatTripDates(t.startDate, t.endDate),
-        status: t.status === 'confirmed' ? 'approved' as const : t.status === 'pending' ? 'pending' as const : 'draft' as const,
-        purpose: t.purpose || "Business travel",
-        estimatedCost: typeof t.estimatedCost === 'number' ? t.estimatedCost : 0,
-      }));
-    }
-    return getDemoTrips();
-  }, [localTrips, formatTripDates]);
-
-  function getDemoTrips() {
-    return [
-      { id: "demo_trip_sf_2025", destination: "San Francisco, CA", dates: "Jan 8-10, 2025", status: "approved" as const, purpose: "Client meeting", estimatedCost: 1850 },
-      { id: "demo_trip_seattle_2025", destination: "Seattle, WA", dates: "Jan 15-17, 2025", status: "pending" as const, purpose: "Team offsite", estimatedCost: 2100 },
-    ];
-  }
-
-  const exampleCommands: string[] = [];
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
-  };
-  const itemVariants = {
-    hidden: { opacity: 0, y: 16 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
-  };
-
-  return (
-    <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-6xl mx-auto space-y-10 pb-20 md:pb-0">
-
-      {/* ─── HERO: Command Center ─── */}
-      <motion.div variants={itemVariants} className="text-center pt-4 md:pt-8 space-y-4">
-        <motion.h1
-          className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground tracking-tight leading-tight"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-        >
-          {getRandomHeadline().split(/(?<=\.)/).map((part, i) => {
-            const trimmed = part.trim();
-            if (!trimmed) return null;
-            // Make last portion muted
-            if (i > 0) return <span key={i} className="text-muted-foreground font-semibold"><br />{trimmed}</span>;
-            return <span key={i}>{trimmed}</span>;
-          })}
-        </motion.h1>
-        <motion.p
-          className="text-base md:text-lg text-muted-foreground max-w-lg mx-auto"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.6 }}
-        >
-          Your AI-powered travel command center.
-        </motion.p>
-      </motion.div>
-
-      {/* ─── MASSIVE CENTRAL COMMAND BAR ─── */}
-      <ScrollReveal delay={0.1}>
-        <motion.div
-          className="relative mx-auto max-w-3xl"
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-        >
-          {/* Learned preferences */}
-          {(showLearnedBadge || preferenceLabels.length > 0) && (
-            <div className="flex justify-center mb-3">
-              <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} />
-            </div>
-          )}
-
+...
           {/* Command input */}
-          <form onSubmit={e => { e.preventDefault(); if (!isPlanning && voiceRecording.state === 'idle') handlePlanTrip(); }} className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handlePlanTrip();
+            }}
+            className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl"
+          >
             <div className="flex items-center gap-3 px-5 py-4">
               <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
               <motion.input
