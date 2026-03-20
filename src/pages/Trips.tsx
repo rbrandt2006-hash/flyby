@@ -694,6 +694,13 @@ export default function Trips() {
         open={calendarViewOpen}
         onClose={() => setCalendarViewOpen(false)}
         trips={allCalendarTrips}
+        onConfirmTrip={(tripId) => {
+          confirmLocalTrip(tripId);
+          const trip = localTrips.find(t => t.id === tripId);
+          setPendingUndoTripId(tripId);
+          undoConfirmation.show(trip?.destination || "Trip");
+          toast.success("Flight confirmed!");
+        }}
       />
 
       {/* Manager Approval Panel (for demo) */}

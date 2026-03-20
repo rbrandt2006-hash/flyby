@@ -23,6 +23,7 @@ interface CalendarTripPreviewProps {
   position: { x: number; y: number };
   onClose: () => void;
   onViewTrip: () => void;
+  onConfirmTrip?: (tripId: string) => void;
   hasConflict: boolean;
 }
 
@@ -31,14 +32,16 @@ export function CalendarTripPreview({
   position, 
   onClose, 
   onViewTrip,
+  onConfirmTrip,
   hasConflict 
 }: CalendarTripPreviewProps) {
   const startDate = parseISO(trip.startDate);
   const endDate = parseISO(trip.endDate);
   const nights = differenceInDays(endDate, startDate);
+  const isDraft = trip.status === "draft";
+  const isConfirmed = trip.status === "confirmed";
   const isPending = trip.approvalStatus === "pending";
   const isApproved = trip.approvalStatus === "approved";
-  const hasSynced = !!trip.calendarEventId;
 
   // Adjust position to stay within viewport
   const adjustedPosition = {
@@ -86,6 +89,18 @@ export function CalendarTripPreview({
 
           {/* Status badges */}
           <div className="flex items-center gap-2 flex-wrap">
+            {isDraft && (
+              <Badge variant="outline" className="text-xs gap-1 bg-muted text-muted-foreground border-border">
+                <Clock className="w-3 h-3" />
+                Draft
+              </Badge>
+            )}
+            {isConfirmed && !isPending && !isApproved && (
+              <Badge variant="outline" className="text-xs gap-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                <Check className="w-3 h-3" />
+                Confirmed
+              </Badge>
+            )}
             {hasConflict && (
               <Badge variant="destructive" className="text-xs gap-1">
                 <AlertTriangle className="w-3 h-3" />
@@ -99,15 +114,9 @@ export function CalendarTripPreview({
               </Badge>
             )}
             {isApproved && (
-              <Badge variant="outline" className="text-xs gap-1 bg-success/10 text-success border-success/30">
+              <Badge variant="outline" className="text-xs gap-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                 <Check className="w-3 h-3" />
                 Approved
-              </Badge>
-            )}
-            {hasSynced && (
-              <Badge variant="outline" className="text-xs gap-1">
-                <Calendar className="w-3 h-3" />
-                Synced
               </Badge>
             )}
           </div>
@@ -151,8 +160,26 @@ export function CalendarTripPreview({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border/40 bg-muted/30">
-          <Button className="w-full" size="sm" onClick={onViewTrip}>
+        <div className="p-4 border-t border-border/40 bg-muted/30 space-y-2">
+          {isDraft && onConfirmTrip && (
+            <Button 
+              className="w-full gap-2" 
+              size="sm" 
+              onClick={() => {
+                onConfirmTrip(trip.id);
+                onClose();
+              }}
+            >
+              <Check className="w-4 h-4" />
+              Confirm Flight
+            </Button>
+          )}
+          <Button 
+            className="w-full" 
+            size="sm" 
+            variant={isDraft && onConfirmTrip ? "outline" : "default"}
+            onClick={onViewTrip}
+          >
             <ExternalLink className="w-4 h-4 mr-2" />
             View Trip Details
           </Button>
