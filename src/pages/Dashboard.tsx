@@ -15,7 +15,7 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { parseDates, parsePurpose } from "@/services/tripTemplates";
-import { extractDestinationSearchQuery, resolveBestLocation, searchGlobalLocations, type LocationSuggestion } from "@/services/locationSearch";
+import { resolveBestLocation } from "@/services/locationSearch";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
 import type { CalendarEvent } from "@/services/mockCalendarService";
@@ -125,15 +125,13 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [needsDestination, setNeedsDestination] = useState(false);
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  
   const [isRefineOpen, setIsRefineOpen] = useState(false);
   const [kpiDrawer, setKpiDrawer] = useState<{ open: boolean; type: KPIType }>({ open: false, type: "upcomingTrips" });
   const [selectedTraveler, setSelectedTraveler] = useState<typeof teamTraveling[number] | null>(null);
   const [selectedSpendTrip, setSelectedSpendTrip] = useState<ReturnType<typeof getTripSpendData>>(null);
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
-  const destinationQuery = useMemo(() => extractDestinationSearchQuery(tripInput) || tripInput, [tripInput]);
-  const destinationSuggestions = useMemo(() => searchGlobalLocations(destinationQuery, 8), [destinationQuery]);
 
   const handleTranscriptReady = useCallback((transcript: string) => {
     setTripInput(transcript);
@@ -173,16 +171,6 @@ export default function Dashboard() {
     finally { setIsPlanning(false); }
   };
 
-  const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
-    const query = extractDestinationSearchQuery(tripInput);
-    const nextInput = query && query !== tripInput
-      ? tripInput.replace(new RegExp(`${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"), suggestion.label)
-      : suggestion.label;
-
-    setTripInput(nextInput);
-    setNeedsDestination(false);
-    setActiveSuggestionIndex(0);
-  };
 
   const handleRefine = () => { setIsRefineOpen(true); };
 
@@ -309,38 +297,14 @@ export default function Dashboard() {
           )}
 
           {/* Command input */}
-          <div className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl">
+          <form onSubmit={e => { e.preventDefault(); if (!isPlanning && voiceRecording.state === 'idle') handlePlanTrip(); }} className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl">
             <div className="flex items-center gap-3 px-5 py-4">
               <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
               <motion.input
                 type="text"
                 placeholder="Search anywhere: Paris, Texas, Tokyo, Japan, or ‘NYC to London April 10–20’"
                 value={tripInput}
-                onChange={e => { setTripInput(e.target.value); setActiveSuggestionIndex(0); if (inputError) setInputError(null); }}
-                onKeyDown={e => {
-                  if (destinationSuggestions.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-                    e.preventDefault();
-                    setActiveSuggestionIndex((prev) => {
-                      const delta = e.key === 'ArrowDown' ? 1 : -1;
-                      return (prev + delta + destinationSuggestions.length) % destinationSuggestions.length;
-                    });
-                    return;
-                  }
-                  if (e.key === 'Enter' && !isPlanning && voiceRecording.state === 'idle') {
-                    e.preventDefault();
-                    if (destinationSuggestions.length > 0 && destinationQuery.trim()) {
-                      const suggestion = destinationSuggestions[activeSuggestionIndex] ?? destinationSuggestions[0];
-                      const query = extractDestinationSearchQuery(tripInput);
-                      const resolvedInput = query && query !== tripInput
-                        ? tripInput.replace(new RegExp(`${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"), suggestion.label)
-                        : suggestion.label;
-                      setActiveSuggestionIndex(0);
-                      handlePlanTrip(resolvedInput);
-                    } else {
-                      handlePlanTrip();
-                    }
-                  }
-                }}
+                onChange={e => { setTripInput(e.target.value); if (inputError) setInputError(null); }}
                 whileFocus={{ scale: 1.005 }}
                 transition={{ duration: 0.15 }}
                 disabled={voiceRecording.state !== 'idle'}
@@ -350,7 +314,7 @@ export default function Dashboard() {
               {/* Voice button */}
               {voiceRecording.state === 'idle' && (
                 <Button
-                  variant="ghost"
+                  type="button"
                   size="icon"
                   className="shrink-0 text-muted-foreground hover:text-foreground"
                   onClick={voiceRecording.startRecording}
@@ -362,7 +326,7 @@ export default function Dashboard() {
               )}
               {voiceRecording.state === 'recording' && (
                 <Button
-                  variant="destructive"
+                  type="button"
                   size="icon"
                   className="shrink-0"
                   onClick={voiceRecording.stopRecording}
@@ -372,28 +336,28 @@ export default function Dashboard() {
                 </Button>
               )}
               {voiceRecording.state === 'processing' && (
-                <Button variant="ghost" size="icon" disabled className="shrink-0">
+                <Button type="button" variant="ghost" size="icon" disabled className="shrink-0">
                   <Loader2 className="w-5 h-5 animate-spin" />
                 </Button>
               )}
 
               {/* Plan trip CTA */}
               <Button
+                type="submit"
                 variant="cta"
                 size="default"
                 className="shrink-0 rounded-xl gap-2"
-                onClick={() => handlePlanTrip()}
                 disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
               >
                 {isPlanning ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Planning…</span></>
+                  <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Searching flights…</span></>
                 ) : (
                   <><Sparkles className="w-4 h-4" /><span>Plan trip</span></>
                 )}
               </Button>
             </div>
 
-          </div>
+          </form>
 
           {/* Voice transcript confirmation */}
           <AnimatePresence>
@@ -421,41 +385,6 @@ export default function Dashboard() {
             )}
           </AnimatePresence>
 
-          {/* Global destination suggestions */}
-          <AnimatePresence>
-            {(destinationSuggestions.length > 0 || needsDestination) && !planResult && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-4 max-w-3xl mx-auto">
-                <div className="rounded-2xl border border-border bg-card/95 shadow-xl overflow-hidden">
-                  <div className="px-4 py-3 border-b border-border/60 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    {needsDestination ? "Choose a destination" : "Global destination search"}
-                  </div>
-                  <div className="max-h-80 overflow-y-auto p-2 space-y-1">
-                    {destinationSuggestions.map((suggestion, index) => (
-                      <button
-                        key={suggestion.id}
-                        type="button"
-                        onClick={() => handleSelectSuggestion(suggestion)}
-                        className={cn(
-                          "w-full rounded-xl px-4 py-3 text-left transition-colors flex items-center gap-3",
-                          index === activeSuggestionIndex ? "bg-accent text-accent-foreground" : "hover:bg-secondary"
-                        )}
-                      >
-                        <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-base shrink-0">{suggestion.emoji}</div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <span className="truncate">{suggestion.title}</span>
-                            <Badge variant="secondary" className="text-[10px] uppercase">{suggestion.type}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">{suggestion.subtitle}</p>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </motion.div>
       </ScrollReveal>
 
