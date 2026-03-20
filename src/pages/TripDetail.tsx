@@ -12,11 +12,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { HotelDetailModal, type HotelInfo } from "@/components/trips/HotelDetailModal";
+import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
+import { getHotelsForDestination } from "@/services/mockHotelService";
 import { ItineraryEditor } from "@/components/itinerary/ItineraryEditor";
 import { TripSlideEditor } from "@/components/trips/TripSlideEditor";
 import { toast } from "sonner";
 import { AddExpenseModal } from "@/components/expenses/AddExpenseModal";
 import { useExpenses } from "@/hooks/useExpenses";
+import type { HotelOption } from "@/components/chats/booking/types";
 
 type TabType = "overview" | "itinerary" | "expenses";
 
