@@ -132,8 +132,6 @@ export default function Dashboard() {
   const [selectedSpendTrip, setSelectedSpendTrip] = useState<ReturnType<typeof getTripSpendData>>(null);
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
-  const destinationQuery = useMemo(() => extractDestinationSearchQuery(tripInput) || tripInput, [tripInput]);
-  const destinationSuggestions = useMemo(() => searchGlobalLocations(destinationQuery, 8), [destinationQuery]);
 
   const handleTranscriptReady = useCallback((transcript: string) => {
     setTripInput(transcript);
