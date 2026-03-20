@@ -577,12 +577,32 @@ export default function TripDetail() {
                                     )}
                                   </>
                                 ) : (
-                                  <p className="font-medium text-muted-foreground">No hotel selected</p>
+                                  <div className="space-y-2">
+                                    <p className="font-medium text-muted-foreground">No hotel selected</p>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="gap-1.5"
+                                      onClick={(e) => { e.stopPropagation(); setHotelPickerOpen(true); }}
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                      Add Hotel
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                               <div className="flex items-center gap-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                <Pencil className="w-3.5 h-3.5" />
-                                <span className="text-xs">Edit</span>
+                                {trip.hotel?.name ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1 text-xs h-auto py-1 px-2"
+                                    onClick={(e) => { e.stopPropagation(); setHotelPickerOpen(true); }}
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    Change
+                                  </Button>
+                                ) : null}
                               </div>
                             </div>
                           </div>
