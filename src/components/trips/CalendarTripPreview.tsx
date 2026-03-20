@@ -23,6 +23,7 @@ interface CalendarTripPreviewProps {
   position: { x: number; y: number };
   onClose: () => void;
   onViewTrip: () => void;
+  onConfirmTrip?: (tripId: string) => void;
   hasConflict: boolean;
 }
 
