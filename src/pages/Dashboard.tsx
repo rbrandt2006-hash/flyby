@@ -379,7 +379,7 @@ export default function Dashboard() {
                 variant="cta"
                 size="default"
                 className="shrink-0 rounded-xl gap-2"
-                onClick={handlePlanTrip}
+                onClick={() => handlePlanTrip()}
                 disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
               >
                 {isPlanning ? (
