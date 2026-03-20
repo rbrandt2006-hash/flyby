@@ -348,7 +348,7 @@ export default function Dashboard() {
                 </Button>
               )}
               {voiceRecording.state === 'processing' && (
-                <Button variant="ghost" size="icon" disabled className="shrink-0">
+                <Button type="button" variant="ghost" size="icon" disabled className="shrink-0">
                   <Loader2 className="w-5 h-5 animate-spin" />
                 </Button>
               )}
