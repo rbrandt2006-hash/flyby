@@ -32,6 +32,7 @@ export function CalendarTripPreview({
   position, 
   onClose, 
   onViewTrip,
+  onConfirmTrip,
   hasConflict 
 }: CalendarTripPreviewProps) {
   const startDate = parseISO(trip.startDate);
