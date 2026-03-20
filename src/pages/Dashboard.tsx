@@ -15,7 +15,7 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { parseDates, parsePurpose } from "@/services/tripTemplates";
-import { extractDestinationSearchQuery, resolveBestLocation, searchGlobalLocations, type LocationSuggestion } from "@/services/locationSearch";
+import { resolveBestLocation } from "@/services/locationSearch";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
 import type { CalendarEvent } from "@/services/mockCalendarService";
