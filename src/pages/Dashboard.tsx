@@ -201,16 +201,16 @@ export default function Dashboard() {
   const handleSelectFlight = (flight: Flight) => {
     setSelectedFlightFromResults(flight);
     setFlightResults([]);
-    // Build planResult from the last search + selected flight
+    // Build partial plan, then show hotel step
     const parsed = parseTravelRequest(tripInput);
     const destAirport = parsed.destination?.airports[0];
     const now = new Date();
     const startDate = parsed.dates?.departure || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 24 * 60 * 60 * 1000);
-    const hotelBrands = ["Four Seasons", "Marriott", "Hyatt Regency", "Westin", "CitizenM"];
-    const hotelAreas = ["City Center", "Financial District", "Waterfront"];
     const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : flight.destination;
-    setPlanResult({
+    const nights = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+    const partialPlan: TripPlan = {
       destination: destLabel,
       dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
       startDate, endDate,
@@ -219,15 +219,40 @@ export default function Dashboard() {
       needsDateClarification: false,
       purpose: parsePurpose(tripInput),
       flight: { airline: flight.airline, departTime: flight.departureTime, returnTime: flight.arrivalTime },
-      hotel: {
-        name: `${hotelBrands[Math.floor(Math.random() * hotelBrands.length)]} ${destAirport?.city || "Hotel"}`,
-        location: `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destAirport?.city || flight.destination}`,
-      },
+      hotel: { name: "", location: "" },
       groundTransport: `Airport transfer from ${flight.destination} + local mobility pass`,
-      estimatedCost: flight.price + 800 + Math.floor(Math.random() * 300),
+      estimatedCost: flight.price,
       confidenceLevel: 96,
       originalPrompt: tripInput,
-    });
+    };
+
+    setPendingPlanResult(partialPlan);
+    // Generate hotel options for the destination
+    const hotels = getHotelsForDestination({ destination: destLabel, nights });
+    setHotelOptions(hotels);
+    setShowHotelStep(true);
+  };
+
+  const handleSelectHotelFromStep = (hotel: HotelOption) => {
+    if (!pendingPlanResult) return;
+    const finalPlan: TripPlan = {
+      ...pendingPlanResult,
+      hotel: { name: hotel.name, location: hotel.area },
+      estimatedCost: pendingPlanResult.estimatedCost + hotel.totalPrice,
+    };
+    setPlanResult(finalPlan);
+    setPendingPlanResult(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
+  };
+
+  const handleSkipHotel = () => {
+    if (!pendingPlanResult) return;
+    setPlanResult(pendingPlanResult);
+    setPendingPlanResult(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
+  };
   };
 
 
