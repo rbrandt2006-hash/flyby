@@ -316,31 +316,7 @@ export default function Dashboard() {
                 type="text"
                 placeholder="Search anywhere: Paris, Texas, Tokyo, Japan, or ‘NYC to London April 10–20’"
                 value={tripInput}
-                onChange={e => { setTripInput(e.target.value); setActiveSuggestionIndex(0); if (inputError) setInputError(null); }}
-                onKeyDown={e => {
-                  if (destinationSuggestions.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-                    e.preventDefault();
-                    setActiveSuggestionIndex((prev) => {
-                      const delta = e.key === 'ArrowDown' ? 1 : -1;
-                      return (prev + delta + destinationSuggestions.length) % destinationSuggestions.length;
-                    });
-                    return;
-                  }
-                  if (e.key === 'Enter' && !isPlanning && voiceRecording.state === 'idle') {
-                    e.preventDefault();
-                    if (destinationSuggestions.length > 0 && destinationQuery.trim()) {
-                      const suggestion = destinationSuggestions[activeSuggestionIndex] ?? destinationSuggestions[0];
-                      const query = extractDestinationSearchQuery(tripInput);
-                      const resolvedInput = query && query !== tripInput
-                        ? tripInput.replace(new RegExp(`${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"), suggestion.label)
-                        : suggestion.label;
-                      setActiveSuggestionIndex(0);
-                      handlePlanTrip(resolvedInput);
-                    } else {
-                      handlePlanTrip();
-                    }
-                  }
-                }}
+                onChange={e => { setTripInput(e.target.value); if (inputError) setInputError(null); }}
                 whileFocus={{ scale: 1.005 }}
                 transition={{ duration: 0.15 }}
                 disabled={voiceRecording.state !== 'idle'}
