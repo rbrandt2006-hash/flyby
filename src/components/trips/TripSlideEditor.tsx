@@ -59,6 +59,7 @@ interface TripSlideEditorProps {
   onClose: () => void;
   tripData: TripEditorData;
   onSave: (data: TripEditorData) => void;
+  onChangeHotel?: () => void;
   isSaving?: boolean;
 }
 
