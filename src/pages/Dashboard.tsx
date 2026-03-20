@@ -338,7 +338,7 @@ export default function Dashboard() {
               )}
               {voiceRecording.state === 'recording' && (
                 <Button
-                  variant="destructive"
+                  type="button"
                   size="icon"
                   className="shrink-0"
                   onClick={voiceRecording.stopRecording}
