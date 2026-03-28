@@ -23,7 +23,7 @@ export function useTwoFactorAuth() {
   });
 
   const fetchStatus = useCallback(async () => {
-    if (!user) {
+    if (!user || user.id === GUEST_USER_ID) {
       setStatus({
         enabled: false,
         maskedPhone: null,
