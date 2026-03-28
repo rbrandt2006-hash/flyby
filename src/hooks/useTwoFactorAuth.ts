@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+const GUEST_USER_ID = "guest-user-id";
+
 interface TwoFactorStatus {
   enabled: boolean;
   maskedPhone: string | null;
