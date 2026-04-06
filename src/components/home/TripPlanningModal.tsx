@@ -58,6 +58,7 @@ export function TripPlanningModal({
   onConfirm,
   onSaveDraft 
 }: TripPlanningModalProps) {
+  const { preferences } = usePreferences();
   const [currentStep, setCurrentStep] = useState<PlanningStep>("reading");
   const [flightOptions, setFlightOptions] = useState<FlightOption[]>([]);
   const [hotelOptions, setHotelOptions] = useState<FullHotelOption[]>([]);
