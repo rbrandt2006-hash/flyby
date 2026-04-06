@@ -15,6 +15,7 @@ import { generateFlightOptions } from "@/services/mockFlightGenerator";
 import { getAllGroundTransportOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
 import { getHotelsForDestination } from "@/services/mockHotelService";
 import { TransportIcon } from "@/components/trips/TransportIcon";
+import { usePreferences } from "@/hooks/usePreferences";
 
 interface TripPlanningModalProps {
   open: boolean;
@@ -57,6 +58,7 @@ export function TripPlanningModal({
   onConfirm,
   onSaveDraft 
 }: TripPlanningModalProps) {
+  const { preferences } = usePreferences();
   const [currentStep, setCurrentStep] = useState<PlanningStep>("reading");
   const [flightOptions, setFlightOptions] = useState<FlightOption[]>([]);
   const [hotelOptions, setHotelOptions] = useState<FullHotelOption[]>([]);
@@ -125,21 +127,43 @@ export function TripPlanningModal({
     await new Promise(r => setTimeout(r, 800));
     setCurrentStep("flights");
     
-    // Step 2: Flights
+    // Step 2: Flights — prioritize preferred airlines
     await new Promise(r => setTimeout(r, 1200));
     const flights = generateFlightOptions({ destination: event?.location || "SFO", numFlights: 20 });
-    setFlightOptions(flights);
-    setSelectedFlight(flights[0]);
+    
+    // Sort preferred airlines to the top
+    const preferredAirlines = preferences.preferredAirlines;
+    const sortedFlights = [...flights].sort((a, b) => {
+      const aPreferred = preferredAirlines.some(pa => a.airline.toLowerCase().includes(pa.toLowerCase()));
+      const bPreferred = preferredAirlines.some(pa => b.airline.toLowerCase().includes(pa.toLowerCase()));
+      if (aPreferred && !bPreferred) return -1;
+      if (!aPreferred && bPreferred) return 1;
+      return 0;
+    });
+    
+    setFlightOptions(sortedFlights);
+    setSelectedFlight(sortedFlights[0]);
     setCurrentStep("hotels");
     
-    // Step 3: Hotels (destination-specific)
+    // Step 3: Hotels — prioritize preferred brands
     await new Promise(r => setTimeout(r, 1000));
     const hotels = getHotelsForDestination({ 
       destination: event?.location || "", 
       nights: tripNights 
     });
-    setHotelOptions(hotels);
-    setSelectedHotel(hotels[0]);
+    
+    // Sort preferred hotel brands to the top
+    const preferredHotels = preferences.preferredHotelBrands;
+    const sortedHotels = [...hotels].sort((a, b) => {
+      const aPreferred = preferredHotels.some(ph => a.name.toLowerCase().includes(ph.toLowerCase()));
+      const bPreferred = preferredHotels.some(ph => b.name.toLowerCase().includes(ph.toLowerCase()));
+      if (aPreferred && !bPreferred) return -1;
+      if (!aPreferred && bPreferred) return 1;
+      return 0;
+    });
+    
+    setHotelOptions(sortedHotels);
+    setSelectedHotel(sortedHotels[0]);
     setCurrentStep("ground");
     
     // Step 4: Ground (load all transport options: rideshare, rental, transit)
@@ -299,6 +323,19 @@ export function TripPlanningModal({
               {/* Results */}
               {currentStep === "done" && !isRefining && (
                 <div className="space-y-4">
+                  {/* Personalization badge */}
+                  {(preferences.preferredAirlines.length > 0 || preferences.preferredHotelBrands.length > 0) && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                      <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                      <p className="text-sm text-foreground">
+                        <span className="font-medium">Personalized for you</span>
+                        <span className="text-muted-foreground"> — Based on your preferences: {[
+                          ...preferences.preferredAirlines.slice(0, 2),
+                          ...preferences.preferredHotelBrands.slice(0, 2),
+                        ].join(", ")}{preferences.preferredSeatType !== "any" ? `, ${preferences.preferredSeatType} seat` : ""}</span>
+                      </p>
+                    </div>
+                  )}
                   {/* Flight */}
                   {selectedFlight && (
                     <button

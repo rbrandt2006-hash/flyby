@@ -71,9 +71,72 @@ export interface LocalTrip {
 }
 
 const STORAGE_KEY = "flyby_local_trips";
+const DEMO_SEED_KEY = "flyby_demo_seeded_v2";
+
+function getDemoTrips(): LocalTrip[] {
+  const now = new Date().toISOString();
+  return [
+    {
+      id: "demo_seattle_2026",
+      destination: "Seattle, WA",
+      startDate: "2026-06-02T00:00:00.000Z",
+      endDate: "2026-06-04T00:00:00.000Z",
+      purpose: "Team offsite",
+      status: "confirmed",
+      approvalStatus: "approved",
+      calendarEventId: null,
+      calendarSyncError: null,
+      participants: [],
+      chatId: null,
+      flight: { airline: "Alaska Airlines", departTime: "8:15 AM", returnTime: "5:30 PM", flightNumber: "AS1423", departureAirport: "SFO", arrivalAirport: "SEA" },
+      hotel: { name: "The Westin Seattle", location: "Downtown, Seattle" },
+      groundTransport: null,
+      estimatedCost: 2850,
+      confidenceLevel: 94,
+      aiReasoning: { costEfficiency: { score: 90, label: "High", detail: "Below average for Seattle" }, timeEfficiency: { score: 92, label: "Excellent", detail: "Direct flight, 2h 10m" }, policyCompliance: { score: 100, label: "Compliant", detail: "Within budget" }, riskLevel: { score: 10, label: "Low", detail: "No advisories" }, summary: "Optimized domestic trip with direct flights and downtown hotel." },
+      timeline: [{ id: "evt_demo_1", type: "created", description: "Trip created", timestamp: now }],
+      decisions: [],
+      createdAt: now,
+      updatedAt: now,
+      confirmedAt: now,
+      approvedAt: now,
+    },
+    {
+      id: "demo_tokyo_2026",
+      destination: "Tokyo, Japan",
+      startDate: "2026-07-20T00:00:00.000Z",
+      endDate: "2026-07-25T00:00:00.000Z",
+      purpose: "Client visit",
+      status: "draft",
+      approvalStatus: "none",
+      calendarEventId: null,
+      calendarSyncError: null,
+      participants: [],
+      chatId: null,
+      flight: { airline: "United Airlines", departTime: "11:30 AM", returnTime: "3:45 PM +1", flightNumber: "UA837", departureAirport: "SFO", arrivalAirport: "NRT" },
+      hotel: { name: "Park Hyatt Tokyo", location: "Shinjuku, Tokyo" },
+      groundTransport: null,
+      estimatedCost: 5800,
+      confidenceLevel: 88,
+      aiReasoning: { costEfficiency: { score: 82, label: "Good", detail: "Competitive for international" }, timeEfficiency: { score: 85, label: "Good", detail: "Nonstop to Narita" }, policyCompliance: { score: 100, label: "Compliant", detail: "Within budget" }, riskLevel: { score: 15, label: "Low", detail: "No advisories" }, summary: "United nonstop SFO→NRT with preferred hotel in Shinjuku business district." },
+      timeline: [{ id: "evt_demo_2", type: "created", description: "Trip created", timestamp: now }],
+      decisions: [],
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
 
 function loadTripsFromStorage(): LocalTrip[] {
   try {
+    // Seed demo trips if never seeded
+    const seeded = localStorage.getItem(DEMO_SEED_KEY);
+    if (!seeded) {
+      const demos = getDemoTrips();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(demos));
+      localStorage.setItem(DEMO_SEED_KEY, "true");
+      return demos;
+    }
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       return JSON.parse(stored);

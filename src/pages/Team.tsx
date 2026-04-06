@@ -14,7 +14,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "Product Manager",
     team: "Product",
     avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "New York, NY", startDate: "Jan 15", endDate: "Jan 18" },
+    upcomingTrip: { destination: "New York, NY", startDate: "Apr 21", endDate: "Apr 24" },
   },
   {
     id: "2",
@@ -22,7 +22,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "Sales Director",
     team: "Sales",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "Chicago, IL", startDate: "Jan 20", endDate: "Jan 22" },
+    upcomingTrip: { destination: "Chicago, IL", startDate: "May 5", endDate: "May 7" },
   },
   {
     id: "3",
@@ -30,7 +30,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "Engineering Lead",
     team: "Engineering",
     avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "San Francisco, CA", startDate: "Jan 25", endDate: "Jan 28" },
+    upcomingTrip: { destination: "San Francisco, CA", startDate: "May 19", endDate: "May 22" },
   },
   {
     id: "4",
@@ -45,7 +45,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "Account Executive",
     team: "Sales",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "Austin, TX", startDate: "Feb 5", endDate: "Feb 7" },
+    upcomingTrip: { destination: "Austin, TX", startDate: "Jun 9", endDate: "Jun 11" },
   },
   {
     id: "6",
@@ -53,7 +53,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "CFO",
     team: "Finance",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "London, UK", startDate: "Feb 10", endDate: "Feb 14" },
+    upcomingTrip: { destination: "London, UK", startDate: "Jul 14", endDate: "Jul 18" },
   },
 ];
 

@@ -62,7 +62,16 @@ interface TripConflict {
 export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCalendarViewProps) {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => {
+    // Auto-navigate to the month of the earliest upcoming trip
+    const activeTrips = trips.filter(t => t.status !== "cancelled" && t.status !== "archived");
+    if (activeTrips.length > 0) {
+      const sorted = [...activeTrips].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+      const earliest = new Date(sorted[0].startDate);
+      if (earliest > new Date()) return earliest;
+    }
+    return new Date();
+  });
   const [selectedTrip, setSelectedTrip] = useState<LocalTrip | null>(null);
   const [previewPosition, setPreviewPosition] = useState({ x: 0, y: 0 });
   const [showConflictPanel, setShowConflictPanel] = useState(false);
