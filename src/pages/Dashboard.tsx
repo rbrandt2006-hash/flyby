@@ -319,8 +319,8 @@ export default function Dashboard() {
 
   function getDemoTrips() {
     return [
-      { id: "demo_trip_sf_2025", destination: "San Francisco, CA", dates: "Jan 8-10, 2025", status: "approved" as const, purpose: "Client meeting", estimatedCost: 1850 },
-      { id: "demo_trip_seattle_2025", destination: "Seattle, WA", dates: "Jan 15-17, 2025", status: "pending" as const, purpose: "Team offsite", estimatedCost: 2100 },
+      { id: "demo_trip_sf_2025", destination: "San Francisco, CA", dates: "May 12-14, 2026", status: "approved" as const, purpose: "Client meeting", estimatedCost: 1850 },
+      { id: "demo_trip_seattle_2025", destination: "Seattle, WA", dates: "Jun 2-4, 2026", status: "pending" as const, purpose: "Team offsite", estimatedCost: 2100 },
     ];
   }
 

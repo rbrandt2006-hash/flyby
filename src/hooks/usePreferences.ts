@@ -30,9 +30,9 @@ const defaultPreferences: TravelPreferences = {
   avoidsLayovers: false,
   costSensitive: false,
   flexibleTraveler: true,
-  preferredAirlines: [],
-  preferredHotelBrands: [],
-  preferredSeatType: "any",
+  preferredAirlines: ["United Airlines", "Delta Air Lines"],
+  preferredHotelBrands: ["Marriott", "Hilton"],
+  preferredSeatType: "window",
   budgetPerDay: 300,
   lastUpdated: new Date().toISOString(),
 };
