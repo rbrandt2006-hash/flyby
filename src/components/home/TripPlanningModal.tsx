@@ -127,21 +127,43 @@ export function TripPlanningModal({
     await new Promise(r => setTimeout(r, 800));
     setCurrentStep("flights");
     
-    // Step 2: Flights
+    // Step 2: Flights — prioritize preferred airlines
     await new Promise(r => setTimeout(r, 1200));
     const flights = generateFlightOptions({ destination: event?.location || "SFO", numFlights: 20 });
-    setFlightOptions(flights);
-    setSelectedFlight(flights[0]);
+    
+    // Sort preferred airlines to the top
+    const preferredAirlines = preferences.preferredAirlines;
+    const sortedFlights = [...flights].sort((a, b) => {
+      const aPreferred = preferredAirlines.some(pa => a.airline.toLowerCase().includes(pa.toLowerCase()));
+      const bPreferred = preferredAirlines.some(pa => b.airline.toLowerCase().includes(pa.toLowerCase()));
+      if (aPreferred && !bPreferred) return -1;
+      if (!aPreferred && bPreferred) return 1;
+      return 0;
+    });
+    
+    setFlightOptions(sortedFlights);
+    setSelectedFlight(sortedFlights[0]);
     setCurrentStep("hotels");
     
-    // Step 3: Hotels (destination-specific)
+    // Step 3: Hotels — prioritize preferred brands
     await new Promise(r => setTimeout(r, 1000));
     const hotels = getHotelsForDestination({ 
       destination: event?.location || "", 
       nights: tripNights 
     });
-    setHotelOptions(hotels);
-    setSelectedHotel(hotels[0]);
+    
+    // Sort preferred hotel brands to the top
+    const preferredHotels = preferences.preferredHotelBrands;
+    const sortedHotels = [...hotels].sort((a, b) => {
+      const aPreferred = preferredHotels.some(ph => a.name.toLowerCase().includes(ph.toLowerCase()));
+      const bPreferred = preferredHotels.some(ph => b.name.toLowerCase().includes(ph.toLowerCase()));
+      if (aPreferred && !bPreferred) return -1;
+      if (!aPreferred && bPreferred) return 1;
+      return 0;
+    });
+    
+    setHotelOptions(sortedHotels);
+    setSelectedHotel(sortedHotels[0]);
     setCurrentStep("ground");
     
     // Step 4: Ground (load all transport options: rideshare, rental, transit)
