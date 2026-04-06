@@ -15,6 +15,7 @@ import { generateFlightOptions } from "@/services/mockFlightGenerator";
 import { getAllGroundTransportOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
 import { getHotelsForDestination } from "@/services/mockHotelService";
 import { TransportIcon } from "@/components/trips/TransportIcon";
+import { usePreferences } from "@/hooks/usePreferences";
 
 interface TripPlanningModalProps {
   open: boolean;
