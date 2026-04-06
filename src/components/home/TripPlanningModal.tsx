@@ -323,6 +323,19 @@ export function TripPlanningModal({
               {/* Results */}
               {currentStep === "done" && !isRefining && (
                 <div className="space-y-4">
+                  {/* Personalization badge */}
+                  {(preferences.preferredAirlines.length > 0 || preferences.preferredHotelBrands.length > 0) && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                      <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                      <p className="text-sm text-foreground">
+                        <span className="font-medium">Personalized for you</span>
+                        <span className="text-muted-foreground"> — Based on your preferences: {[
+                          ...preferences.preferredAirlines.slice(0, 2),
+                          ...preferences.preferredHotelBrands.slice(0, 2),
+                        ].join(", ")}{preferences.preferredSeatType !== "any" ? `, ${preferences.preferredSeatType} seat` : ""}</span>
+                      </p>
+                    </div>
+                  )}
                   {/* Flight */}
                   {selectedFlight && (
                     <button
