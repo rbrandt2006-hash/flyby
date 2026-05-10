@@ -95,19 +95,19 @@ export function generateFlightOptions(options: GenerateFlightsOptions = {}): Fli
     let price = basePrice;
 
     // Time of day premiums
-    if (depHour >= 6 && depHour <= 9) price *= 1.25; // Morning premium
-    if (depHour >= 17 && depHour <= 19) price *= 1.15; // Evening premium
+    if (depHour >= 6 && depHour <= 9) price *= 1.15; // Morning premium
+    if (depHour >= 17 && depHour <= 19) price *= 1.1; // Evening premium
     if (depHour >= 5 && depHour <= 6) price *= 0.85; // Red-eye discount
     if (depHour >= 21) price *= 0.9; // Late night discount
 
     // Stops adjustments
-    if (stops === 0) price *= 1.35; // Nonstop premium
+    if (stops === 0) price *= 1.2; // Nonstop premium
     if (stops === 1) price *= 1.0;
-    if (stops === 2) price *= 0.75; // Discount for 2 stops
+    if (stops === 2) price *= 0.78; // Discount for 2 stops
 
     // Airline adjustments
-    if (isLowCost) price *= 0.65; // Budget carrier discount
-    if (["Delta", "United", "American"].includes(airline.name)) price *= 1.1; // Premium carrier
+    if (isLowCost) price *= 0.7; // Budget carrier discount
+    if (["Delta", "United", "American"].includes(airline.name)) price *= 1.05; // Premium carrier
 
     // Add randomness
     price *= 0.9 + Math.random() * 0.2;
