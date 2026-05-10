@@ -47,7 +47,7 @@ export function generateFlightOptions(options: GenerateFlightsOptions = {}): Fli
     destination = "SFO",
     isRoundTrip = true,
     numFlights = 20,
-    basePrice = 350,
+    basePrice = 260,
   } = options;
 
   const flights: FlightOption[] = [];
