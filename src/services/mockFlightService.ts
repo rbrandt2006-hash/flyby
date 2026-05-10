@@ -60,7 +60,7 @@ export function generateMockFlights(
   const cabinMultiplier = getBasePriceMultiplier(cabinClass);
   
   // Base price varies by "distance" - use string length as a fun proxy
-  const basePrice = 150 + (origin.length + destination.length) * 15;
+  const basePrice = 110 + (origin.length + destination.length) * 9;
 
   for (let i = 0; i < numFlights; i++) {
     const airline = airlines[randomBetween(0, airlines.length - 1)];
@@ -81,16 +81,16 @@ export function generateMockFlights(
     const arrHour = Math.floor(totalMinutes / 60) % 24;
     const arrMinute = totalMinutes % 60;
     
-    // Price varies based on time of day, stops, and cabin
+    // Price varies based on time of day, stops, and cabin (per traveler)
     let price = basePrice * cabinMultiplier;
-    if (depHour >= 6 && depHour <= 9) price *= 1.3; // Morning premium
-    if (depHour >= 17 && depHour <= 19) price *= 1.2; // Evening premium
-    if (stops === 0) price *= 1.4; // Nonstop premium
-    if (stops === 2) price *= 0.7; // Discount for 2 stops
+    if (depHour >= 6 && depHour <= 9) price *= 1.15; // Morning premium
+    if (depHour >= 17 && depHour <= 19) price *= 1.1; // Evening premium
+    if (stops === 0) price *= 1.2; // Nonstop premium
+    if (stops === 2) price *= 0.75; // Discount for 2 stops
     
     // Add some randomness
-    price *= 0.85 + Math.random() * 0.3;
-    price = Math.round(price * passengers);
+    price *= 0.9 + Math.random() * 0.2;
+    price = Math.round(price);
     
     // CO2 emissions (rough estimate)
     const co2Base = baseDuration * 0.15;
