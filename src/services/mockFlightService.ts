@@ -42,9 +42,9 @@ function getCabinClassName(cabin: string): string {
 function getBasePriceMultiplier(cabin: string): number {
   const multipliers: Record<string, number> = {
     economy: 1,
-    premium: 1.8,
-    business: 3.5,
-    first: 6,
+    premium: 1.4,
+    business: 2.2,
+    first: 3.2,
   };
   return multipliers[cabin] || 1;
 }
