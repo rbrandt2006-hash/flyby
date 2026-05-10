@@ -393,9 +393,9 @@ export default function Expenses() {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[240px] p-3">
                 <p className="font-semibold text-xs mb-1.5">Active disputes</p>
-                <p className="text-xs text-muted-foreground">Marcus J. – Marriott minibar $189</p>
-                <p className="text-xs text-muted-foreground">Sarah K. – Uber $124.80 no receipt</p>
-                <p className="text-xs text-muted-foreground">Priya P. – Peninsula Chicago $685 over policy</p>
+                <p className="text-xs text-muted-foreground">Marcus J. – Marriott minibar $84</p>
+                <p className="text-xs text-muted-foreground">Sarah K. – Uber $64.80 no receipt</p>
+                <p className="text-xs text-muted-foreground">Priya P. – Peninsula Chicago $419 over policy</p>
                 <p className="text-xs font-bold mt-1">Total: ${liveDisputed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </TooltipContent>
             </Tooltip>
