@@ -364,9 +364,9 @@ export default function Expenses() {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[220px] p-3">
                 <p className="font-semibold text-xs mb-1.5">Recently approved</p>
-                <p className="text-xs text-muted-foreground">Julia C. – United Airlines $498</p>
-                <p className="text-xs text-muted-foreground">Priya P. – Edgewater Hotel $521</p>
-                <p className="text-xs text-muted-foreground">Alex R. – Capital Grille $342</p>
+                <p className="text-xs text-muted-foreground">Julia C. – United Airlines $312</p>
+                <p className="text-xs text-muted-foreground">Priya P. – Edgewater Hotel $264</p>
+                <p className="text-xs text-muted-foreground">Alex R. – Capital Grille $218</p>
                 <p className="text-xs font-bold mt-1">Total: ${liveApproved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </TooltipContent>
             </Tooltip>
