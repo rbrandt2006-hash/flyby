@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plane, Building2, MapPin, Calendar, Trash2 } from "lucide-react";
+import { Plane, Building2, MapPin, Calendar, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
