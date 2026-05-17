@@ -86,7 +86,7 @@ export function TripCard({ trip, onClick, onDelete }: TripCardProps) {
         "group cursor-pointer border border-border/50 bg-card relative",
         "hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5",
         "transition-all duration-300 ease-out",
-        isCancelled && "opacity-70"
+        trip.status === "cancelled" && "opacity-70"
       )}
       onClick={onClick}
     >
