@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2 } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2, Trash2 } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { getRandomHeadline } from "@/data/heroHeadlines";
 import { TravelerDetailPanel } from "@/components/home/TravelerDetailPanel";
 import { TripSpendSlideOver, getTripSpendData } from "@/components/home/TripSpendSlideOver";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface TripPlan {
   destination: string;
@@ -131,7 +132,7 @@ const teamTraveling = [
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { createTrip } = useTrips();
+  const { createTrip, deleteTrip } = useTrips();
   const { createChat } = useChats();
   const { getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
   const [tripInput, setTripInput] = useState("");
@@ -150,6 +151,9 @@ export default function Dashboard() {
   const [kpiDrawer, setKpiDrawer] = useState<{ open: boolean; type: KPIType }>({ open: false, type: "upcomingTrips" });
   const [selectedTraveler, setSelectedTraveler] = useState<typeof teamTraveling[number] | null>(null);
   const [selectedSpendTrip, setSelectedSpendTrip] = useState<ReturnType<typeof getTripSpendData>>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tripToDelete, setTripToDelete] = useState<{ id: string; destination: string } | null>(null);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
 
@@ -290,6 +294,21 @@ export default function Dashboard() {
     navigate("/trips");
   };
 
+  const handleDeleteClick = (trip: { id: string; destination: string }, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTripToDelete(trip);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!tripToDelete) return;
+    deleteTrip(tripToDelete.id);
+    setRemovedIds(prev => new Set(prev).add(tripToDelete.id));
+    setDeleteDialogOpen(false);
+    setTripToDelete(null);
+    toast.success("Trip removed");
+  };
+
   const { trips: localTrips } = useTrips();
 
   const formatTripDates = useCallback((startDate: string | undefined, endDate: string | undefined): string => {
@@ -303,8 +322,8 @@ export default function Dashboard() {
   }, []);
 
   const upcomingTrips = useMemo(() => {
-    if (!Array.isArray(localTrips)) return getDemoTrips();
-    const activeLocalTrips = localTrips.filter(t => t && t.id && (t.status === 'draft' || t.status === 'pending' || t.status === 'confirmed'));
+    if (!Array.isArray(localTrips)) return getDemoTrips().filter(t => !removedIds.has(t.id));
+    const activeLocalTrips = localTrips.filter(t => t && t.id && (t.status === 'draft' || t.status === 'pending' || t.status === 'confirmed') && !removedIds.has(t.id));
     if (activeLocalTrips.length > 0) {
       return activeLocalTrips.slice(0, 4).map(t => ({
         id: t.id, destination: t.destination || "Unknown destination",
@@ -314,8 +333,8 @@ export default function Dashboard() {
         estimatedCost: typeof t.estimatedCost === 'number' ? t.estimatedCost : 0,
       }));
     }
-    return getDemoTrips();
-  }, [localTrips, formatTripDates]);
+    return getDemoTrips().filter(t => !removedIds.has(t.id));
+  }, [localTrips, formatTripDates, removedIds]);
 
   function getDemoTrips() {
     return [
@@ -714,50 +733,81 @@ export default function Dashboard() {
           </Card>
         ) : (
           <div className="grid md:grid-cols-2 gap-4">
-            {upcomingTrips.map((trip, index) => (
-              <motion.div
-                key={trip.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + index * 0.08, duration: 0.35 }}
-                whileHover={{ y: -3, transition: { duration: 0.2 } }}
-                onClick={() => navigate(`/trips/${trip.id}`)}
-                className="group cursor-pointer rounded-xl border border-border/50 bg-card p-5 hover:border-primary/20 hover:shadow-lg transition-all duration-200"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/5 flex items-center justify-center">
-                      <MapPin className="w-5 h-5 text-primary" />
+            <AnimatePresence mode="popLayout">
+              {upcomingTrips.map((trip, index) => (
+                <motion.div
+                  key={trip.id}
+                  layout
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.3 } }}
+                  transition={{ delay: 0.1 + index * 0.08, duration: 0.35 }}
+                  whileHover={{ y: -3, transition: { duration: 0.2 } }}
+                  onClick={() => navigate(`/trips/${trip.id}`)}
+                  className="group cursor-pointer rounded-xl border border-border/50 bg-card p-5 hover:border-primary/20 hover:shadow-lg transition-all duration-200 relative"
+                >
+                  <button
+                    onClick={(e) => handleDeleteClick(trip, e)}
+                    className="absolute top-3 right-3 p-1.5 rounded-full text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors z-10"
+                    aria-label="Remove trip"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <div className="flex items-start justify-between mb-3 pr-8">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/5 flex items-center justify-center">
+                        <MapPin className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{trip.destination}</h3>
+                        <p className="text-sm text-muted-foreground">{trip.dates}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{trip.destination}</h3>
-                      <p className="text-sm text-muted-foreground">{trip.dates}</p>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-xs",
+                          trip.status === "approved" && "bg-success/10 text-success",
+                          trip.status === "pending" && "bg-warning/10 text-warning",
+                          trip.status === "draft" && "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {trip.status}
+                      </Badge>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        "text-xs",
-                        trip.status === "approved" && "bg-success/10 text-success",
-                        trip.status === "pending" && "bg-warning/10 text-warning",
-                        trip.status === "draft" && "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      {trip.status}
-                    </Badge>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">{trip.purpose}</p>
+                    {trip.estimatedCost > 0 && <span className="text-sm font-semibold text-foreground">${trip.estimatedCost.toLocaleString()}</span>}
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">{trip.purpose}</p>
-                  {trip.estimatedCost > 0 && <span className="text-sm font-semibold text-foreground">${trip.estimatedCost.toLocaleString()}</span>}
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </ScrollReveal>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove this trip?</DialogTitle>
+            <DialogDescription>
+              This will cancel your booking and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Keep it
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete}>
+              Remove trip
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── KPI Drawer ─── */}
       <KPIDrawer open={kpiDrawer.open} onOpenChange={open => setKpiDrawer(prev => ({ ...prev, open }))} type={kpiDrawer.type} />

@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plane, Building2, MapPin, Calendar, Trash2 } from "lucide-react";
+import { Plane, Building2, MapPin, Calendar, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -72,7 +72,6 @@ export function TripCard({ trip, onClick, onDelete }: TripCardProps) {
   const statusConfig = getStatusConfig(trip.status);
   const hasFlightDetails = trip.flight_details && Object.keys(trip.flight_details).length > 0;
   const hasHotelDetails = trip.hotel_details && Object.keys(trip.hotel_details).length > 0;
-  const isCancelled = trip.status === "cancelled";
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -87,7 +86,7 @@ export function TripCard({ trip, onClick, onDelete }: TripCardProps) {
         "group cursor-pointer border border-border/50 bg-card relative",
         "hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5",
         "transition-all duration-300 ease-out",
-        isCancelled && "opacity-70"
+        trip.status === "cancelled" && "opacity-70"
       )}
       onClick={onClick}
     >
@@ -150,7 +149,7 @@ export function TripCard({ trip, onClick, onDelete }: TripCardProps) {
             </div>
           </div>
 
-          {/* Right side - Cost + Delete for cancelled */}
+          {/* Right side - Cost + Delete */}
           <div className="flex items-start gap-3">
             {trip.total_estimated_cost && trip.total_estimated_cost > 0 && (
               <div className="text-right shrink-0">
@@ -161,20 +160,20 @@ export function TripCard({ trip, onClick, onDelete }: TripCardProps) {
               </div>
             )}
             
-            {/* Delete button - only for cancelled trips */}
-            {isCancelled && onDelete && (
+            {/* Delete button - always visible, subtle */}
+            {onDelete && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    aria-label="Delete trip"
+                    aria-label="Remove trip"
                     onClick={handleDeleteClick}
-                    className="p-2 rounded-full text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted active:bg-destructive/10 active:text-destructive transition-colors"
+                    className="p-2 rounded-full text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <X className="w-4 h-4" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Delete trip</p>
+                  <p>Remove trip</p>
                 </TooltipContent>
               </Tooltip>
             )}
