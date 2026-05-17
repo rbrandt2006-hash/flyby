@@ -149,7 +149,7 @@ export function TripCard({ trip, onClick, onDelete }: TripCardProps) {
             </div>
           </div>
 
-          {/* Right side - Cost + Delete for cancelled */}
+          {/* Right side - Cost + Delete */}
           <div className="flex items-start gap-3">
             {trip.total_estimated_cost && trip.total_estimated_cost > 0 && (
               <div className="text-right shrink-0">
@@ -160,20 +160,20 @@ export function TripCard({ trip, onClick, onDelete }: TripCardProps) {
               </div>
             )}
             
-            {/* Delete button - only for cancelled trips */}
-            {isCancelled && onDelete && (
+            {/* Delete button - always visible, subtle */}
+            {onDelete && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    aria-label="Delete trip"
+                    aria-label="Remove trip"
                     onClick={handleDeleteClick}
-                    className="p-2 rounded-full text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted active:bg-destructive/10 active:text-destructive transition-colors"
+                    className="p-2 rounded-full text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <X className="w-4 h-4" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Delete trip</p>
+                  <p>Remove trip</p>
                 </TooltipContent>
               </Tooltip>
             )}
