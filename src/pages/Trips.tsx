@@ -630,17 +630,17 @@ export default function Trips() {
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete this trip?</DialogTitle>
+            <DialogTitle>Remove this trip?</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. The trip to {tripToDelete?.destination} will be permanently removed.
+              This will cancel your booking and cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
-              Cancel
+              Keep it
             </Button>
             <Button variant="destructive" onClick={handleConfirmDelete}>
-              Delete
+              Remove trip
             </Button>
           </DialogFooter>
         </DialogContent>
