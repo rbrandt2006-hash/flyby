@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2 } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2, Trash2 } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
