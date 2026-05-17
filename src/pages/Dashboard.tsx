@@ -132,7 +132,7 @@ const teamTraveling = [
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { createTrip } = useTrips();
+  const { createTrip, deleteTrip } = useTrips();
   const { createChat } = useChats();
   const { getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
   const [tripInput, setTripInput] = useState("");
