@@ -240,13 +240,23 @@ function generateHotelsForCity(city: string, config: CityConfig, nights: number)
     const rating = Math.min(4.9, Math.max(3.5, brand.rating + ratingVariation));
     const reviewCount = 200 + Math.floor(rand() * 4800);
     const distance = 0.1 + rand() * 2.5;
-    const policyCompliant = brand.tier !== "luxury" && pricePerNight < 350;
+    const policyCompliant = brand.tier !== "luxury" && pricePerNight <= 300;
+    const outOfPolicy = pricePerNight > 300;
+
+    // Bias "Recommended" toward business-friendly mid-tier brands within policy
+    const recommendedBrands = new Set([
+      "Courtyard by Marriott", "Hilton Garden Inn", "Hyatt Place", "Hampton Inn",
+      "AC Hotel", "Residence Inn", "Embassy Suites", "Aloft", "Cambria Hotel",
+      "SpringHill Suites", "Canopy by Hilton",
+    ]);
+    const isRecommended = policyCompliant && recommendedBrands.has(brand.name) && i < 30;
 
     const tags: string[] = [];
     if (policyCompliant) tags.push("Policy compliant");
-    if (i < 3) tags.push("Recommended");
-    if (pricePerNight < 160) tags.push("Budget friendly");
-    if (pricePerNight < 180 && policyCompliant) tags.push("Best value");
+    if (outOfPolicy) tags.push("Out of policy");
+    if (isRecommended) tags.push("Recommended");
+    if (pricePerNight < 170) tags.push("Budget friendly");
+    if (pricePerNight < 200 && policyCompliant) tags.push("Best value");
     if (brand.tier === "luxury") tags.push("Luxury");
     if (distance < 0.3) tags.push("Closest");
     if (rand() > 0.7 && brand.tier === "boutique") tags.push("Boutique");
@@ -275,11 +285,14 @@ function generateHotelsForCity(city: string, config: CityConfig, nights: number)
     });
   }
 
-  // Sort: Recommended first, then by rating
+  // Sort: Recommended first, then policy-compliant, then by rating, push luxury/out-of-policy down
   hotels.sort((a, b) => {
     const aRec = a.tags.includes("Recommended") ? 0 : 1;
     const bRec = b.tags.includes("Recommended") ? 0 : 1;
     if (aRec !== bRec) return aRec - bRec;
+    const aOut = a.tags.includes("Out of policy") ? 1 : 0;
+    const bOut = b.tags.includes("Out of policy") ? 1 : 0;
+    if (aOut !== bOut) return aOut - bOut;
     return b.rating - a.rating;
   });
 

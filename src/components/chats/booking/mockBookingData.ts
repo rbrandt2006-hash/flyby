@@ -94,8 +94,8 @@ export const mockHotelOptions: HotelOption[] = [
     id: "ht-1",
     name: "Marriott Marquis",
     area: "SOMA District",
-    pricePerNight: 349,
-    totalPrice: 1396,
+    pricePerNight: 249,
+    totalPrice: 996,
     rating: 4.6,
     distanceToVenue: "0.1 mi",
     tags: ["Recommended", "Policy compliant", "Conference hotel"],
@@ -138,7 +138,7 @@ export const mockHotelOptions: HotelOption[] = [
     totalPrice: 2380,
     rating: 4.9,
     distanceToVenue: "0.5 mi",
-    tags: ["Luxury", "Top rated"],
+    tags: ["Luxury", "Top rated", "Out of policy"],
     images: [
       "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&h=500&fit=crop",
       "https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?w=800&h=500&fit=crop",
@@ -178,7 +178,7 @@ export const mockHotelOptions: HotelOption[] = [
     totalPrice: 1700,
     rating: 4.5,
     distanceToVenue: "0.2 mi",
-    tags: ["Trendy", "Policy compliant"],
+    tags: ["Trendy", "Out of policy"],
     images: [
       "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&h=500&fit=crop",
       "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&h=500&fit=crop",

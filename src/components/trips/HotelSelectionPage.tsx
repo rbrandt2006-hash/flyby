@@ -185,6 +185,9 @@ export function HotelSelectionPage({
           const aR = a.tags.includes("Recommended") ? 0 : 1;
           const bR = b.tags.includes("Recommended") ? 0 : 1;
           if (aR !== bR) return aR - bR;
+          const aOut = a.tags.includes("Out of policy") ? 1 : 0;
+          const bOut = b.tags.includes("Out of policy") ? 1 : 0;
+          if (aOut !== bOut) return aOut - bOut;
           return b.rating - a.rating;
         });
     }
@@ -701,6 +704,9 @@ export function HotelSelectionPage({
                                     {hotel.tags.includes("Policy compliant") && (
                                       <Badge className="bg-success text-success-foreground text-xs">Policy compliant</Badge>
                                     )}
+                                    {hotel.tags.includes("Out of policy") && (
+                                      <Badge className="bg-destructive text-destructive-foreground text-xs">Out of policy</Badge>
+                                    )}
                                   </div>
 
                                   <div className="absolute bottom-3 right-3 text-right">
@@ -736,7 +742,7 @@ export function HotelSelectionPage({
                                   </div>
                                   <div className="flex flex-wrap gap-1 mt-2">
                                     {hotel.tags
-                                      .filter((t) => t !== "Recommended" && t !== "Policy compliant")
+                                      .filter((t) => t !== "Recommended" && t !== "Policy compliant" && t !== "Out of policy")
                                       .slice(0, 2)
                                       .map((tag) => (
                                         <Badge key={tag} variant="outline" className="text-xs">

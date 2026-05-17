@@ -653,7 +653,7 @@ export default function Dashboard() {
             <CardContent className="pt-0 space-y-5">
               <div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold tracking-tight text-foreground">$48,230</span>
+                  <span className="text-3xl font-bold tracking-tight text-foreground">$10,840</span>
                   <span className="flex items-center gap-0.5 text-sm font-medium text-success">
                     <TrendingDown className="w-3.5 h-3.5" /> 12%
                   </span>
@@ -672,7 +672,7 @@ export default function Dashboard() {
                       <span className="text-sm">SF → London (Team offsite)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">$4,200</span>
+                      <span className="text-sm font-semibold">$1,650</span>
                       <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
                     </div>
                   </div>
@@ -685,7 +685,7 @@ export default function Dashboard() {
                       <span className="text-sm">NYC → Tokyo (Client visit)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">$5,800</span>
+                      <span className="text-sm font-semibold">$2,500</span>
                       <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
                     </div>
                   </div>
