@@ -294,6 +294,21 @@ export default function Dashboard() {
     navigate("/trips");
   };
 
+  const handleDeleteClick = (trip: typeof upcomingTrips[number], e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTripToDelete(trip);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!tripToDelete) return;
+    deleteTrip(tripToDelete.id);
+    setRemovedIds(prev => new Set(prev).add(tripToDelete.id));
+    setDeleteDialogOpen(false);
+    setTripToDelete(null);
+    toast.success("Trip removed");
+  };
+
   const { trips: localTrips } = useTrips();
 
   const formatTripDates = useCallback((startDate: string | undefined, endDate: string | undefined): string => {
