@@ -294,7 +294,7 @@ export default function Dashboard() {
     navigate("/trips");
   };
 
-  const handleDeleteClick = (trip: typeof upcomingTrips[number], e: React.MouseEvent) => {
+  const handleDeleteClick = (trip: { id: string; destination: string }, e: React.MouseEvent) => {
     e.stopPropagation();
     setTripToDelete(trip);
     setDeleteDialogOpen(true);
