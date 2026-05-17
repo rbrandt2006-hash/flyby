@@ -72,7 +72,6 @@ export function TripCard({ trip, onClick, onDelete }: TripCardProps) {
   const statusConfig = getStatusConfig(trip.status);
   const hasFlightDetails = trip.flight_details && Object.keys(trip.flight_details).length > 0;
   const hasHotelDetails = trip.hotel_details && Object.keys(trip.hotel_details).length > 0;
-  const isCancelled = trip.status === "cancelled";
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
