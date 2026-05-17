@@ -167,7 +167,7 @@ export function TripCard({ trip, onClick, onDelete }: TripCardProps) {
                   <button
                     aria-label="Remove trip"
                     onClick={handleDeleteClick}
-                    className="p-2 rounded-full text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    className="p-2 rounded-full text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
