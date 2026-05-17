@@ -741,6 +741,7 @@ export default function Trips() {
                 <TripCard 
                   trip={trip} 
                   onClick={() => handleTripClick(trip)} 
+                  onDelete={(tripId) => handleDeleteClick(trips.find(t => t.id === tripId) as unknown as LocalTrip)}
                 />
               </div>
             ))}
