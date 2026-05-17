@@ -151,6 +151,9 @@ export default function Dashboard() {
   const [kpiDrawer, setKpiDrawer] = useState<{ open: boolean; type: KPIType }>({ open: false, type: "upcomingTrips" });
   const [selectedTraveler, setSelectedTraveler] = useState<typeof teamTraveling[number] | null>(null);
   const [selectedSpendTrip, setSelectedSpendTrip] = useState<ReturnType<typeof getTripSpendData>>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tripToDelete, setTripToDelete] = useState<{ id: string; destination: string } | null>(null);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
 
