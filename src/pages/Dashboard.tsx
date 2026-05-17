@@ -748,7 +748,7 @@ export default function Dashboard() {
                 >
                   <button
                     onClick={(e) => handleDeleteClick(trip, e)}
-                    className="absolute top-3 right-3 p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors z-10"
+                    className="absolute top-3 right-3 p-1.5 rounded-full text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors z-10"
                     aria-label="Remove trip"
                   >
                     <Trash2 className="w-4 h-4" />
