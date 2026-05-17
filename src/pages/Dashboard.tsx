@@ -307,8 +307,8 @@ export default function Dashboard() {
   }, []);
 
   const upcomingTrips = useMemo(() => {
-    if (!Array.isArray(localTrips)) return getDemoTrips();
-    const activeLocalTrips = localTrips.filter(t => t && t.id && (t.status === 'draft' || t.status === 'pending' || t.status === 'confirmed'));
+    if (!Array.isArray(localTrips)) return getDemoTrips().filter(t => !removedIds.has(t.id));
+    const activeLocalTrips = localTrips.filter(t => t && t.id && (t.status === 'draft' || t.status === 'pending' || t.status === 'confirmed') && !removedIds.has(t.id));
     if (activeLocalTrips.length > 0) {
       return activeLocalTrips.slice(0, 4).map(t => ({
         id: t.id, destination: t.destination || "Unknown destination",
@@ -318,8 +318,8 @@ export default function Dashboard() {
         estimatedCost: typeof t.estimatedCost === 'number' ? t.estimatedCost : 0,
       }));
     }
-    return getDemoTrips();
-  }, [localTrips, formatTripDates]);
+    return getDemoTrips().filter(t => !removedIds.has(t.id));
+  }, [localTrips, formatTripDates, removedIds]);
 
   function getDemoTrips() {
     return [
