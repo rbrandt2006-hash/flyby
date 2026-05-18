@@ -324,6 +324,46 @@ export function getHotelsForDestination(options: GetHotelsOptions): HotelOption[
   const { destination, nights = 2, maxPrice, policyCompliantOnly } = options;
   const normalizedCity = normalizeCity(destination);
 
+  // Canonical Vancouver inventory (downtown, near Chase Bank @ 800 W Pender)
+  if (normalizedCity === "vancouver") {
+    const canonical: HotelOption[] = [
+      {
+        id: "yvr-fairmont", name: "Fairmont Hotel Vancouver",
+        area: "Downtown Vancouver", pricePerNight: 289, totalPrice: 289 * nights,
+        rating: 4.7, distanceToVenue: "0.2 mi", reviewCount: 3284,
+        tags: ["Recommended", "Policy compliant", "4 min walk to Chase Bank"],
+        images: getHotelImages(101), amenities: ["Free WiFi", "Gym", "Spa", "Restaurant", "Concierge"],
+        description: "Iconic château-style landmark in the heart of downtown Vancouver.",
+        cancellationPolicy: "Free cancellation until 24 hours before check-in",
+        roomTypes: ["Fairmont King", "Deluxe Suite"],
+      },
+      {
+        id: "yvr-hyatt", name: "Hyatt Regency Vancouver",
+        area: "Downtown Vancouver", pricePerNight: 245, totalPrice: 245 * nights,
+        rating: 4.5, distanceToVenue: "0.3 mi", reviewCount: 2891,
+        tags: ["Policy compliant", "6 min walk to Chase Bank"],
+        images: getHotelImages(102), amenities: ["Free WiFi", "Pool", "Gym", "Business Center"],
+        description: "Modern downtown tower steps from Burrard SkyTrain and the financial district.",
+        cancellationPolicy: "Free cancellation until 48 hours before check-in",
+        roomTypes: ["Regency King", "Club Suite"],
+      },
+      {
+        id: "yvr-panpacific", name: "Pan Pacific Vancouver",
+        area: "Coal Harbour / Canada Place", pricePerNight: 275, totalPrice: 275 * nights,
+        rating: 4.6, distanceToVenue: "0.5 mi", reviewCount: 2104,
+        tags: ["Policy compliant", "9 min walk to Chase Bank", "Waterfront"],
+        images: getHotelImages(103), amenities: ["Free WiFi", "Pool", "Spa", "Harbour Views"],
+        description: "Five-star waterfront hotel atop Canada Place with views of Burrard Inlet.",
+        cancellationPolicy: "Free cancellation until 24 hours before check-in",
+        roomTypes: ["Deluxe Harbour", "Pacific Club Suite"],
+      },
+    ];
+    let result = canonical;
+    if (maxPrice) result = result.filter(h => h.pricePerNight <= maxPrice);
+    if (policyCompliantOnly) result = result.filter(h => h.tags.includes("Policy compliant"));
+    return result;
+  }
+
   const config = cityConfigs[normalizedCity] || {
     neighborhoods: ["Downtown", "Business District", "City Center", "Airport Area", "Convention Center", "Old Town", "University District", "Waterfront"],
     priceMultiplier: 1.0,
