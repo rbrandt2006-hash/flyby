@@ -136,15 +136,17 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected, embed
     setDestination(temp);
   };
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+  const inner = (
+    <>
+      {!embedded && (
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Plane className="w-5 h-5 text-primary" />
             {showResults ? "Flight Results" : "Search Flights"}
           </DialogTitle>
         </DialogHeader>
+      )}
+
 
         {showResults && departureDate ? (
           <FlightResults
