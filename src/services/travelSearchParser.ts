@@ -263,7 +263,20 @@ function extractDates(lowered: string, original: string): { departure?: Date; re
   if (/(?:flexible|anytime|whenever|sometime|around|approximately)/i.test(lowered)) {
     flexible = true;
   }
-  
+
+  // Tomorrow / tonight / today patterns (check before duration so "tomorrow night" works)
+  const tomorrowMatch = lowered.match(/\b(tomorrow(?:\s+night|\s+morning|\s+evening)?|tonight|today)\b/i);
+  if (tomorrowMatch) {
+    const token = tomorrowMatch[1].toLowerCase();
+    departure = new Date(now);
+    if (token.startsWith("tomorrow")) {
+      departure.setDate(now.getDate() + 1);
+    }
+    returnDate = new Date(departure);
+    returnDate.setDate(departure.getDate() + 2);
+    return { departure, return: returnDate, flexible: false, raw: tomorrowMatch[1], duration: 2 };
+  }
+
   // Duration patterns
   const durationMatch = lowered.match(/(?:for|about|around)\s+(\d+)\s*(day|night|week)s?/i);
   if (durationMatch) {
