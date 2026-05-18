@@ -69,7 +69,9 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   const destAirport = parsed.destination?.airports[0];
   if (!destAirport) return { needsDestination: true };
 
-  const originAirport = parsed.origin?.airports[0];
+  // Default origin to user's home airport (SEA) when not parsed
+  const DEFAULT_HOME = { code: "SEA", city: "Seattle" };
+  const originAirport = parsed.origin?.airports[0] || { code: DEFAULT_HOME.code, city: DEFAULT_HOME.city } as any;
   const purpose = parsePurpose(prompt);
 
   const hotelBrands = ["Four Seasons", "Marriott", "Hyatt Regency", "Westin", "CitizenM", "InterContinental"];
@@ -81,7 +83,7 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   const datesAssumed = !parsed.dates?.departure;
 
   const destLabel = `${destAirport.city}, ${destAirport.country}`;
-  const originCode = originAirport?.code || "---";
+  const originCode = originAirport.code;
   const destCode = destAirport.code;
   const cabinClass = parsed.cabinClass || "economy";
   const passengers = parsed.passengers || 1;
@@ -114,7 +116,11 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
     originalPrompt: prompt,
     _flights: flights,
     _parsed: parsed,
-  } as TripPlan & { _flights: Flight[]; _parsed: ReturnType<typeof parseTravelRequest> };
+    _originCode: originCode,
+    _originCity: originAirport.city,
+    _destCode: destCode,
+    _destCity: destAirport.city,
+  } as TripPlan & { _flights: Flight[]; _parsed: ReturnType<typeof parseTravelRequest>; _originCode: string; _originCity: string; _destCode: string; _destCity: string };
 };
 
 // Demo team members traveling with live journey status
