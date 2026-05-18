@@ -71,7 +71,7 @@ export interface LocalTrip {
 }
 
 const STORAGE_KEY = "flyby_local_trips";
-const DEMO_SEED_KEY = "flyby_demo_seeded_v2";
+const DEMO_SEED_KEY = "flyby_demo_seeded_v3";
 
 function getDemoTrips(): LocalTrip[] {
   const now = new Date().toISOString();
