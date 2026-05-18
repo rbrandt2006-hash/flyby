@@ -20,6 +20,8 @@ import { generateMockFlights } from "@/services/mockFlightService";
 import { FlightResults, type Flight } from "@/components/flights/FlightResults";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { getHotelsForDestination } from "@/services/mockHotelService";
+import { generateUberOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
+import { BookingResultsPanel, type ParsedChips } from "@/components/home/BookingResultsPanel";
 import type { HotelOption } from "@/components/chats/booking/types";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
