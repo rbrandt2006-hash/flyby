@@ -229,9 +229,16 @@ export default function Trips() {
   };
 
   const handleCreateTrip = (event: CalendarEvent) => {
-    setSelectedCalendarEvent(event);
-    setPlanningModalOpen(true);
+    // Build a pre-filled chat prompt and hand off to the Home page chat thread
+    const dateLabel = `${format(new Date(event.startDate), "MMM d")}–${format(new Date(event.endDate), "MMM d")}`;
+    const city = (event.location || "").split(",")[0].trim() || event.title;
+    const prompt = `Plan a trip to ${city} for the ${event.title} on ${dateLabel}`;
+    try {
+      sessionStorage.setItem("flyby_prefill_query", prompt);
+    } catch { /* ignore */ }
+    navigate("/");
   };
+
 
   const handleConfirmTrip = (tripData: TripProposal) => {
     // Parse dates from the proposal
