@@ -1,44 +1,43 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Check, Loader2, Calendar, Mail, MessageSquare, Users } from "lucide-react";
+import { Check, Loader2, Calendar, Mail, MessageSquare, Users, ShieldCheck, Eye, Clock } from "lucide-react";
+import {
+  connectGoogleCalendar,
+  disconnectCalendar,
+  isCalendarConnected,
+  getConnectedEmail,
+} from "@/services/mockCalendarService";
+import { useUserProfileContext } from "@/contexts/UserProfileContext";
+import flybyLogo from "@/assets/flyby-logo-icon.png";
+import { toast } from "sonner";
 
-type ConnectionStatus = "not_connected" | "connecting" | "connected";
+type StubId = "outlook" | "slack" | "teams";
 
-interface IntegrationState {
-  status: ConnectionStatus;
-  email?: string;
-  lastSync?: string;
-}
-
-interface IntegrationConfig {
-  id: string;
+const stubIntegrations: {
+  id: StubId;
   name: string;
   description: string;
   icon: React.ReactNode;
   iconBg: string;
-  connectedEmail?: string;
-}
-
-const integrationConfigs: IntegrationConfig[] = [
-  {
-    id: "google-calendar",
-    name: "Google Calendar",
-    description: "Sync travel events with your calendar",
-    icon: <Calendar className="w-5 h-5 text-red-600" />,
-    iconBg: "bg-red-50 dark:bg-red-950/30",
-    connectedEmail: "john.doe@gmail.com",
-  },
+}[] = [
   {
     id: "outlook",
     name: "Microsoft Outlook",
     description: "Email and calendar sync",
     icon: <Mail className="w-5 h-5 text-blue-600" />,
     iconBg: "bg-blue-50 dark:bg-blue-950/30",
-    connectedEmail: "john.doe@outlook.com",
   },
   {
     id: "slack",
@@ -46,7 +45,6 @@ const integrationConfigs: IntegrationConfig[] = [
     description: "Get notifications in Slack",
     icon: <MessageSquare className="w-5 h-5 text-purple-600" />,
     iconBg: "bg-purple-50 dark:bg-purple-950/30",
-    connectedEmail: "acme-workspace",
   },
   {
     id: "teams",
@@ -54,230 +52,222 @@ const integrationConfigs: IntegrationConfig[] = [
     description: "Team collaboration and notifications",
     icon: <Users className="w-5 h-5 text-violet-600" />,
     iconBg: "bg-violet-50 dark:bg-violet-950/30",
-    connectedEmail: "acme-team",
   },
 ];
 
-// Load persisted state from localStorage
-const loadPersistedStates = (): Record<string, IntegrationState> => {
-  try {
-    const saved = localStorage.getItem("integration_states");
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch {
-    // Ignore parse errors
-  }
-  return {};
-};
-
-// Save state to localStorage
-const persistStates = (states: Record<string, IntegrationState>) => {
-  try {
-    localStorage.setItem("integration_states", JSON.stringify(states));
-  } catch {
-    // Ignore storage errors
-  }
-};
-
 export function IntegrationsSettings() {
   const navigate = useNavigate();
-  const [integrationStates, setIntegrationStates] = useState<Record<string, IntegrationState>>(() => {
-    const persisted = loadPersistedStates();
-    // Initialize all integrations with persisted state or default to not_connected
-    const initial: Record<string, IntegrationState> = {};
-    integrationConfigs.forEach((config) => {
-      initial[config.id] = persisted[config.id] || { status: "not_connected" };
-    });
-    return initial;
-  });
+  const { profile } = useUserProfileContext();
 
-  const handleConnect = useCallback((integrationId: string) => {
-    setIntegrationStates((prev) => {
-      const updated = {
-        ...prev,
-        [integrationId]: { status: "connecting" as ConnectionStatus },
-      };
-      persistStates(updated);
-      return updated;
-    });
+  const [gcalConnected, setGcalConnected] = useState<boolean>(() => isCalendarConnected());
+  const [gcalEmail, setGcalEmail] = useState<string | null>(() => getConnectedEmail());
+  const [oauthOpen, setOauthOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
 
-    const delay = 1000 + Math.random() * 500;
-    setTimeout(() => {
-      const config = integrationConfigs.find((c) => c.id === integrationId);
-      setIntegrationStates((prev) => {
-        const updated = {
-          ...prev,
-          [integrationId]: {
-            status: "connected" as ConnectionStatus,
-            email: config?.connectedEmail,
-            lastSync: "Just now",
-          },
-        };
-        persistStates(updated);
-        return updated;
-      });
-    }, delay);
+  // Keep in sync if state changes elsewhere
+  useEffect(() => {
+    const id = setInterval(() => {
+      const c = isCalendarConnected();
+      if (c !== gcalConnected) {
+        setGcalConnected(c);
+        setGcalEmail(getConnectedEmail());
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [gcalConnected]);
+
+  const handleAllow = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const result = await connectGoogleCalendar(profile?.email);
+      setGcalConnected(true);
+      setGcalEmail(result.email);
+      setOauthOpen(false);
+      toast.success("Google Calendar connected");
+      // Navigate to /trips so the user sees the detected events
+      navigate("/trips");
+    } catch {
+      toast.error("Failed to connect calendar");
+    } finally {
+      setSyncing(false);
+    }
+  }, [profile?.email, navigate]);
+
+  const handleConfirmDisconnect = useCallback(async () => {
+    await disconnectCalendar();
+    setGcalConnected(false);
+    setGcalEmail(null);
+    setDisconnectOpen(false);
+    toast.success("Google Calendar disconnected");
   }, []);
-
-  const handleDisconnect = useCallback((integrationId: string) => {
-    setIntegrationStates((prev) => {
-      const updated = {
-        ...prev,
-        [integrationId]: { status: "not_connected" as ConnectionStatus },
-      };
-      persistStates(updated);
-      return updated;
-    });
-  }, []);
-
-  const handleManage = useCallback((integrationId: string) => {
-    navigate(`/settings/integrations/${integrationId}`);
-  }, [navigate]);
 
   return (
     <div className="space-y-3">
-      {integrationConfigs.map((integration) => {
-        const state = integrationStates[integration.id] || { status: "not_connected" };
-        
-        return (
-          <IntegrationRow
-            key={integration.id}
-            config={integration}
-            state={state}
-            onConnect={() => handleConnect(integration.id)}
-            onDisconnect={() => handleDisconnect(integration.id)}
-            onManage={() => handleManage(integration.id)}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-interface IntegrationRowProps {
-  config: IntegrationConfig;
-  state: IntegrationState;
-  onConnect: () => void;
-  onDisconnect: () => void;
-  onManage: () => void;
-}
-
-function IntegrationRow({ config, state, onConnect, onDisconnect, onManage }: IntegrationRowProps) {
-  const isConnecting = state.status === "connecting";
-  const isConnected = state.status === "connected";
-
-  return (
-    <motion.div
-      layout
-      className="flex items-center justify-between p-4 border rounded-xl hover:bg-secondary/30 transition-colors"
-    >
-      <div className="flex items-center gap-3">
-        <motion.div
-          layout="position"
-          className={cn(
-            "w-10 h-10 rounded-lg flex items-center justify-center transition-colors duration-300",
-            config.iconBg
-          )}
-        >
-          {config.icon}
-        </motion.div>
-        <div>
-          <p className="font-medium">{config.name}</p>
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={isConnected ? "connected" : "description"}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 4 }}
-              transition={{ duration: 0.2 }}
-              className="text-sm text-muted-foreground"
-            >
-              {isConnected ? state.email : config.description}
-            </motion.p>
-          </AnimatePresence>
+      {/* Google Calendar — real-feeling OAuth flow */}
+      <motion.div
+        layout
+        className="flex items-center justify-between p-4 border rounded-xl hover:bg-secondary/30 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center justify-center">
+            <Calendar className="w-5 h-5 text-red-600" />
+          </div>
+          <div>
+            <p className="font-medium">Google Calendar</p>
+            <p className="text-sm text-muted-foreground">
+              {gcalConnected ? gcalEmail : "Sync travel events with your calendar"}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div className="flex items-center gap-2">
-        <AnimatePresence mode="wait">
-          {isConnected ? (
-            <motion.div
-              key="connected-state"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-              className="flex items-center gap-2"
-            >
-              <Badge 
-                variant="secondary" 
-                className="bg-success/10 text-success border-success/20 gap-1 transition-all duration-300"
+        <div className="flex items-center gap-2">
+          {gcalConnected ? (
+            <>
+              <Badge
+                variant="secondary"
+                className="bg-success/10 text-success border-success/20 gap-1"
               >
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.1, type: "spring", stiffness: 500, damping: 25 }}
-                >
-                  <Check className="w-3 h-3" />
-                </motion.span>
+                <Check className="w-3 h-3" />
                 Connected
               </Badge>
               <Button
                 variant="outline"
                 size="sm"
                 className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={onDisconnect}
+                onClick={() => setDisconnectOpen(true)}
               >
                 Disconnect
               </Button>
-            </motion.div>
+            </>
           ) : (
-            <motion.div
-              key="connect-state"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.2 }}
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl min-w-[110px]"
+              onClick={() => setOauthOpen(true)}
             >
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "rounded-xl min-w-[110px] transition-all duration-300",
-                  isConnecting && "pointer-events-none"
-                )}
-                onClick={onConnect}
-                disabled={isConnecting}
-              >
-                <AnimatePresence mode="wait">
-                  {isConnecting ? (
-                    <motion.span
-                      key="connecting"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="flex items-center gap-2"
-                    >
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Connecting…</span>
-                    </motion.span>
-                  ) : (
-                    <motion.span
-                      key="connect"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                    >
-                      Connect
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </Button>
-            </motion.div>
+              Connect
+            </Button>
           )}
-        </AnimatePresence>
-      </div>
-    </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Stubbed integrations — Coming soon */}
+      {stubIntegrations.map((integration) => (
+        <motion.div
+          key={integration.id}
+          layout
+          className="flex items-center justify-between p-4 border rounded-xl opacity-80"
+        >
+          <div className="flex items-center gap-3">
+            <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", integration.iconBg)}>
+              {integration.icon}
+            </div>
+            <div>
+              <p className="font-medium">{integration.name}</p>
+              <p className="text-sm text-muted-foreground">{integration.description}</p>
+            </div>
+          </div>
+          <Badge variant="secondary" className="gap-1">
+            <Clock className="w-3 h-3" />
+            Coming soon
+          </Badge>
+        </motion.div>
+      ))}
+
+      {/* Fake Google OAuth consent screen */}
+      <Dialog open={oauthOpen} onOpenChange={(o) => !syncing && setOauthOpen(o)}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+          <div className="p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <img src={flybyLogo} alt="Flyby" className="w-10 h-10 rounded-lg" />
+              <div className="text-sm text-muted-foreground">→</div>
+              <div className="w-10 h-10 rounded-lg bg-white border border-border flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="w-6 h-6">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+              </div>
+            </div>
+
+            <div>
+              <DialogHeader className="space-y-1 p-0 text-left">
+                <DialogTitle className="text-xl">Flyby wants to access your Google Calendar</DialogTitle>
+                <DialogDescription>
+                  Signed in as <span className="font-medium text-foreground">{profile?.email || "you@company.com"}</span>
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                This will allow Flyby to:
+              </p>
+              <div className="space-y-2.5">
+                <div className="flex items-start gap-2.5 text-sm">
+                  <Eye className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <span>Read events on your primary calendar for the next 90 days</span>
+                </div>
+                <div className="flex items-start gap-2.5 text-sm">
+                  <ShieldCheck className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <span>Detect travel-related meetings to suggest trips</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              You can review and revoke this access at any time in your Google Account settings.
+            </p>
+
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setOauthOpen(false)}
+                disabled={syncing}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAllow}
+                disabled={syncing}
+                className="min-w-[120px]"
+              >
+                {syncing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Syncing your calendar...
+                  </>
+                ) : (
+                  "Allow"
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disconnect confirmation */}
+      <Dialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Disconnect Google Calendar?</DialogTitle>
+            <DialogDescription>
+              Disconnecting will stop Flyby from detecting upcoming trips. Continue?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="ghost" onClick={() => setDisconnectOpen(false)}>
+              Keep connected
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDisconnect}>
+              Disconnect
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

@@ -112,18 +112,19 @@ const MOCK_EVENTS: CalendarEvent[] = [
   },
 ];
 
-export async function connectGoogleCalendar(): Promise<{ success: boolean; email: string }> {
+export async function connectGoogleCalendar(email?: string): Promise<{ success: boolean; email: string }> {
   // Simulate OAuth flow delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  const finalEmail = email || 'user@company.com';
   MOCK_CREDENTIALS.connected = true;
-  MOCK_CREDENTIALS.email = 'user@company.com';
+  MOCK_CREDENTIALS.email = finalEmail;
   MOCK_CREDENTIALS.accessToken = 'mock_access_token_xyz123';
-  
+
   // Persist the connection
-  persistState(true, MOCK_CREDENTIALS.email);
-  
-  return { success: true, email: MOCK_CREDENTIALS.email };
+  persistState(true, finalEmail);
+
+  return { success: true, email: finalEmail };
 }
 
 export async function disconnectCalendar(): Promise<void> {

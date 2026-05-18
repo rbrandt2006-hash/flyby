@@ -436,6 +436,20 @@ export default function Dashboard() {
     await runInitialPlan(input);
   };
 
+  // Consume a pre-filled query handed off from another page (e.g. /trips → "Plan trip")
+  useEffect(() => {
+    let prefill: string | null = null;
+    try { prefill = sessionStorage.getItem("flyby_prefill_query"); } catch { /* ignore */ }
+    if (prefill) {
+      try { sessionStorage.removeItem("flyby_prefill_query"); } catch { /* ignore */ }
+      setTripInput(prefill);
+      // Run on next tick so other state is settled
+      setTimeout(() => { runInitialPlan(prefill!); }, 50);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
 
 
   const handleSelectFlight = (flight: Flight) => {
