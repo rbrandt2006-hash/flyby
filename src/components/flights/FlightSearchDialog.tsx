@@ -27,9 +27,13 @@ interface FlightSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFlightSelected?: (selection: FlightSelectionDraft) => void;
+  /** When true, renders only the inner panel (no Dialog/Header) and does not auto-close on flight select. */
+  embedded?: boolean;
+  /** Pre-existing selection so the form can stay populated when navigating back in a wizard. */
+  initialSelection?: FlightSelectionDraft | null;
 }
 
-export function FlightSearchDialog({ open, onOpenChange, onFlightSelected }: FlightSearchDialogProps) {
+export function FlightSearchDialog({ open, onOpenChange, onFlightSelected, embedded = false, initialSelection = null }: FlightSearchDialogProps) {
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [departureDate, setDepartureDate] = useState<Date>();
