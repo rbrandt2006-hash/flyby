@@ -137,10 +137,15 @@ export function parseTravelRequest(input: string): ParsedTravelRequest {
     purpose,
   });
   
+  // Extract location anchor (e.g. "near the Chase Bank building")
+  const anchorMatch = input.match(/\bnear\s+(?:the\s+)?([a-zA-Z0-9'’&.\s]+?)(?:[.,!?]|$)/i);
+  const locationAnchor = anchorMatch ? anchorMatch[1].trim().replace(/\s+(building|tower|office|hq|headquarters)$/i, " $1") : undefined;
+
   return {
     origin: origin.airports.length ? origin : undefined,
     destination: destination.airports.length ? destination : undefined,
     dates: dates.departure || dates.flexible ? dates : undefined,
+    locationAnchor,
     passengers,
     tripType,
     cabinClass,
