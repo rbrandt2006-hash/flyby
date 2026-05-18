@@ -160,9 +160,9 @@ export function parseTravelRequest(input: string): ParsedTravelRequest {
 function extractDestination(lowered: string, original: string): { airports: Airport[]; raw: string; inferred: boolean } {
   // Common patterns for destination
   const patterns = [
-    /(?:to|going to|fly(?:ing)? to|travel(?:ing)? to|headed to|heading to|visit(?:ing)?)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this|around|sometime)|$)/i,
-    /(?:trip to|flight to|flights? to|book(?:ing)?\s+(?:a\s+)?(?:flight|trip)\s+to)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this)|$)/i,
-    /(?:need to go to|want to go to|planning to go to)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for)|$)/i,
+    /(?:to|going to|fly(?:ing)? to|travel(?:ing)? to|headed to|heading to|visit(?:ing)?)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this|around|sometime|near|tomorrow|tonight)|$)/i,
+    /(?:trip to|flight to|flights? to|book(?:ing)?\s+(?:a\s+)?(?:flight|trip)\s+to)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this|near|tomorrow|tonight)|$)/i,
+    /(?:need to go to|want to go to|planning to go to)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|near|tomorrow|tonight)|$)/i,
     /(?:anywhere warm|somewhere warm|beach|tropical)/i,
   ];
   
