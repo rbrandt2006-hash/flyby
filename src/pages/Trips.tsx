@@ -326,7 +326,7 @@ export default function Trips() {
     fetchTrips();
   }, [user]);
 
-  const handleWizardComplete = ({ flight: selection, hotel }: NewTripWizardResult) => {
+  const handleWizardComplete = async ({ flight: selection, hotel }: NewTripWizardResult) => {
     const hotelCost = hotel?.totalPrice ?? 0;
     const newTrip = createTrip({
       destination: selection.destination,
@@ -356,6 +356,38 @@ export default function Trips() {
     confirmLocalTrip(newTrip.id);
     setSelectedDraft(newTrip);
     toast.success("Trip created — pending approval");
+
+    // Auto-sync booked trip to connected calendar
+    if (isCalendarConnected()) {
+      const title = `Business Trip — ${selection.destination}`;
+      const location = hotel?.destination || selection.destination;
+      const descriptionParts = [
+        `Flight: ${selection.flight.airline} ${selection.flight.flightNumber} — Depart ${selection.flight.departureTime}`,
+      ];
+      if (hotel) descriptionParts.push(`Hotel: ${hotel.name}`);
+
+      const result = await createCalendarEvent(newTrip.id, {
+        title,
+        location,
+        startDate: selection.departureDate,
+        endDate: selection.returnDate,
+        description: descriptionParts.join("\n"),
+      });
+
+      if (result.success) {
+        setCalendarEventId(newTrip.id, result.eventId);
+        toast.success("Trip added to your calendar");
+        // Refresh calendar events list so it appears in the synced events display
+        try {
+          const events = await fetchCalendarEvents();
+          setCalendarEvents(events);
+        } catch (e) {
+          // non-fatal
+        }
+      } else if (result.error) {
+        setCalendarSyncError(newTrip.id, result.error);
+      }
+    }
   };
 
   const handleTripClick = (trip: Trip) => {

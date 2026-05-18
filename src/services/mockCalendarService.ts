@@ -43,12 +43,20 @@ function persistState(connected: boolean, email: string | null): void {
   }
 }
 
-// Load created events from localStorage
-function loadCreatedEvents(): Record<string, string> {
+// Load created events from localStorage (full event records keyed by tripId)
+function loadCreatedEvents(): Record<string, CalendarEvent> {
   try {
     const stored = localStorage.getItem(CREATED_EVENTS_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Migrate old format (tripId -> eventId string) to new format
+      const migrated: Record<string, CalendarEvent> = {};
+      for (const [k, v] of Object.entries(parsed)) {
+        if (typeof v === "object" && v !== null && "id" in (v as any)) {
+          migrated[k] = v as CalendarEvent;
+        }
+      }
+      return migrated;
     }
   } catch (e) {
     console.error('Failed to load created events:', e);
@@ -57,7 +65,7 @@ function loadCreatedEvents(): Record<string, string> {
 }
 
 // Save created events to localStorage
-function saveCreatedEvents(events: Record<string, string>): void {
+function saveCreatedEvents(events: Record<string, CalendarEvent>): void {
   try {
     localStorage.setItem(CREATED_EVENTS_KEY, JSON.stringify(events));
   } catch (e) {
@@ -142,11 +150,16 @@ export async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
   if (!MOCK_CREDENTIALS.connected) {
     throw new Error('Calendar not connected');
   }
-  
+
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 800));
-  
-  return MOCK_EVENTS;
+
+  // Merge demo events with events created from booked trips
+  const created = Object.values(loadCreatedEvents());
+  // Sort by startDate ascending
+  return [...MOCK_EVENTS, ...created].sort((a, b) =>
+    a.startDate.localeCompare(b.startDate)
+  );
 }
 
 export function isCalendarConnected(): boolean {
@@ -166,37 +179,35 @@ export async function createCalendarEvent(
   params: CreateCalendarEventParams
 ): Promise<{ success: boolean; eventId: string; error?: string }> {
   if (!MOCK_CREDENTIALS.connected) {
-    return { 
-      success: false, 
-      eventId: '', 
-      error: 'Calendar not connected. Please connect your calendar first.' 
+    return {
+      success: false,
+      eventId: '',
+      error: 'Calendar not connected. Please connect your calendar first.'
     };
   }
 
   // Check for duplicate - idempotent
   const createdEvents = loadCreatedEvents();
   if (createdEvents[tripId]) {
-    // Already created, return existing event ID
-    return { success: true, eventId: createdEvents[tripId] };
+    return { success: true, eventId: createdEvents[tripId].id };
   }
 
   // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1200));
-
-  // Simulate occasional failure (10% chance)
-  if (Math.random() < 0.1) {
-    return { 
-      success: false, 
-      eventId: '', 
-      error: 'Failed to sync with calendar. Please try again.' 
-    };
-  }
+  await new Promise(resolve => setTimeout(resolve, 600));
 
   // Create mock event ID
   const eventId = `cal_evt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-  // Store the mapping
-  createdEvents[tripId] = eventId;
+  const event: CalendarEvent = {
+    id: eventId,
+    title: params.title,
+    location: params.location,
+    startDate: params.startDate,
+    endDate: params.endDate,
+    description: params.description,
+  };
+
+  createdEvents[tripId] = event;
   saveCreatedEvents(createdEvents);
 
   return { success: true, eventId };
