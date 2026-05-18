@@ -98,6 +98,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/get-started" element={user ? <Navigate to="/" replace /> : <GetStarted />} />
+      <Route path="/onboarding" element={user ? <Onboarding /> : <Navigate to="/get-started" replace />} />
       <Route path="/auth" element={<Navigate to="/get-started" replace />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
