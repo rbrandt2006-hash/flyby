@@ -124,6 +124,50 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   } as TripPlan & { _flights: Flight[]; _parsed: ReturnType<typeof parseTravelRequest>; _originCode: string; _originCity: string; _destCode: string; _destCity: string };
 };
 
+// Derive a short conversation title from the first user message + destination chip
+function deriveThreadTitle(messages: ChatMsg[]): string {
+  const firstResults = messages.find(m => m.role === "assistant" && m.kind === "results");
+  if (firstResults && firstResults.role === "assistant" && firstResults.kind === "results") {
+    const c = firstResults.results.chips;
+    const dest = c.toCity || "Trip";
+    return c.dateLabel ? `${dest} · ${c.dateLabel}` : dest;
+  }
+  const firstUser = messages.find(m => m.role === "user");
+  if (firstUser && firstUser.role === "user") {
+    return firstUser.text.length > 40 ? firstUser.text.slice(0, 40) + "…" : firstUser.text;
+  }
+  return "New trip";
+}
+
+// Apply a follow-up intent to last results
+function applyFollowUp(text: string, prev: BookingResults): { results: BookingResults; note: string } {
+  const t = text.toLowerCase();
+  let results = { ...prev, flights: [...prev.flights], hotels: [...prev.hotels], ground: [...prev.ground] };
+  let note = "Refining your search…";
+
+  if (/nonstop|non-stop|direct/.test(t)) {
+    const nonstop = prev.flights.filter(f => f.stops === 0);
+    results.flights = nonstop.length > 0 ? nonstop : prev.flights;
+    note = nonstop.length > 0
+      ? "Filtered to nonstop options only."
+      : "No nonstop options on this route — keeping the best alternatives.";
+  } else if (/cheap|cheaper|less expensive|lower price|budget/.test(t)) {
+    results.flights = [...prev.flights].sort((a, b) => a.price - b.price);
+    results.hotels = [...prev.hotels].sort((a, b) => a.pricePerNight - b.pricePerNight);
+    note = "Sorted by lowest price across flights and hotels.";
+  } else if (/day after|next day|tomorrow|push.*day|shift.*day/.test(t)) {
+    const shift = (label?: string) => label ? `${label} (+1 day)` : label;
+    results.chips = { ...prev.chips, dateLabel: shift(prev.chips.dateLabel) };
+    // Re-roll prices slightly to feel different
+    results.flights = prev.flights.map(f => ({ ...f, price: Math.max(120, f.price + Math.round((Math.random() - 0.3) * 80)) }));
+    note = "Shifted the trip one day later. Here are updated options.";
+  } else if (/different hotel|other hotel|another hotel|new hotel|swap hotel/.test(t)) {
+    results.hotels = [...prev.hotels.slice(1), prev.hotels[0]].filter(Boolean);
+    note = "Here are different hotel options near your destination.";
+  }
+  return { results, note };
+}
+
 // Demo team members traveling with live journey status
 const travelJourneyStatuses = [
   "At gate B12", "Boarded plane", "In flight", "Landed", "In transit to hotel",
