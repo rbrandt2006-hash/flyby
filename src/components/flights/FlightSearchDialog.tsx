@@ -321,6 +321,17 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected, embed
             </p>
           </div>
         )}
+    </>
+  );
+
+  if (embedded) {
+    return <div className="space-y-4">{inner}</div>;
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+        {inner}
       </DialogContent>
     </Dialog>
   );
