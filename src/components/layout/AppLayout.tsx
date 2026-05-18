@@ -6,6 +6,8 @@ import IntroAnimation, { hasIntroPlayed, prefersReducedMotion } from "@/componen
 import { GlobalSearchDropdown } from "./GlobalSearchDropdown";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useDemoMode } from "@/contexts/DemoModeContext";
+import { Switch } from "@/components/ui/switch";
 
 const navItems = [
   { label: "Home", path: "/" },
@@ -18,6 +20,7 @@ const navItems = [
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { isAdmin } = useUserRole();
+  const { demoMode, toggleDemoMode } = useDemoMode();
   useSessionTimeout({ isAdmin });
 
   const [showIntro, setShowIntro] = useState(() => {
@@ -95,8 +98,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 </div>
               </nav>
 
-              {/* Right: Search only */}
-              <div className="flex items-center shrink-0">
+              {/* Right: Demo toggle + Search */}
+              <div className="flex items-center gap-3 shrink-0">
+                <label
+                  className="hidden md:flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer select-none"
+                  title="Toggle demo data on or off"
+                >
+                  <span className="uppercase tracking-wider">
+                    Demo data: {demoMode ? "ON" : "OFF"}
+                  </span>
+                  <Switch checked={demoMode} onCheckedChange={toggleDemoMode} aria-label="Toggle demo data" />
+                </label>
                 <div className="hidden lg:block">
                   <GlobalSearchDropdown />
                 </div>
