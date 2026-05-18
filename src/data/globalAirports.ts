@@ -520,9 +520,11 @@ export function findAirports(query: string): Airport[] {
     }
   }
   
-  // Standard search
-  return AIRPORTS.filter(airport => {
-    const searchTerms = [
+  // Standard search with ranking: exact > prefix > substring (term contains query)
+  // Avoid the reverse "query.includes(term)" fallback for short codes like "anc"
+  // which produced false positives ("vancouver" contains "anc").
+  const scored = AIRPORTS.map(airport => {
+    const terms = [
       airport.code,
       airport.icao,
       airport.city,
@@ -533,10 +535,27 @@ export function findAirports(query: string): Airport[] {
       airport.metroArea,
       ...(airport.aliases || [])
     ].filter(Boolean).map(s => s!.toLowerCase());
-    
-    return searchTerms.some(term => term.includes(normalizedQuery)) ||
-           searchTerms.some(term => normalizedQuery.includes(term));
-  });
+
+    let score = 0;
+    for (const t of terms) {
+      if (t === normalizedQuery) { score = Math.max(score, 100); continue; }
+      if (t.startsWith(normalizedQuery)) { score = Math.max(score, 70); continue; }
+      if (t.includes(normalizedQuery)) { score = Math.max(score, 40); continue; }
+    }
+    // Only allow reverse-contains (query includes term) for multi-word queries
+    // where the term is itself a full word (city/country name >= 4 chars).
+    if (score === 0 && normalizedQuery.includes(" ")) {
+      for (const t of terms) {
+        if (t.length >= 4 && normalizedQuery.split(/[\s,]+/).includes(t)) {
+          score = Math.max(score, 30);
+        }
+      }
+    }
+    return { airport, score };
+  }).filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return scored.map(x => x.airport);
 }
 
 // Get airports for a city with multiple airports

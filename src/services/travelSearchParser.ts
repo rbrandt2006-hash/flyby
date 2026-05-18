@@ -22,6 +22,7 @@ export interface ParsedTravelRequest {
     raw: string;
     duration?: number; // in days
   };
+  locationAnchor?: string; // e.g. "Chase Bank building"
   passengers?: number;
   tripType: "roundtrip" | "oneway" | "multicity" | "flexible";
   cabinClass?: "economy" | "premium" | "business" | "first";
@@ -136,10 +137,15 @@ export function parseTravelRequest(input: string): ParsedTravelRequest {
     purpose,
   });
   
+  // Extract location anchor (e.g. "near the Chase Bank building")
+  const anchorMatch = input.match(/\bnear\s+(?:the\s+)?([a-zA-Z0-9'’&.\s]+?)(?:[.,!?]|$)/i);
+  const locationAnchor = anchorMatch ? anchorMatch[1].trim().replace(/\s+(building|tower|office|hq|headquarters)$/i, " $1") : undefined;
+
   return {
     origin: origin.airports.length ? origin : undefined,
     destination: destination.airports.length ? destination : undefined,
     dates: dates.departure || dates.flexible ? dates : undefined,
+    locationAnchor,
     passengers,
     tripType,
     cabinClass,
@@ -154,9 +160,9 @@ export function parseTravelRequest(input: string): ParsedTravelRequest {
 function extractDestination(lowered: string, original: string): { airports: Airport[]; raw: string; inferred: boolean } {
   // Common patterns for destination
   const patterns = [
-    /(?:to|going to|fly(?:ing)? to|travel(?:ing)? to|headed to|heading to|visit(?:ing)?)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this|around|sometime)|$)/i,
-    /(?:trip to|flight to|flights? to|book(?:ing)?\s+(?:a\s+)?(?:flight|trip)\s+to)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this)|$)/i,
-    /(?:need to go to|want to go to|planning to go to)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for)|$)/i,
+    /(?:to|going to|fly(?:ing)? to|travel(?:ing)? to|headed to|heading to|visit(?:ing)?)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this|around|sometime|near|tomorrow|tonight)|$)/i,
+    /(?:trip to|flight to|flights? to|book(?:ing)?\s+(?:a\s+)?(?:flight|trip)\s+to)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this|near|tomorrow|tonight)|$)/i,
+    /(?:need to go to|want to go to|planning to go to)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|near|tomorrow|tonight)|$)/i,
     /(?:anywhere warm|somewhere warm|beach|tropical)/i,
   ];
   
@@ -257,7 +263,20 @@ function extractDates(lowered: string, original: string): { departure?: Date; re
   if (/(?:flexible|anytime|whenever|sometime|around|approximately)/i.test(lowered)) {
     flexible = true;
   }
-  
+
+  // Tomorrow / tonight / today patterns (check before duration so "tomorrow night" works)
+  const tomorrowMatch = lowered.match(/\b(tomorrow(?:\s+night|\s+morning|\s+evening)?|tonight|today)\b/i);
+  if (tomorrowMatch) {
+    const token = tomorrowMatch[1].toLowerCase();
+    departure = new Date(now);
+    if (token.startsWith("tomorrow")) {
+      departure.setDate(now.getDate() + 1);
+    }
+    returnDate = new Date(departure);
+    returnDate.setDate(departure.getDate() + 2);
+    return { departure, return: returnDate, flexible: false, raw: tomorrowMatch[1], duration: 2 };
+  }
+
   // Duration patterns
   const durationMatch = lowered.match(/(?:for|about|around)\s+(\d+)\s*(day|night|week)s?/i);
   if (durationMatch) {

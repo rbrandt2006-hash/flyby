@@ -20,6 +20,8 @@ import { generateMockFlights } from "@/services/mockFlightService";
 import { FlightResults, type Flight } from "@/components/flights/FlightResults";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { getHotelsForDestination } from "@/services/mockHotelService";
+import { generateUberOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
+import { BookingResultsPanel, type ParsedChips } from "@/components/home/BookingResultsPanel";
 import type { HotelOption } from "@/components/chats/booking/types";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
@@ -67,7 +69,9 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   const destAirport = parsed.destination?.airports[0];
   if (!destAirport) return { needsDestination: true };
 
-  const originAirport = parsed.origin?.airports[0];
+  // Default origin to user's home airport (SEA) when not parsed
+  const DEFAULT_HOME = { code: "SEA", city: "Seattle" };
+  const originAirport = parsed.origin?.airports[0] || { code: DEFAULT_HOME.code, city: DEFAULT_HOME.city } as any;
   const purpose = parsePurpose(prompt);
 
   const hotelBrands = ["Four Seasons", "Marriott", "Hyatt Regency", "Westin", "CitizenM", "InterContinental"];
@@ -79,7 +83,7 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   const datesAssumed = !parsed.dates?.departure;
 
   const destLabel = `${destAirport.city}, ${destAirport.country}`;
-  const originCode = originAirport?.code || "---";
+  const originCode = originAirport.code;
   const destCode = destAirport.code;
   const cabinClass = parsed.cabinClass || "economy";
   const passengers = parsed.passengers || 1;
@@ -112,7 +116,11 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
     originalPrompt: prompt,
     _flights: flights,
     _parsed: parsed,
-  } as TripPlan & { _flights: Flight[]; _parsed: ReturnType<typeof parseTravelRequest> };
+    _originCode: originCode,
+    _originCity: originAirport.city,
+    _destCode: destCode,
+    _destCity: destAirport.city,
+  } as TripPlan & { _flights: Flight[]; _parsed: ReturnType<typeof parseTravelRequest>; _originCode: string; _originCity: string; _destCode: string; _destCity: string };
 };
 
 // Demo team members traveling with live journey status
@@ -139,6 +147,14 @@ export default function Dashboard() {
   const [isPlanning, setIsPlanning] = useState(false);
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
   const [flightResults, setFlightResults] = useState<Flight[]>([]);
+  const [bookingResults, setBookingResults] = useState<{
+    chips: ParsedChips;
+    flights: Flight[];
+    hotels: HotelOption[];
+    ground: GroundTransportOption[];
+    reasons: { flight?: string; hotel?: string; ground?: string };
+    nights: number;
+  } | null>(null);
   const [selectedFlightFromResults, setSelectedFlightFromResults] = useState<Flight | null>(null);
   const [showHotelStep, setShowHotelStep] = useState(false);
   const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([]);
@@ -166,21 +182,64 @@ export default function Dashboard() {
   const processResult = (result: Awaited<ReturnType<typeof generateTripPlan>>) => {
     if ("needsDestination" in result) {
       setNeedsDestination(true);
-    } else {
-      const anyResult = result as TripPlan & { _flights?: Flight[] };
-      if (anyResult._flights?.length) {
-        setFlightResults(anyResult._flights);
-        setSelectedFlightFromResults(null);
-        setPlanResult(null); // show flights first, not itinerary
-      } else {
-        setPlanResult(result);
-      }
+      return;
     }
+    const anyResult = result as TripPlan & {
+      _flights?: Flight[];
+      _parsed?: ReturnType<typeof parseTravelRequest>;
+      _originCode?: string; _originCity?: string;
+      _destCode?: string; _destCity?: string;
+    };
+    const flights = anyResult._flights || [];
+    const parsed = anyResult._parsed;
+    const nights = Math.max(1, Math.ceil((anyResult.endDate.getTime() - anyResult.startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const hotels = getHotelsForDestination({ destination: anyResult.destination, nights });
+    const ground = generateUberOptions(15);
+
+    const anchor = parsed?.locationAnchor;
+    const dateLabel = parsed?.dates?.raw
+      ? parsed.dates.raw
+      : `${format(anyResult.startDate, "MMM d")}–${format(anyResult.endDate, "MMM d")}`;
+
+    const topFlight = flights[0];
+    const topHotel = hotels[0];
+    const topGround = ground[0];
+
+    const reasons: { flight?: string; hotel?: string; ground?: string } = {};
+    if (topFlight) {
+      reasons.flight = `Nonstop ${anyResult._originCode}→${anyResult._destCode} on ${topFlight.airline}, leaves ${topFlight.departureTime}. Lowest price for direct service that matches your preferred airlines.`;
+    }
+    if (topHotel) {
+      reasons.hotel = anchor
+        ? `Closest in-policy hotel to your meeting (${topHotel.distanceToVenue} from ${anchor}). Matches your preferred brands.`
+        : `Top-rated in-policy hotel in ${topHotel.area}. Matches your preferred brands.`;
+    }
+    if (topGround) {
+      reasons.ground = `Fastest pickup at ${anyResult._destCode} with ${topGround.eta} ETA. Estimated $${topGround.priceMin}–$${topGround.priceMax} to your hotel.`;
+    }
+
+    setBookingResults({
+      chips: {
+        fromCity: anyResult._originCity,
+        fromCode: anyResult._originCode,
+        toCity: anyResult._destCity,
+        toCode: anyResult._destCode,
+        dateLabel,
+        anchor,
+      },
+      flights,
+      hotels,
+      ground,
+      reasons,
+      nights,
+    });
+    setFlightResults([]);
+    setPlanResult(null);
   };
 
   const handleConfirmVoice = useCallback(async () => {
     voiceRecording.confirmTranscript();
-    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]);
+    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]); setBookingResults(null);
     if (!tripInput.trim()) { setInputError("Please describe your trip first"); return; }
     setIsPlanning(true); setPlanResult(null);
     try { processResult(await generateTripPlan(tripInput)); }
@@ -191,9 +250,8 @@ export default function Dashboard() {
   const handleEditVoice = useCallback(() => { voiceRecording.confirmTranscript(); }, [voiceRecording]);
 
   const handlePlanTrip = async (overrideInput?: string) => {
-    console.log("submitted");
     const input = overrideInput ?? tripInput;
-    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]);
+    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]); setBookingResults(null);
     if (!input.trim()) { setInputError("Please describe your trip first"); return; }
     if (overrideInput) setTripInput(overrideInput);
     setIsPlanning(true); setPlanResult(null);
@@ -201,6 +259,7 @@ export default function Dashboard() {
     catch { setError("Failed to generate trip plan. Please try again."); }
     finally { setIsPlanning(false); }
   };
+
 
   const handleSelectFlight = (flight: Flight) => {
     setSelectedFlightFromResults(flight);
@@ -510,22 +569,54 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* ─── FLIGHT RESULTS ─── */}
+      {/* ─── BOOKING RESULTS PANEL (flights + hotels + ground) ─── */}
       <AnimatePresence>
-        {flightResults.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-3xl mx-auto">
-            <FlightResults
-              flights={flightResults}
-              departureDate={parseTravelRequest(tripInput).dates?.departure || new Date()}
-              returnDate={parseTravelRequest(tripInput).dates?.return}
-              tripType={parseTravelRequest(tripInput).tripType}
-              passengers={parseTravelRequest(tripInput).passengers || 1}
-              onSelect={handleSelectFlight}
-              onBack={() => setFlightResults([])}
-            />
-          </motion.div>
+        {bookingResults && !planResult && (
+          <BookingResultsPanel
+            chips={bookingResults.chips}
+            flights={bookingResults.flights}
+            hotels={bookingResults.hotels}
+            ground={bookingResults.ground}
+            reasons={bookingResults.reasons}
+            onSelectFlight={(f) => {
+              setBookingResults(null);
+              handleSelectFlight(f);
+            }}
+            onSelectHotel={(h) => {
+              const top = bookingResults.flights[0];
+              if (!top) return;
+              const parsed = parseTravelRequest(tripInput);
+              const destAirport = parsed.destination?.airports[0];
+              const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
+              const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);
+              const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : top.destination;
+              const finalPlan: TripPlan = {
+                destination: destLabel,
+                dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
+                startDate, endDate,
+                datesAssumed: !parsed.dates?.departure,
+                datesConfirmed: !!parsed.dates?.departure,
+                needsDateClarification: false,
+                purpose: parsePurpose(tripInput),
+                flight: { airline: top.airline, departTime: top.departureTime, returnTime: top.arrivalTime },
+                hotel: { name: h.name, location: h.area },
+                groundTransport: `Airport transfer from ${top.destination} + local mobility pass`,
+                estimatedCost: top.price + h.totalPrice,
+                confidenceLevel: 96,
+                originalPrompt: tripInput,
+              };
+              setBookingResults(null);
+              setPlanResult(finalPlan);
+            }}
+            onEditChip={() => {
+              // Focus search bar to edit
+              setBookingResults(null);
+            }}
+            onClose={() => setBookingResults(null)}
+          />
         )}
       </AnimatePresence>
+
 
       {/* ─── HOTEL SELECTION STEP ─── */}
       <HotelSelectionPage
