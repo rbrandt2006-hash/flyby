@@ -34,13 +34,17 @@ interface FlightSearchDialogProps {
 }
 
 export function FlightSearchDialog({ open, onOpenChange, onFlightSelected, embedded = false, initialSelection = null }: FlightSearchDialogProps) {
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
-  const [departureDate, setDepartureDate] = useState<Date>();
-  const [returnDate, setReturnDate] = useState<Date>();
-  const [passengers, setPassengers] = useState("1");
-  const [tripType, setTripType] = useState("roundtrip");
-  const [cabinClass, setCabinClass] = useState("economy");
+  const [origin, setOrigin] = useState(initialSelection?.origin ?? "");
+  const [destination, setDestination] = useState(initialSelection?.destination ?? "");
+  const [departureDate, setDepartureDate] = useState<Date | undefined>(
+    initialSelection?.departureDate ? new Date(initialSelection.departureDate) : undefined
+  );
+  const [returnDate, setReturnDate] = useState<Date | undefined>(
+    initialSelection?.returnDate ? new Date(initialSelection.returnDate) : undefined
+  );
+  const [passengers, setPassengers] = useState(initialSelection?.passengers?.toString() ?? "1");
+  const [tripType, setTripType] = useState(initialSelection?.tripType ?? "roundtrip");
+  const [cabinClass, setCabinClass] = useState(initialSelection?.flight.cabinClass ?? "economy");
   const [showResults, setShowResults] = useState(false);
   const [flights, setFlights] = useState<Flight[]>([]);
   const [isSearching, setIsSearching] = useState(false);
