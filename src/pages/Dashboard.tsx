@@ -31,6 +31,7 @@ import { getRandomHeadline } from "@/data/heroHeadlines";
 import { TravelerDetailPanel } from "@/components/home/TravelerDetailPanel";
 import { TripSpendSlideOver, getTripSpendData } from "@/components/home/TripSpendSlideOver";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useDemoMode } from "@/contexts/DemoModeContext";
 
 interface TripPlan {
   destination: string;
@@ -184,6 +185,7 @@ const teamTraveling = [
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { demoMode } = useDemoMode();
   const { createTrip, deleteTrip } = useTrips();
   const { createChat } = useChats();
   const { getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
@@ -572,10 +574,11 @@ export default function Dashboard() {
   }, []);
 
   const upcomingTrips = useMemo(() => {
-    if (!Array.isArray(localTrips)) return getDemoTrips().filter(t => !removedIds.has(t.id));
+    if (!Array.isArray(localTrips)) return demoMode ? getDemoTrips().filter(t => !removedIds.has(t.id)) : [];
     const activeLocalTrips = localTrips.filter(t => t && t.id && (t.status === 'draft' || t.status === 'pending' || t.status === 'confirmed') && !removedIds.has(t.id));
-    if (activeLocalTrips.length > 0) {
-      return activeLocalTrips.slice(0, 4).map(t => ({
+    const nonDemoActive = demoMode ? activeLocalTrips : activeLocalTrips.filter(t => !t.id.startsWith('demo_'));
+    if (nonDemoActive.length > 0) {
+      return nonDemoActive.slice(0, 4).map(t => ({
         id: t.id, destination: t.destination || "Unknown destination",
         dates: formatTripDates(t.startDate, t.endDate),
         status: t.status === 'confirmed' ? 'approved' as const : t.status === 'pending' ? 'pending' as const : 'draft' as const,
@@ -583,8 +586,8 @@ export default function Dashboard() {
         estimatedCost: typeof t.estimatedCost === 'number' ? t.estimatedCost : 0,
       }));
     }
-    return getDemoTrips().filter(t => !removedIds.has(t.id));
-  }, [localTrips, formatTripDates, removedIds]);
+    return demoMode ? getDemoTrips().filter(t => !removedIds.has(t.id)) : [];
+  }, [localTrips, formatTripDates, removedIds, demoMode]);
 
   function getDemoTrips() {
     return [
@@ -593,7 +596,12 @@ export default function Dashboard() {
     ];
   }
 
-  const exampleCommands: string[] = [];
+  const exampleQueries = [
+    "Book me a flight to LA next Thursday",
+    "I have a conference in Berlin in July",
+    "Plan a 3-day trip to Austin for SXSW",
+    "Find me a hotel near Times Square for Tuesday",
+  ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
