@@ -256,11 +256,10 @@ export default function Dashboard() {
 
   const voiceRecording = useVoiceRecording({ onTranscriptReady: handleTranscriptReady, maxDuration: 60 });
 
-  const processResult = (result: Awaited<ReturnType<typeof generateTripPlan>>) => {
-    if ("needsDestination" in result) {
-      setNeedsDestination(true);
-      return;
-    }
+  const buildResultsFromPlan = (
+    result: Awaited<ReturnType<typeof generateTripPlan>>,
+  ): BookingResults | null => {
+    if ("needsDestination" in result) return null;
     const anyResult = result as TripPlan & {
       _flights?: Flight[];
       _parsed?: ReturnType<typeof parseTravelRequest>;
@@ -295,7 +294,7 @@ export default function Dashboard() {
       reasons.ground = `Fastest pickup at ${anyResult._destCode} with ${topGround.eta} ETA. Estimated $${topGround.priceMin}–$${topGround.priceMax} to your hotel.`;
     }
 
-    setBookingResults({
+    return {
       chips: {
         fromCity: anyResult._originCity,
         fromCode: anyResult._originCode,
@@ -309,33 +308,141 @@ export default function Dashboard() {
       ground,
       reasons,
       nights,
-    });
-    setFlightResults([]);
+    };
+  };
+
+  const newMsgId = () => `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  // Append an assistant results message and sync side state used by hotel/flight selection
+  const pushAssistantResults = (results: BookingResults, note?: string) => {
+    setLastResults(results);
+    setBookingResults(results);
+    setMessages(prev => [
+      ...prev.filter(m => !(m.role === "assistant" && m.kind === "loading")),
+      { id: newMsgId(), role: "assistant", kind: "results", note, results },
+    ]);
+  };
+
+  const pushAssistantText = (text: string) => {
+    setMessages(prev => [
+      ...prev.filter(m => !(m.role === "assistant" && m.kind === "loading")),
+      { id: newMsgId(), role: "assistant", kind: "text", text },
+    ]);
+  };
+
+  const startNewThread = (firstUserText: string) => {
+    const id = `thread_${Date.now()}`;
+    setActiveThreadId(id);
+    setLastResults(null);
+    setMessages([
+      { id: newMsgId(), role: "user", text: firstUserText },
+      { id: newMsgId(), role: "assistant", kind: "loading" },
+    ]);
+    return id;
+  };
+
+  const handleNewTrip = () => {
+    setActiveThreadId(null);
+    setMessages([]);
+    setLastResults(null);
+    setBookingResults(null);
     setPlanResult(null);
+    setTripInput("");
+    setError(null);
+    setInputError(null);
+    setNeedsDestination(false);
+  };
+
+  const handleSelectThread = (id: string) => {
+    const t = storedThreads.find(s => s.id === id);
+    if (!t) return;
+    setActiveThreadId(id);
+    setMessages(t.messages);
+    // Restore last results from most recent results message
+    const lastRes = [...t.messages].reverse().find(m => m.role === "assistant" && m.kind === "results");
+    if (lastRes && lastRes.role === "assistant" && lastRes.kind === "results") {
+      setLastResults(lastRes.results);
+      setBookingResults(lastRes.results);
+    } else {
+      setLastResults(null);
+      setBookingResults(null);
+    }
+    setPlanResult(null);
+  };
+
+  const handleDeleteThread = (id: string) => {
+    setStoredThreads(prev => {
+      const out = prev.filter(t => t.id !== id);
+      try { localStorage.setItem(THREADS_KEY, JSON.stringify(out)); } catch { /* ignore */ }
+      return out;
+    });
+    if (activeThreadId === id) handleNewTrip();
+  };
+
+  const runInitialPlan = async (text: string) => {
+    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]);
+    setPlanResult(null);
+    setIsPlanning(true); setIsThinking(true);
+    startNewThread(text);
+    try {
+      const result = await generateTripPlan(text);
+      if ("needsDestination" in result) {
+        setNeedsDestination(true);
+        pushAssistantText("I couldn't find a destination in that request — can you try again with a city or airport?");
+        return;
+      }
+      const built = buildResultsFromPlan(result);
+      if (built) pushAssistantResults(built);
+    } catch {
+      setError("Failed to generate trip plan. Please try again.");
+      pushAssistantText("Something went wrong searching for that trip. Please try again.");
+    } finally {
+      setIsPlanning(false); setIsThinking(false);
+    }
+  };
+
+  const handleSendFollowUp = async (text: string) => {
+    setMessages(prev => [
+      ...prev,
+      { id: newMsgId(), role: "user", text },
+      { id: newMsgId(), role: "assistant", kind: "loading" },
+    ]);
+    setIsThinking(true);
+    await new Promise(r => setTimeout(r, 450));
+    try {
+      if (lastResults) {
+        const { results, note } = applyFollowUp(text, lastResults);
+        pushAssistantResults(results, note);
+      } else {
+        // No prior results — treat as a fresh search
+        const result = await generateTripPlan(text);
+        if ("needsDestination" in result) {
+          pushAssistantText("I couldn't find a destination — try a city or airport.");
+        } else {
+          const built = buildResultsFromPlan(result);
+          if (built) pushAssistantResults(built);
+        }
+      }
+    } finally {
+      setIsThinking(false);
+    }
   };
 
   const handleConfirmVoice = useCallback(async () => {
     voiceRecording.confirmTranscript();
-    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]); setBookingResults(null);
     if (!tripInput.trim()) { setInputError("Please describe your trip first"); return; }
-    setIsPlanning(true); setPlanResult(null);
-    try { processResult(await generateTripPlan(tripInput)); }
-    catch { setError("Failed to generate trip plan. Please try again."); }
-    finally { setIsPlanning(false); }
+    await runInitialPlan(tripInput);
   }, [tripInput, voiceRecording]);
 
   const handleEditVoice = useCallback(() => { voiceRecording.confirmTranscript(); }, [voiceRecording]);
 
   const handlePlanTrip = async (overrideInput?: string) => {
     const input = overrideInput ?? tripInput;
-    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]); setBookingResults(null);
     if (!input.trim()) { setInputError("Please describe your trip first"); return; }
     if (overrideInput) setTripInput(overrideInput);
-    setIsPlanning(true); setPlanResult(null);
-    try { processResult(await generateTripPlan(input)); }
-    catch { setError("Failed to generate trip plan. Please try again."); }
-    finally { setIsPlanning(false); }
+    await runInitialPlan(input);
   };
+
 
 
   const handleSelectFlight = (flight: Flight) => {
