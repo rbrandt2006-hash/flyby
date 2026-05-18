@@ -43,12 +43,20 @@ function persistState(connected: boolean, email: string | null): void {
   }
 }
 
-// Load created events from localStorage
-function loadCreatedEvents(): Record<string, string> {
+// Load created events from localStorage (full event records keyed by tripId)
+function loadCreatedEvents(): Record<string, CalendarEvent> {
   try {
     const stored = localStorage.getItem(CREATED_EVENTS_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Migrate old format (tripId -> eventId string) to new format
+      const migrated: Record<string, CalendarEvent> = {};
+      for (const [k, v] of Object.entries(parsed)) {
+        if (typeof v === "object" && v !== null && "id" in (v as any)) {
+          migrated[k] = v as CalendarEvent;
+        }
+      }
+      return migrated;
     }
   } catch (e) {
     console.error('Failed to load created events:', e);
