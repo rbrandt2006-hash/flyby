@@ -93,15 +93,17 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected, embed
         returnDate: format(returnDate || departureDate, "yyyy-MM-dd"),
         passengers: parseInt(passengers),
         tripType,
-        flight,
+        flight: { ...flight, cabinClass },
       });
 
       toast.success("Flight selected", {
         description: `${flight.airline} ${flight.flightNumber} added to your draft trip`,
       });
 
-      onOpenChange(false);
-      resetForm();
+      if (!embedded) {
+        onOpenChange(false);
+        resetForm();
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to save selected flight";
       toast.error(message);
