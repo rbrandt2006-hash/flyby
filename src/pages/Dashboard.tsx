@@ -171,6 +171,38 @@ export default function Dashboard() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tripToDelete, setTripToDelete] = useState<{ id: string; destination: string } | null>(null);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+
+  // ─── Chat-thread state ───
+  const THREADS_KEY = "flyby_booking_threads";
+  type StoredThread = ChatThreadMeta & { messages: ChatMsg[] };
+  const [storedThreads, setStoredThreads] = useState<StoredThread[]>(() => {
+    try {
+      const raw = localStorage.getItem(THREADS_KEY);
+      return raw ? (JSON.parse(raw) as StoredThread[]) : [];
+    } catch { return []; }
+  });
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [isThinking, setIsThinking] = useState(false);
+  const [lastResults, setLastResults] = useState<BookingResults | null>(null);
+
+  // Persist active thread back to storedThreads list
+  useEffect(() => {
+    if (!activeThreadId) return;
+    setStoredThreads(prev => {
+      const idx = prev.findIndex(t => t.id === activeThreadId);
+      const title = deriveThreadTitle(messages) || "New trip";
+      const next: StoredThread = idx >= 0
+        ? { ...prev[idx], title, messages }
+        : { id: activeThreadId, title, createdAt: new Date().toISOString(), messages };
+      const out = idx >= 0 ? prev.map((t, i) => i === idx ? next : t) : [next, ...prev];
+      try { localStorage.setItem(THREADS_KEY, JSON.stringify(out)); } catch { /* ignore */ }
+      return out;
+    });
+  }, [messages, activeThreadId]);
+
+  const threadList: ChatThreadMeta[] = storedThreads.map(({ id, title, createdAt }) => ({ id, title, createdAt }));
+
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
 
