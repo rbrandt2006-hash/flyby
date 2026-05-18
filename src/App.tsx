@@ -45,6 +45,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!user) {
     return <Navigate to="/get-started" replace />;
   }
+
+  if (needsOnboarding()) {
+    return <Navigate to="/onboarding" replace />;
+  }
   
   return (
     <UserProfileProvider>
