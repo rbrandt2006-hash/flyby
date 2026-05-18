@@ -585,10 +585,28 @@ export default function Dashboard() {
             onSelectHotel={(h) => {
               const top = bookingResults.flights[0];
               if (!top) return;
+              const parsed = parseTravelRequest(tripInput);
+              const destAirport = parsed.destination?.airports[0];
+              const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
+              const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);
+              const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : top.destination;
+              const finalPlan: TripPlan = {
+                destination: destLabel,
+                dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
+                startDate, endDate,
+                datesAssumed: !parsed.dates?.departure,
+                datesConfirmed: !!parsed.dates?.departure,
+                needsDateClarification: false,
+                purpose: parsePurpose(tripInput),
+                flight: { airline: top.airline, departTime: top.departureTime, returnTime: top.arrivalTime },
+                hotel: { name: h.name, location: h.area },
+                groundTransport: `Airport transfer from ${top.destination} + local mobility pass`,
+                estimatedCost: top.price + h.totalPrice,
+                confidenceLevel: 96,
+                originalPrompt: tripInput,
+              };
               setBookingResults(null);
-              handleSelectFlight(top);
-              // Auto-select hotel after flight wiring
-              setTimeout(() => handleSelectHotelFromStep(h), 0);
+              setPlanResult(finalPlan);
             }}
             onEditChip={() => {
               // Focus search bar to edit
