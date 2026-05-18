@@ -64,7 +64,7 @@ interface TripPlan {
 
 // Generate trip plan based on parsed destination
 const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true; flights?: never }> => {
-  await new Promise(r => setTimeout(r, 350));
+  await new Promise(r => setTimeout(r, 850));
 
   const parsed = parseTravelRequest(prompt);
   const destAirport = parsed.destination?.airports[0];
