@@ -214,12 +214,22 @@ export default function Team() {
           <div className="w-14 h-14 rounded-full glass-row flex items-center justify-center">
             <Users className="w-6 h-6 text-muted-foreground/50" />
           </div>
-          <div>
-            <p className="font-medium text-foreground">No team members found</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Try adjusting your search or filter
+          <div className="max-w-sm">
+            <p className="font-medium text-foreground">
+              {teamMembers.length === 0 ? "Invite teammates to see where everyone's traveling." : "No team members found"}
             </p>
+            {teamMembers.length > 0 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Try adjusting your search or filter
+              </p>
+            )}
           </div>
+          {teamMembers.length === 0 && (
+            <Button onClick={() => toast.success("Invite link copied — share it with your team")}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Invite
+            </Button>
+          )}
         </GlassPanel>
       )}
 
