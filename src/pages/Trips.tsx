@@ -326,7 +326,8 @@ export default function Trips() {
     fetchTrips();
   }, [user]);
 
-  const handleFlightSelected = (selection: FlightSelectionDraft) => {
+  const handleWizardComplete = ({ flight: selection, hotel }: NewTripWizardResult) => {
+    const hotelCost = hotel?.totalPrice ?? 0;
     const newTrip = createTrip({
       destination: selection.destination,
       startDate: selection.departureDate,
@@ -346,13 +347,15 @@ export default function Trips() {
         price: selection.flight.price,
         emissions: selection.flight.co2Emissions,
       },
-      hotel: null,
+      hotel: hotel ? { name: hotel.name, location: hotel.destination } : null,
       groundTransport: null,
-      estimatedCost: selection.flight.price,
+      estimatedCost: selection.flight.price + hotelCost,
       confidenceLevel: 84,
     });
 
+    confirmLocalTrip(newTrip.id);
     setSelectedDraft(newTrip);
+    toast.success("Trip created — pending approval");
   };
 
   const handleTripClick = (trip: Trip) => {
