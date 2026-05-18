@@ -10,6 +10,7 @@ import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDow
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
 import { FlightSearchDialog, type FlightSelectionDraft } from "@/components/flights/FlightSearchDialog";
+import { NewTripWizard, type NewTripWizardResult } from "@/components/trips/NewTripWizard";
 import { TripCard, type Trip } from "@/components/trips/TripCard";
 import { TripEditDrawer } from "@/components/trips/TripEditDrawer";
 import { TripConfirmationModal } from "@/components/trips/TripConfirmationModal";
