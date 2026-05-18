@@ -630,10 +630,10 @@ export default function Trips() {
         onConnected={handleCalendarConnected}
       />
 
-      <FlightSearchDialog 
-        open={bookingDialogOpen} 
+      <NewTripWizard
+        open={bookingDialogOpen}
         onOpenChange={setBookingDialogOpen}
-        onFlightSelected={handleFlightSelected}
+        onComplete={handleWizardComplete}
       />
 
       <TripEditDrawer
