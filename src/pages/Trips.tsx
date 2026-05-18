@@ -768,24 +768,30 @@ export default function Trips() {
       {/* Empty state when no active trips at all */}
       {upcomingBackendTrips.length === 0 && confirmedTrips.length === 0 && draftTrips.length === 0 && cancelledTrips.length === 0 && (
         <Card className="border-dashed border-2 border-border/50 bg-muted/20">
-          <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
+          <CardContent className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
             <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center">
               <Plane className="w-8 h-8 text-muted-foreground/50" />
             </div>
-            <div className="text-center space-y-1">
-              <p className="text-foreground font-medium">No trips planned yet</p>
+            <div className="space-y-1 max-w-md">
+              <p className="text-foreground font-medium">No trips yet.</p>
               <p className="text-muted-foreground text-sm">
-                Create your first trip to get started
+                Connect your calendar to let Flyby detect upcoming travel, or plan one manually.
               </p>
             </div>
-            <Button 
-              onClick={handleNewTrip}
-              className="mt-2 hover:opacity-90 text-white font-medium"
-              style={{ backgroundColor: '#9aafe6' }}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Trip
-            </Button>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <Button
+                onClick={() => setCalendarDialogOpen(true)}
+                className="hover:opacity-90 text-white font-medium"
+                style={{ backgroundColor: '#9aafe6' }}
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Connect Google Calendar
+              </Button>
+              <Button variant="outline" onClick={handleNewTrip}>
+                <Plus className="w-4 h-4 mr-2" />
+                Plan manually
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
