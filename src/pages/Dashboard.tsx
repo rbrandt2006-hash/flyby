@@ -569,22 +569,36 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* ─── FLIGHT RESULTS ─── */}
+      {/* ─── BOOKING RESULTS PANEL (flights + hotels + ground) ─── */}
       <AnimatePresence>
-        {flightResults.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-3xl mx-auto">
-            <FlightResults
-              flights={flightResults}
-              departureDate={parseTravelRequest(tripInput).dates?.departure || new Date()}
-              returnDate={parseTravelRequest(tripInput).dates?.return}
-              tripType={parseTravelRequest(tripInput).tripType}
-              passengers={parseTravelRequest(tripInput).passengers || 1}
-              onSelect={handleSelectFlight}
-              onBack={() => setFlightResults([])}
-            />
-          </motion.div>
+        {bookingResults && !planResult && (
+          <BookingResultsPanel
+            chips={bookingResults.chips}
+            flights={bookingResults.flights}
+            hotels={bookingResults.hotels}
+            ground={bookingResults.ground}
+            reasons={bookingResults.reasons}
+            onSelectFlight={(f) => {
+              setBookingResults(null);
+              handleSelectFlight(f);
+            }}
+            onSelectHotel={(h) => {
+              const top = bookingResults.flights[0];
+              if (!top) return;
+              setBookingResults(null);
+              handleSelectFlight(top);
+              // Auto-select hotel after flight wiring
+              setTimeout(() => handleSelectHotelFromStep(h), 0);
+            }}
+            onEditChip={() => {
+              // Focus search bar to edit
+              setBookingResults(null);
+            }}
+            onClose={() => setBookingResults(null)}
+          />
         )}
       </AnimatePresence>
+
 
       {/* ─── HOTEL SELECTION STEP ─── */}
       <HotelSelectionPage
