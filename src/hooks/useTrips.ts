@@ -139,7 +139,19 @@ function loadTripsFromStorage(): LocalTrip[] {
     }
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed: LocalTrip[] = JSON.parse(stored);
+      // Defensive: drop stale demo trips with implausible dates (>18mo out or in the past year)
+      const now = Date.now();
+      const maxFuture = now + 18 * 30 * 24 * 60 * 60 * 1000;
+      const minPast = now - 365 * 24 * 60 * 60 * 1000;
+      const cleaned = parsed.filter(t => {
+        const start = new Date(t.startDate).getTime();
+        return !isNaN(start) && start <= maxFuture && start >= minPast;
+      });
+      if (cleaned.length !== parsed.length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+      }
+      return cleaned;
     }
   } catch (e) {
     console.error("Failed to load trips from localStorage:", e);
