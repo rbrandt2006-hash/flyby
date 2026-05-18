@@ -22,6 +22,7 @@ import { ExpenseViewDrawer } from "@/components/expenses/ExpenseViewDrawer";
 import { demoExpenses, demoStats, type DemoExpense } from "@/components/expenses/demoExpenseData";
 import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
+import { useDemoMode } from "@/contexts/DemoModeContext";
 import { toast } from "sonner";
 import { 
   Plane, Building2, Utensils, Car, CreditCard, Receipt, AlertCircle,
@@ -57,6 +58,7 @@ const itemVariants = {
 };
 
 export default function Expenses() {
+  const { demoMode } = useDemoMode();
   const { 
     expenses, 
     expensesByTrip,
@@ -81,7 +83,7 @@ export default function Expenses() {
 
   // Demo drawer + analytics state
   const [demoDrawerStatus, setDemoDrawerStatus] = useState<DemoExpense["status"] | null>(null);
-  const [demoExpenseList, setDemoExpenseList] = useState<DemoExpense[]>(demoExpenses);
+  const [demoExpenseList, setDemoExpenseList] = useState<DemoExpense[]>(demoMode ? demoExpenses : []);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<DemoExpense | null>(null);
   const [viewingExpense, setViewingExpense] = useState<DemoExpense | null>(null);
