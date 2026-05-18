@@ -166,10 +166,7 @@ export function BookingChatThread({
                   {m.text}
                 </div>
               ) : m.kind === "loading" ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Searching…
-                </div>
+                <ResultsSkeleton />
               ) : (
                 <div className="w-full space-y-3">
                   {m.note && (
