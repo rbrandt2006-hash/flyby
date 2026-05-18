@@ -22,6 +22,7 @@ export interface ParsedTravelRequest {
     raw: string;
     duration?: number; // in days
   };
+  locationAnchor?: string; // e.g. "Chase Bank building"
   passengers?: number;
   tripType: "roundtrip" | "oneway" | "multicity" | "flexible";
   cabinClass?: "economy" | "premium" | "business" | "first";
