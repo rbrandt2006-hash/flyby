@@ -30,10 +30,12 @@ import { useTrips, type LocalTrip } from "@/hooks/useTrips";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { TripPlanningModal, type TripProposal } from "@/components/home/TripPlanningModal";
+import { useDemoMode } from "@/contexts/DemoModeContext";
 
 export default function Trips() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { demoMode } = useDemoMode();
   const { 
     trips: localTrips, 
     createTrip, 
@@ -91,11 +93,16 @@ export default function Trips() {
   });
 
   // Filter trips by status - cancelled trips are separate from upcoming
-  const draftTrips = localTrips.filter(t => t.status === "draft");
-  const confirmedTrips = localTrips.filter(t => t.status === "confirmed");
-  const cancelledTrips = localTrips.filter(t => t.status === "cancelled");
-  const archivedTrips = localTrips.filter(t => t.status === "archived");
-  
+  // When demo mode is OFF, hide seeded demo trips (ids starting with "demo_")
+  const visibleLocalTrips = useMemo(
+    () => demoMode ? localTrips : localTrips.filter(t => !t.id.startsWith("demo_")),
+    [localTrips, demoMode]
+  );
+  const draftTrips = visibleLocalTrips.filter(t => t.status === "draft");
+  const confirmedTrips = visibleLocalTrips.filter(t => t.status === "confirmed");
+  const cancelledTrips = visibleLocalTrips.filter(t => t.status === "cancelled");
+  const archivedTrips = visibleLocalTrips.filter(t => t.status === "archived");
+
   // Backend trips - filter out cancelled ones from upcoming
   const upcomingBackendTrips = trips.filter(t => t.status !== "cancelled" && t.status !== "archived");
   const cancelledBackendTrips = trips.filter(t => t.status === "cancelled");
