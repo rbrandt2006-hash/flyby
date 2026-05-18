@@ -728,6 +728,22 @@ export default function Dashboard() {
                 )}
               </AnimatePresence>
 
+              {/* Example query suggestions (shown when no chat history yet, or always in non-demo) */}
+              {(!demoMode || threadList.length === 0) && (
+                <div className="mt-5 flex flex-wrap gap-2 justify-center">
+                  {exampleQueries.map(q => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => { setTripInput(q); }}
+                      className="text-xs px-3 py-1.5 rounded-full border border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-secondary transition-colors"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Quick access: history when conversations exist */}
               {threadList.length > 0 && (
                 <p className="mt-4 text-center text-xs text-muted-foreground">
