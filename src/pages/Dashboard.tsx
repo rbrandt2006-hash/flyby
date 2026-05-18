@@ -618,28 +618,15 @@ export default function Dashboard() {
       {/* ─── HERO + COMMAND BAR (only when no active conversation) ─── */}
       {!activeThreadId && (
         <>
-          <motion.div variants={itemVariants} className="text-center pt-4 md:pt-8 space-y-4">
+          <motion.div variants={itemVariants} className="text-center pt-4 md:pt-8 space-y-3">
             <motion.h1
               className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground tracking-tight leading-tight"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
             >
-              {getRandomHeadline().split(/(?<=\.)/).map((part, i) => {
-                const trimmed = part.trim();
-                if (!trimmed) return null;
-                if (i > 0) return <span key={i} className="text-muted-foreground font-semibold"><br />{trimmed}</span>;
-                return <span key={i}>{trimmed}</span>;
-              })}
+              Corporate travel, without the chaos.
             </motion.h1>
-            <motion.p
-              className="text-base md:text-lg text-muted-foreground max-w-lg mx-auto"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35, duration: 0.6 }}
-            >
-              Your AI-powered travel command center.
-            </motion.p>
           </motion.div>
 
           <ScrollReveal delay={0.1}>
@@ -649,6 +636,15 @@ export default function Dashboard() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3, duration: 0.5 }}
             >
+              <motion.p
+                className="text-sm text-muted-foreground text-center mb-3"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35, duration: 0.5 }}
+              >
+                Your AI-powered travel command center.
+              </motion.p>
+
               {(showLearnedBadge || preferenceLabels.length > 0) && (
                 <div className="flex justify-center mb-3">
                   <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} />
