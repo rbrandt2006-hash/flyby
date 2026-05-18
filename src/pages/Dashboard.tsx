@@ -182,21 +182,64 @@ export default function Dashboard() {
   const processResult = (result: Awaited<ReturnType<typeof generateTripPlan>>) => {
     if ("needsDestination" in result) {
       setNeedsDestination(true);
-    } else {
-      const anyResult = result as TripPlan & { _flights?: Flight[] };
-      if (anyResult._flights?.length) {
-        setFlightResults(anyResult._flights);
-        setSelectedFlightFromResults(null);
-        setPlanResult(null); // show flights first, not itinerary
-      } else {
-        setPlanResult(result);
-      }
+      return;
     }
+    const anyResult = result as TripPlan & {
+      _flights?: Flight[];
+      _parsed?: ReturnType<typeof parseTravelRequest>;
+      _originCode?: string; _originCity?: string;
+      _destCode?: string; _destCity?: string;
+    };
+    const flights = anyResult._flights || [];
+    const parsed = anyResult._parsed;
+    const nights = Math.max(1, Math.ceil((anyResult.endDate.getTime() - anyResult.startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const hotels = getHotelsForDestination({ destination: anyResult.destination, nights });
+    const ground = generateUberOptions(15);
+
+    const anchor = parsed?.locationAnchor;
+    const dateLabel = parsed?.dates?.raw
+      ? parsed.dates.raw
+      : `${format(anyResult.startDate, "MMM d")}–${format(anyResult.endDate, "MMM d")}`;
+
+    const topFlight = flights[0];
+    const topHotel = hotels[0];
+    const topGround = ground[0];
+
+    const reasons: { flight?: string; hotel?: string; ground?: string } = {};
+    if (topFlight) {
+      reasons.flight = `Nonstop ${anyResult._originCode}→${anyResult._destCode} on ${topFlight.airline}, leaves ${topFlight.departureTime}. Lowest price for direct service that matches your preferred airlines.`;
+    }
+    if (topHotel) {
+      reasons.hotel = anchor
+        ? `Closest in-policy hotel to your meeting (${topHotel.distanceToVenue} from ${anchor}). Matches your preferred brands.`
+        : `Top-rated in-policy hotel in ${topHotel.area}. Matches your preferred brands.`;
+    }
+    if (topGround) {
+      reasons.ground = `Fastest pickup at ${anyResult._destCode} with ${topGround.eta} ETA. Estimated $${topGround.priceMin}–$${topGround.priceMax} to your hotel.`;
+    }
+
+    setBookingResults({
+      chips: {
+        fromCity: anyResult._originCity,
+        fromCode: anyResult._originCode,
+        toCity: anyResult._destCity,
+        toCode: anyResult._destCode,
+        dateLabel,
+        anchor,
+      },
+      flights,
+      hotels,
+      ground,
+      reasons,
+      nights,
+    });
+    setFlightResults([]);
+    setPlanResult(null);
   };
 
   const handleConfirmVoice = useCallback(async () => {
     voiceRecording.confirmTranscript();
-    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]);
+    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]); setBookingResults(null);
     if (!tripInput.trim()) { setInputError("Please describe your trip first"); return; }
     setIsPlanning(true); setPlanResult(null);
     try { processResult(await generateTripPlan(tripInput)); }
@@ -207,9 +250,8 @@ export default function Dashboard() {
   const handleEditVoice = useCallback(() => { voiceRecording.confirmTranscript(); }, [voiceRecording]);
 
   const handlePlanTrip = async (overrideInput?: string) => {
-    console.log("submitted");
     const input = overrideInput ?? tripInput;
-    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]);
+    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]); setBookingResults(null);
     if (!input.trim()) { setInputError("Please describe your trip first"); return; }
     if (overrideInput) setTripInput(overrideInput);
     setIsPlanning(true); setPlanResult(null);
@@ -217,6 +259,7 @@ export default function Dashboard() {
     catch { setError("Failed to generate trip plan. Please try again."); }
     finally { setIsPlanning(false); }
   };
+
 
   const handleSelectFlight = (flight: Flight) => {
     setSelectedFlightFromResults(flight);
