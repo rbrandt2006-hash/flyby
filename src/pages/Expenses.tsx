@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -84,6 +84,7 @@ export default function Expenses() {
   // Demo drawer + analytics state
   const [demoDrawerStatus, setDemoDrawerStatus] = useState<DemoExpense["status"] | null>(null);
   const [demoExpenseList, setDemoExpenseList] = useState<DemoExpense[]>(demoMode ? demoExpenses : []);
+  useEffect(() => { setDemoExpenseList(demoMode ? demoExpenses : []); }, [demoMode]);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<DemoExpense | null>(null);
   const [viewingExpense, setViewingExpense] = useState<DemoExpense | null>(null);
