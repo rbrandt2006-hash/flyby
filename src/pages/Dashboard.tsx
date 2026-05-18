@@ -600,144 +600,129 @@ export default function Dashboard() {
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-6xl mx-auto space-y-10 pb-20 md:pb-0">
 
-      {/* ─── HERO: Command Center ─── */}
-      <motion.div variants={itemVariants} className="text-center pt-4 md:pt-8 space-y-4">
-        <motion.h1
-          className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground tracking-tight leading-tight"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-        >
-          {getRandomHeadline().split(/(?<=\.)/).map((part, i) => {
-            const trimmed = part.trim();
-            if (!trimmed) return null;
-            // Make last portion muted
-            if (i > 0) return <span key={i} className="text-muted-foreground font-semibold"><br />{trimmed}</span>;
-            return <span key={i}>{trimmed}</span>;
-          })}
-        </motion.h1>
-        <motion.p
-          className="text-base md:text-lg text-muted-foreground max-w-lg mx-auto"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.6 }}
-        >
-          Your AI-powered travel command center.
-        </motion.p>
-      </motion.div>
+      {/* ─── HERO + COMMAND BAR (only when no active conversation) ─── */}
+      {!activeThreadId && (
+        <>
+          <motion.div variants={itemVariants} className="text-center pt-4 md:pt-8 space-y-4">
+            <motion.h1
+              className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground tracking-tight leading-tight"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+            >
+              {getRandomHeadline().split(/(?<=\.)/).map((part, i) => {
+                const trimmed = part.trim();
+                if (!trimmed) return null;
+                if (i > 0) return <span key={i} className="text-muted-foreground font-semibold"><br />{trimmed}</span>;
+                return <span key={i}>{trimmed}</span>;
+              })}
+            </motion.h1>
+            <motion.p
+              className="text-base md:text-lg text-muted-foreground max-w-lg mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35, duration: 0.6 }}
+            >
+              Your AI-powered travel command center.
+            </motion.p>
+          </motion.div>
 
-      {/* ─── MASSIVE CENTRAL COMMAND BAR ─── */}
-      <ScrollReveal delay={0.1}>
-        <motion.div
-          className="relative mx-auto max-w-3xl"
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-        >
-          {/* Learned preferences */}
-          {(showLearnedBadge || preferenceLabels.length > 0) && (
-            <div className="flex justify-center mb-3">
-              <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} />
-            </div>
-          )}
-
-          {/* Command input */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handlePlanTrip();
-            }}
-            className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl"
-          >
-            <div className="flex items-center gap-3 px-5 py-4">
-              <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
-              <motion.input
-                type="text"
-                placeholder="Search anywhere: Paris, Texas, Tokyo, Japan, or ‘NYC to London April 10–20’"
-                value={tripInput}
-                onChange={e => { setTripInput(e.target.value); if (inputError) setInputError(null); }}
-                whileFocus={{ scale: 1.005 }}
-                transition={{ duration: 0.15 }}
-                disabled={voiceRecording.state !== 'idle'}
-                className="flex-1 bg-transparent text-base md:text-lg outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
-              />
-
-              {/* Voice button */}
-              {voiceRecording.state === 'idle' && (
-                <Button
-                  type="button"
-                  size="icon"
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                  onClick={voiceRecording.startRecording}
-                  disabled={isPlanning}
-                  aria-label="Record voice"
-                >
-                  <Mic className="w-5 h-5" />
-                </Button>
-              )}
-              {voiceRecording.state === 'recording' && (
-                <Button
-                  type="button"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={voiceRecording.stopRecording}
-                  aria-label="Stop recording"
-                >
-                  <motion.div animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }} className="w-2.5 h-2.5 rounded-full bg-destructive-foreground" />
-                </Button>
-              )}
-              {voiceRecording.state === 'processing' && (
-                <Button type="button" variant="ghost" size="icon" disabled className="shrink-0">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                </Button>
-              )}
-
-              {/* Plan trip CTA */}
-              <Button
-                type="submit"
-                variant="cta"
-                size="default"
-                className="shrink-0 rounded-xl gap-2"
-                disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
-              >
-                {isPlanning ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Searching flights…</span></>
-                ) : (
-                  <><Sparkles className="w-4 h-4" /><span>Plan trip</span></>
-                )}
-              </Button>
-            </div>
-
-          </form>
-
-          {/* Voice transcript confirmation */}
-          <AnimatePresence>
-            {voiceRecording.state === 'ready' && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className="mt-3 p-4 bg-card rounded-xl border border-border shadow-sm space-y-3"
-              >
-                <p className="text-sm text-muted-foreground">Use this request?</p>
-                <p className="text-sm font-medium text-foreground">"{voiceRecording.transcript}"</p>
-                <div className="flex gap-2">
-                  <Button variant="default" size="sm" onClick={handleConfirmVoice} className="gap-1"><Check className="w-3 h-3" />Confirm</Button>
-                  <Button variant="outline" size="sm" onClick={handleEditVoice} className="gap-1"><Edit2 className="w-3 h-3" />Edit</Button>
-                  <Button variant="ghost" size="sm" onClick={voiceRecording.cancelRecording}>Cancel</Button>
+          <ScrollReveal delay={0.1}>
+            <motion.div
+              className="relative mx-auto max-w-3xl"
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+            >
+              {(showLearnedBadge || preferenceLabels.length > 0) && (
+                <div className="flex justify-center mb-3">
+                  <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} />
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              )}
 
-          {/* Input error */}
-          <AnimatePresence>
-            {inputError && (
-              <motion.p initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mt-2 text-sm text-destructive flex items-center gap-1 justify-center">
-                <AlertCircle className="w-4 h-4" />{inputError}
-              </motion.p>
-            )}
-          </AnimatePresence>
+              <form
+                onSubmit={(e) => { e.preventDefault(); handlePlanTrip(); }}
+                className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl"
+              >
+                <div className="flex items-center gap-3 px-5 py-4">
+                  <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
+                  <motion.input
+                    type="text"
+                    placeholder="Search anywhere: Paris, Texas, Tokyo, Japan, or ‘NYC to London April 10–20’"
+                    value={tripInput}
+                    onChange={e => { setTripInput(e.target.value); if (inputError) setInputError(null); }}
+                    whileFocus={{ scale: 1.005 }}
+                    transition={{ duration: 0.15 }}
+                    disabled={voiceRecording.state !== 'idle'}
+                    className="flex-1 bg-transparent text-base md:text-lg outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
+                  />
 
-        </motion.div>
-      </ScrollReveal>
+                  {voiceRecording.state === 'idle' && (
+                    <Button type="button" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={voiceRecording.startRecording} disabled={isPlanning} aria-label="Record voice">
+                      <Mic className="w-5 h-5" />
+                    </Button>
+                  )}
+                  {voiceRecording.state === 'recording' && (
+                    <Button type="button" size="icon" className="shrink-0" onClick={voiceRecording.stopRecording} aria-label="Stop recording">
+                      <motion.div animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }} className="w-2.5 h-2.5 rounded-full bg-destructive-foreground" />
+                    </Button>
+                  )}
+                  {voiceRecording.state === 'processing' && (
+                    <Button type="button" variant="ghost" size="icon" disabled className="shrink-0">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    </Button>
+                  )}
+
+                  <Button
+                    type="submit"
+                    variant="cta"
+                    size="default"
+                    className="shrink-0 rounded-xl gap-2"
+                    disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
+                  >
+                    {isPlanning ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Searching flights…</span></>
+                    ) : (
+                      <><Sparkles className="w-4 h-4" /><span>Plan trip</span></>
+                    )}
+                  </Button>
+                </div>
+              </form>
+
+              <AnimatePresence>
+                {voiceRecording.state === 'ready' && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                    className="mt-3 p-4 bg-card rounded-xl border border-border shadow-sm space-y-3"
+                  >
+                    <p className="text-sm text-muted-foreground">Use this request?</p>
+                    <p className="text-sm font-medium text-foreground">"{voiceRecording.transcript}"</p>
+                    <div className="flex gap-2">
+                      <Button variant="default" size="sm" onClick={handleConfirmVoice} className="gap-1"><Check className="w-3 h-3" />Confirm</Button>
+                      <Button variant="outline" size="sm" onClick={handleEditVoice} className="gap-1"><Edit2 className="w-3 h-3" />Edit</Button>
+                      <Button variant="ghost" size="sm" onClick={voiceRecording.cancelRecording}>Cancel</Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {inputError && (
+                  <motion.p initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mt-2 text-sm text-destructive flex items-center gap-1 justify-center">
+                    <AlertCircle className="w-4 h-4" />{inputError}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+
+              {/* Quick access: history when conversations exist */}
+              {threadList.length > 0 && (
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  {threadList.length} past conversation{threadList.length === 1 ? "" : "s"} — use the chat thread to revisit them after your next search.
+                </p>
+              )}
+            </motion.div>
+          </ScrollReveal>
+        </>
+      )}
 
       {/* ─── ERROR BANNER ─── */}
       <AnimatePresence>
@@ -753,53 +738,48 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* ─── BOOKING RESULTS PANEL (flights + hotels + ground) ─── */}
-      <AnimatePresence>
-        {bookingResults && !planResult && (
-          <BookingResultsPanel
-            chips={bookingResults.chips}
-            flights={bookingResults.flights}
-            hotels={bookingResults.hotels}
-            ground={bookingResults.ground}
-            reasons={bookingResults.reasons}
-            onSelectFlight={(f) => {
-              setBookingResults(null);
-              handleSelectFlight(f);
-            }}
-            onSelectHotel={(h) => {
-              const top = bookingResults.flights[0];
-              if (!top) return;
-              const parsed = parseTravelRequest(tripInput);
-              const destAirport = parsed.destination?.airports[0];
-              const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
-              const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);
-              const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : top.destination;
-              const finalPlan: TripPlan = {
-                destination: destLabel,
-                dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
-                startDate, endDate,
-                datesAssumed: !parsed.dates?.departure,
-                datesConfirmed: !!parsed.dates?.departure,
-                needsDateClarification: false,
-                purpose: parsePurpose(tripInput),
-                flight: { airline: top.airline, departTime: top.departureTime, returnTime: top.arrivalTime },
-                hotel: { name: h.name, location: h.area },
-                groundTransport: `Airport transfer from ${top.destination} + local mobility pass`,
-                estimatedCost: top.price + h.totalPrice,
-                confidenceLevel: 96,
-                originalPrompt: tripInput,
-              };
-              setBookingResults(null);
-              setPlanResult(finalPlan);
-            }}
-            onEditChip={() => {
-              // Focus search bar to edit
-              setBookingResults(null);
-            }}
-            onClose={() => setBookingResults(null)}
-          />
-        )}
-      </AnimatePresence>
+      {/* ─── CHAT THREAD (results live here as assistant messages) ─── */}
+      {activeThreadId && !planResult && (
+        <BookingChatThread
+          messages={messages}
+          isThinking={isThinking}
+          threads={threadList}
+          activeThreadId={activeThreadId}
+          onSend={handleSendFollowUp}
+          onNewTrip={handleNewTrip}
+          onSelectThread={handleSelectThread}
+          onDeleteThread={handleDeleteThread}
+          onSelectFlight={(f) => handleSelectFlight(f)}
+          onSelectHotel={(h) => {
+            const cur = lastResults;
+            const top = cur?.flights[0];
+            if (!top) return;
+            const parsed = parseTravelRequest(tripInput || (messages.find(m => m.role === "user") as { text: string } | undefined)?.text || "");
+            const destAirport = parsed.destination?.airports[0];
+            const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
+            const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);
+            const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : top.destination;
+            const finalPlan: TripPlan = {
+              destination: destLabel,
+              dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
+              startDate, endDate,
+              datesAssumed: !parsed.dates?.departure,
+              datesConfirmed: !!parsed.dates?.departure,
+              needsDateClarification: false,
+              purpose: parsePurpose(tripInput),
+              flight: { airline: top.airline, departTime: top.departureTime, returnTime: top.arrivalTime },
+              hotel: { name: h.name, location: h.area },
+              groundTransport: `Airport transfer from ${top.destination} + local mobility pass`,
+              estimatedCost: top.price + h.totalPrice,
+              confidenceLevel: 96,
+              originalPrompt: tripInput,
+            };
+            setPlanResult(finalPlan);
+          }}
+        />
+      )}
+
+
 
 
       {/* ─── HOTEL SELECTION STEP ─── */}
