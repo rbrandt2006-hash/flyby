@@ -21,7 +21,7 @@ import { FlightResults, type Flight } from "@/components/flights/FlightResults";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { getHotelsForDestination } from "@/services/mockHotelService";
 import { generateUberOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
-import { BookingResultsPanel, type ParsedChips } from "@/components/home/BookingResultsPanel";
+import { BookingChatThread, type ChatMsg, type ChatThreadMeta, type BookingResults } from "@/components/home/BookingChatThread";
 import type { HotelOption } from "@/components/chats/booking/types";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
@@ -123,6 +123,50 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   } as TripPlan & { _flights: Flight[]; _parsed: ReturnType<typeof parseTravelRequest>; _originCode: string; _originCity: string; _destCode: string; _destCity: string };
 };
 
+// Derive a short conversation title from the first user message + destination chip
+function deriveThreadTitle(messages: ChatMsg[]): string {
+  const firstResults = messages.find(m => m.role === "assistant" && m.kind === "results");
+  if (firstResults && firstResults.role === "assistant" && firstResults.kind === "results") {
+    const c = firstResults.results.chips;
+    const dest = c.toCity || "Trip";
+    return c.dateLabel ? `${dest} · ${c.dateLabel}` : dest;
+  }
+  const firstUser = messages.find(m => m.role === "user");
+  if (firstUser && firstUser.role === "user") {
+    return firstUser.text.length > 40 ? firstUser.text.slice(0, 40) + "…" : firstUser.text;
+  }
+  return "New trip";
+}
+
+// Apply a follow-up intent to last results
+function applyFollowUp(text: string, prev: BookingResults): { results: BookingResults; note: string } {
+  const t = text.toLowerCase();
+  let results = { ...prev, flights: [...prev.flights], hotels: [...prev.hotels], ground: [...prev.ground] };
+  let note = "Refining your search…";
+
+  if (/nonstop|non-stop|direct/.test(t)) {
+    const nonstop = prev.flights.filter(f => f.stops === 0);
+    results.flights = nonstop.length > 0 ? nonstop : prev.flights;
+    note = nonstop.length > 0
+      ? "Filtered to nonstop options only."
+      : "No nonstop options on this route — keeping the best alternatives.";
+  } else if (/cheap|cheaper|less expensive|lower price|budget/.test(t)) {
+    results.flights = [...prev.flights].sort((a, b) => a.price - b.price);
+    results.hotels = [...prev.hotels].sort((a, b) => a.pricePerNight - b.pricePerNight);
+    note = "Sorted by lowest price across flights and hotels.";
+  } else if (/day after|next day|tomorrow|push.*day|shift.*day/.test(t)) {
+    const shift = (label?: string) => label ? `${label} (+1 day)` : label;
+    results.chips = { ...prev.chips, dateLabel: shift(prev.chips.dateLabel) };
+    // Re-roll prices slightly to feel different
+    results.flights = prev.flights.map(f => ({ ...f, price: Math.max(120, f.price + Math.round((Math.random() - 0.3) * 80)) }));
+    note = "Shifted the trip one day later. Here are updated options.";
+  } else if (/different hotel|other hotel|another hotel|new hotel|swap hotel/.test(t)) {
+    results.hotels = [...prev.hotels.slice(1), prev.hotels[0]].filter(Boolean);
+    note = "Here are different hotel options near your destination.";
+  }
+  return { results, note };
+}
+
 // Demo team members traveling with live journey status
 const travelJourneyStatuses = [
   "At gate B12", "Boarded plane", "In flight", "Landed", "In transit to hotel",
@@ -147,14 +191,8 @@ export default function Dashboard() {
   const [isPlanning, setIsPlanning] = useState(false);
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
   const [flightResults, setFlightResults] = useState<Flight[]>([]);
-  const [bookingResults, setBookingResults] = useState<{
-    chips: ParsedChips;
-    flights: Flight[];
-    hotels: HotelOption[];
-    ground: GroundTransportOption[];
-    reasons: { flight?: string; hotel?: string; ground?: string };
-    nights: number;
-  } | null>(null);
+  // Kept as a no-op setter for backward-compat with helpers that mirror current results.
+  const setBookingResults = (_v: BookingResults | null) => { void _v; };
   const [selectedFlightFromResults, setSelectedFlightFromResults] = useState<Flight | null>(null);
   const [showHotelStep, setShowHotelStep] = useState(false);
   const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([]);
@@ -170,6 +208,38 @@ export default function Dashboard() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tripToDelete, setTripToDelete] = useState<{ id: string; destination: string } | null>(null);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+
+  // ─── Chat-thread state ───
+  const THREADS_KEY = "flyby_booking_threads";
+  type StoredThread = ChatThreadMeta & { messages: ChatMsg[] };
+  const [storedThreads, setStoredThreads] = useState<StoredThread[]>(() => {
+    try {
+      const raw = localStorage.getItem(THREADS_KEY);
+      return raw ? (JSON.parse(raw) as StoredThread[]) : [];
+    } catch { return []; }
+  });
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [isThinking, setIsThinking] = useState(false);
+  const [lastResults, setLastResults] = useState<BookingResults | null>(null);
+
+  // Persist active thread back to storedThreads list
+  useEffect(() => {
+    if (!activeThreadId) return;
+    setStoredThreads(prev => {
+      const idx = prev.findIndex(t => t.id === activeThreadId);
+      const title = deriveThreadTitle(messages) || "New trip";
+      const next: StoredThread = idx >= 0
+        ? { ...prev[idx], title, messages }
+        : { id: activeThreadId, title, createdAt: new Date().toISOString(), messages };
+      const out = idx >= 0 ? prev.map((t, i) => i === idx ? next : t) : [next, ...prev];
+      try { localStorage.setItem(THREADS_KEY, JSON.stringify(out)); } catch { /* ignore */ }
+      return out;
+    });
+  }, [messages, activeThreadId]);
+
+  const threadList: ChatThreadMeta[] = storedThreads.map(({ id, title, createdAt }) => ({ id, title, createdAt }));
+
   const preferenceLabels = getActivePreferenceLabels();
   const showLearnedBadge = hasLearnedPreferences();
 
@@ -179,11 +249,10 @@ export default function Dashboard() {
 
   const voiceRecording = useVoiceRecording({ onTranscriptReady: handleTranscriptReady, maxDuration: 60 });
 
-  const processResult = (result: Awaited<ReturnType<typeof generateTripPlan>>) => {
-    if ("needsDestination" in result) {
-      setNeedsDestination(true);
-      return;
-    }
+  const buildResultsFromPlan = (
+    result: Awaited<ReturnType<typeof generateTripPlan>>,
+  ): BookingResults | null => {
+    if ("needsDestination" in result) return null;
     const anyResult = result as TripPlan & {
       _flights?: Flight[];
       _parsed?: ReturnType<typeof parseTravelRequest>;
@@ -218,7 +287,7 @@ export default function Dashboard() {
       reasons.ground = `Fastest pickup at ${anyResult._destCode} with ${topGround.eta} ETA. Estimated $${topGround.priceMin}–$${topGround.priceMax} to your hotel.`;
     }
 
-    setBookingResults({
+    return {
       chips: {
         fromCity: anyResult._originCity,
         fromCode: anyResult._originCode,
@@ -232,33 +301,141 @@ export default function Dashboard() {
       ground,
       reasons,
       nights,
-    });
-    setFlightResults([]);
+    };
+  };
+
+  const newMsgId = () => `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  // Append an assistant results message and sync side state used by hotel/flight selection
+  const pushAssistantResults = (results: BookingResults, note?: string) => {
+    setLastResults(results);
+    setBookingResults(results);
+    setMessages(prev => [
+      ...prev.filter(m => !(m.role === "assistant" && m.kind === "loading")),
+      { id: newMsgId(), role: "assistant", kind: "results", note, results },
+    ]);
+  };
+
+  const pushAssistantText = (text: string) => {
+    setMessages(prev => [
+      ...prev.filter(m => !(m.role === "assistant" && m.kind === "loading")),
+      { id: newMsgId(), role: "assistant", kind: "text", text },
+    ]);
+  };
+
+  const startNewThread = (firstUserText: string) => {
+    const id = `thread_${Date.now()}`;
+    setActiveThreadId(id);
+    setLastResults(null);
+    setMessages([
+      { id: newMsgId(), role: "user", text: firstUserText },
+      { id: newMsgId(), role: "assistant", kind: "loading" },
+    ]);
+    return id;
+  };
+
+  const handleNewTrip = () => {
+    setActiveThreadId(null);
+    setMessages([]);
+    setLastResults(null);
+    setBookingResults(null);
     setPlanResult(null);
+    setTripInput("");
+    setError(null);
+    setInputError(null);
+    setNeedsDestination(false);
+  };
+
+  const handleSelectThread = (id: string) => {
+    const t = storedThreads.find(s => s.id === id);
+    if (!t) return;
+    setActiveThreadId(id);
+    setMessages(t.messages);
+    // Restore last results from most recent results message
+    const lastRes = [...t.messages].reverse().find(m => m.role === "assistant" && m.kind === "results");
+    if (lastRes && lastRes.role === "assistant" && lastRes.kind === "results") {
+      setLastResults(lastRes.results);
+      setBookingResults(lastRes.results);
+    } else {
+      setLastResults(null);
+      setBookingResults(null);
+    }
+    setPlanResult(null);
+  };
+
+  const handleDeleteThread = (id: string) => {
+    setStoredThreads(prev => {
+      const out = prev.filter(t => t.id !== id);
+      try { localStorage.setItem(THREADS_KEY, JSON.stringify(out)); } catch { /* ignore */ }
+      return out;
+    });
+    if (activeThreadId === id) handleNewTrip();
+  };
+
+  const runInitialPlan = async (text: string) => {
+    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]);
+    setPlanResult(null);
+    setIsPlanning(true); setIsThinking(true);
+    startNewThread(text);
+    try {
+      const result = await generateTripPlan(text);
+      if ("needsDestination" in result) {
+        setNeedsDestination(true);
+        pushAssistantText("I couldn't find a destination in that request — can you try again with a city or airport?");
+        return;
+      }
+      const built = buildResultsFromPlan(result);
+      if (built) pushAssistantResults(built);
+    } catch {
+      setError("Failed to generate trip plan. Please try again.");
+      pushAssistantText("Something went wrong searching for that trip. Please try again.");
+    } finally {
+      setIsPlanning(false); setIsThinking(false);
+    }
+  };
+
+  const handleSendFollowUp = async (text: string) => {
+    setMessages(prev => [
+      ...prev,
+      { id: newMsgId(), role: "user", text },
+      { id: newMsgId(), role: "assistant", kind: "loading" },
+    ]);
+    setIsThinking(true);
+    await new Promise(r => setTimeout(r, 450));
+    try {
+      if (lastResults) {
+        const { results, note } = applyFollowUp(text, lastResults);
+        pushAssistantResults(results, note);
+      } else {
+        // No prior results — treat as a fresh search
+        const result = await generateTripPlan(text);
+        if ("needsDestination" in result) {
+          pushAssistantText("I couldn't find a destination — try a city or airport.");
+        } else {
+          const built = buildResultsFromPlan(result);
+          if (built) pushAssistantResults(built);
+        }
+      }
+    } finally {
+      setIsThinking(false);
+    }
   };
 
   const handleConfirmVoice = useCallback(async () => {
     voiceRecording.confirmTranscript();
-    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]); setBookingResults(null);
     if (!tripInput.trim()) { setInputError("Please describe your trip first"); return; }
-    setIsPlanning(true); setPlanResult(null);
-    try { processResult(await generateTripPlan(tripInput)); }
-    catch { setError("Failed to generate trip plan. Please try again."); }
-    finally { setIsPlanning(false); }
+    await runInitialPlan(tripInput);
   }, [tripInput, voiceRecording]);
 
   const handleEditVoice = useCallback(() => { voiceRecording.confirmTranscript(); }, [voiceRecording]);
 
   const handlePlanTrip = async (overrideInput?: string) => {
     const input = overrideInput ?? tripInput;
-    setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]); setBookingResults(null);
     if (!input.trim()) { setInputError("Please describe your trip first"); return; }
     if (overrideInput) setTripInput(overrideInput);
-    setIsPlanning(true); setPlanResult(null);
-    try { processResult(await generateTripPlan(input)); }
-    catch { setError("Failed to generate trip plan. Please try again."); }
-    finally { setIsPlanning(false); }
+    await runInitialPlan(input);
   };
+
 
 
   const handleSelectFlight = (flight: Flight) => {
@@ -416,144 +593,129 @@ export default function Dashboard() {
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-6xl mx-auto space-y-10 pb-20 md:pb-0">
 
-      {/* ─── HERO: Command Center ─── */}
-      <motion.div variants={itemVariants} className="text-center pt-4 md:pt-8 space-y-4">
-        <motion.h1
-          className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground tracking-tight leading-tight"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-        >
-          {getRandomHeadline().split(/(?<=\.)/).map((part, i) => {
-            const trimmed = part.trim();
-            if (!trimmed) return null;
-            // Make last portion muted
-            if (i > 0) return <span key={i} className="text-muted-foreground font-semibold"><br />{trimmed}</span>;
-            return <span key={i}>{trimmed}</span>;
-          })}
-        </motion.h1>
-        <motion.p
-          className="text-base md:text-lg text-muted-foreground max-w-lg mx-auto"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.6 }}
-        >
-          Your AI-powered travel command center.
-        </motion.p>
-      </motion.div>
+      {/* ─── HERO + COMMAND BAR (only when no active conversation) ─── */}
+      {!activeThreadId && (
+        <>
+          <motion.div variants={itemVariants} className="text-center pt-4 md:pt-8 space-y-4">
+            <motion.h1
+              className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground tracking-tight leading-tight"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+            >
+              {getRandomHeadline().split(/(?<=\.)/).map((part, i) => {
+                const trimmed = part.trim();
+                if (!trimmed) return null;
+                if (i > 0) return <span key={i} className="text-muted-foreground font-semibold"><br />{trimmed}</span>;
+                return <span key={i}>{trimmed}</span>;
+              })}
+            </motion.h1>
+            <motion.p
+              className="text-base md:text-lg text-muted-foreground max-w-lg mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35, duration: 0.6 }}
+            >
+              Your AI-powered travel command center.
+            </motion.p>
+          </motion.div>
 
-      {/* ─── MASSIVE CENTRAL COMMAND BAR ─── */}
-      <ScrollReveal delay={0.1}>
-        <motion.div
-          className="relative mx-auto max-w-3xl"
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-        >
-          {/* Learned preferences */}
-          {(showLearnedBadge || preferenceLabels.length > 0) && (
-            <div className="flex justify-center mb-3">
-              <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} />
-            </div>
-          )}
-
-          {/* Command input */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handlePlanTrip();
-            }}
-            className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl"
-          >
-            <div className="flex items-center gap-3 px-5 py-4">
-              <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
-              <motion.input
-                type="text"
-                placeholder="Search anywhere: Paris, Texas, Tokyo, Japan, or ‘NYC to London April 10–20’"
-                value={tripInput}
-                onChange={e => { setTripInput(e.target.value); if (inputError) setInputError(null); }}
-                whileFocus={{ scale: 1.005 }}
-                transition={{ duration: 0.15 }}
-                disabled={voiceRecording.state !== 'idle'}
-                className="flex-1 bg-transparent text-base md:text-lg outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
-              />
-
-              {/* Voice button */}
-              {voiceRecording.state === 'idle' && (
-                <Button
-                  type="button"
-                  size="icon"
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                  onClick={voiceRecording.startRecording}
-                  disabled={isPlanning}
-                  aria-label="Record voice"
-                >
-                  <Mic className="w-5 h-5" />
-                </Button>
-              )}
-              {voiceRecording.state === 'recording' && (
-                <Button
-                  type="button"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={voiceRecording.stopRecording}
-                  aria-label="Stop recording"
-                >
-                  <motion.div animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }} className="w-2.5 h-2.5 rounded-full bg-destructive-foreground" />
-                </Button>
-              )}
-              {voiceRecording.state === 'processing' && (
-                <Button type="button" variant="ghost" size="icon" disabled className="shrink-0">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                </Button>
-              )}
-
-              {/* Plan trip CTA */}
-              <Button
-                type="submit"
-                variant="cta"
-                size="default"
-                className="shrink-0 rounded-xl gap-2"
-                disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
-              >
-                {isPlanning ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Searching flights…</span></>
-                ) : (
-                  <><Sparkles className="w-4 h-4" /><span>Plan trip</span></>
-                )}
-              </Button>
-            </div>
-
-          </form>
-
-          {/* Voice transcript confirmation */}
-          <AnimatePresence>
-            {voiceRecording.state === 'ready' && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className="mt-3 p-4 bg-card rounded-xl border border-border shadow-sm space-y-3"
-              >
-                <p className="text-sm text-muted-foreground">Use this request?</p>
-                <p className="text-sm font-medium text-foreground">"{voiceRecording.transcript}"</p>
-                <div className="flex gap-2">
-                  <Button variant="default" size="sm" onClick={handleConfirmVoice} className="gap-1"><Check className="w-3 h-3" />Confirm</Button>
-                  <Button variant="outline" size="sm" onClick={handleEditVoice} className="gap-1"><Edit2 className="w-3 h-3" />Edit</Button>
-                  <Button variant="ghost" size="sm" onClick={voiceRecording.cancelRecording}>Cancel</Button>
+          <ScrollReveal delay={0.1}>
+            <motion.div
+              className="relative mx-auto max-w-3xl"
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+            >
+              {(showLearnedBadge || preferenceLabels.length > 0) && (
+                <div className="flex justify-center mb-3">
+                  <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} />
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              )}
 
-          {/* Input error */}
-          <AnimatePresence>
-            {inputError && (
-              <motion.p initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mt-2 text-sm text-destructive flex items-center gap-1 justify-center">
-                <AlertCircle className="w-4 h-4" />{inputError}
-              </motion.p>
-            )}
-          </AnimatePresence>
+              <form
+                onSubmit={(e) => { e.preventDefault(); handlePlanTrip(); }}
+                className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl"
+              >
+                <div className="flex items-center gap-3 px-5 py-4">
+                  <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
+                  <motion.input
+                    type="text"
+                    placeholder="Search anywhere: Paris, Texas, Tokyo, Japan, or ‘NYC to London April 10–20’"
+                    value={tripInput}
+                    onChange={e => { setTripInput(e.target.value); if (inputError) setInputError(null); }}
+                    whileFocus={{ scale: 1.005 }}
+                    transition={{ duration: 0.15 }}
+                    disabled={voiceRecording.state !== 'idle'}
+                    className="flex-1 bg-transparent text-base md:text-lg outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
+                  />
 
-        </motion.div>
-      </ScrollReveal>
+                  {voiceRecording.state === 'idle' && (
+                    <Button type="button" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={voiceRecording.startRecording} disabled={isPlanning} aria-label="Record voice">
+                      <Mic className="w-5 h-5" />
+                    </Button>
+                  )}
+                  {voiceRecording.state === 'recording' && (
+                    <Button type="button" size="icon" className="shrink-0" onClick={voiceRecording.stopRecording} aria-label="Stop recording">
+                      <motion.div animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }} className="w-2.5 h-2.5 rounded-full bg-destructive-foreground" />
+                    </Button>
+                  )}
+                  {voiceRecording.state === 'processing' && (
+                    <Button type="button" variant="ghost" size="icon" disabled className="shrink-0">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    </Button>
+                  )}
+
+                  <Button
+                    type="submit"
+                    variant="cta"
+                    size="default"
+                    className="shrink-0 rounded-xl gap-2"
+                    disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
+                  >
+                    {isPlanning ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Searching flights…</span></>
+                    ) : (
+                      <><Sparkles className="w-4 h-4" /><span>Plan trip</span></>
+                    )}
+                  </Button>
+                </div>
+              </form>
+
+              <AnimatePresence>
+                {voiceRecording.state === 'ready' && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                    className="mt-3 p-4 bg-card rounded-xl border border-border shadow-sm space-y-3"
+                  >
+                    <p className="text-sm text-muted-foreground">Use this request?</p>
+                    <p className="text-sm font-medium text-foreground">"{voiceRecording.transcript}"</p>
+                    <div className="flex gap-2">
+                      <Button variant="default" size="sm" onClick={handleConfirmVoice} className="gap-1"><Check className="w-3 h-3" />Confirm</Button>
+                      <Button variant="outline" size="sm" onClick={handleEditVoice} className="gap-1"><Edit2 className="w-3 h-3" />Edit</Button>
+                      <Button variant="ghost" size="sm" onClick={voiceRecording.cancelRecording}>Cancel</Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {inputError && (
+                  <motion.p initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mt-2 text-sm text-destructive flex items-center gap-1 justify-center">
+                    <AlertCircle className="w-4 h-4" />{inputError}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+
+              {/* Quick access: history when conversations exist */}
+              {threadList.length > 0 && (
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  {threadList.length} past conversation{threadList.length === 1 ? "" : "s"} — use the chat thread to revisit them after your next search.
+                </p>
+              )}
+            </motion.div>
+          </ScrollReveal>
+        </>
+      )}
 
       {/* ─── ERROR BANNER ─── */}
       <AnimatePresence>
@@ -569,53 +731,48 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* ─── BOOKING RESULTS PANEL (flights + hotels + ground) ─── */}
-      <AnimatePresence>
-        {bookingResults && !planResult && (
-          <BookingResultsPanel
-            chips={bookingResults.chips}
-            flights={bookingResults.flights}
-            hotels={bookingResults.hotels}
-            ground={bookingResults.ground}
-            reasons={bookingResults.reasons}
-            onSelectFlight={(f) => {
-              setBookingResults(null);
-              handleSelectFlight(f);
-            }}
-            onSelectHotel={(h) => {
-              const top = bookingResults.flights[0];
-              if (!top) return;
-              const parsed = parseTravelRequest(tripInput);
-              const destAirport = parsed.destination?.airports[0];
-              const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
-              const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);
-              const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : top.destination;
-              const finalPlan: TripPlan = {
-                destination: destLabel,
-                dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
-                startDate, endDate,
-                datesAssumed: !parsed.dates?.departure,
-                datesConfirmed: !!parsed.dates?.departure,
-                needsDateClarification: false,
-                purpose: parsePurpose(tripInput),
-                flight: { airline: top.airline, departTime: top.departureTime, returnTime: top.arrivalTime },
-                hotel: { name: h.name, location: h.area },
-                groundTransport: `Airport transfer from ${top.destination} + local mobility pass`,
-                estimatedCost: top.price + h.totalPrice,
-                confidenceLevel: 96,
-                originalPrompt: tripInput,
-              };
-              setBookingResults(null);
-              setPlanResult(finalPlan);
-            }}
-            onEditChip={() => {
-              // Focus search bar to edit
-              setBookingResults(null);
-            }}
-            onClose={() => setBookingResults(null)}
-          />
-        )}
-      </AnimatePresence>
+      {/* ─── CHAT THREAD (results live here as assistant messages) ─── */}
+      {activeThreadId && !planResult && (
+        <BookingChatThread
+          messages={messages}
+          isThinking={isThinking}
+          threads={threadList}
+          activeThreadId={activeThreadId}
+          onSend={handleSendFollowUp}
+          onNewTrip={handleNewTrip}
+          onSelectThread={handleSelectThread}
+          onDeleteThread={handleDeleteThread}
+          onSelectFlight={(f) => handleSelectFlight(f)}
+          onSelectHotel={(h) => {
+            const cur = lastResults;
+            const top = cur?.flights[0];
+            if (!top) return;
+            const parsed = parseTravelRequest(tripInput || (messages.find(m => m.role === "user") as { text: string } | undefined)?.text || "");
+            const destAirport = parsed.destination?.airports[0];
+            const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
+            const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);
+            const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : top.destination;
+            const finalPlan: TripPlan = {
+              destination: destLabel,
+              dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
+              startDate, endDate,
+              datesAssumed: !parsed.dates?.departure,
+              datesConfirmed: !!parsed.dates?.departure,
+              needsDateClarification: false,
+              purpose: parsePurpose(tripInput),
+              flight: { airline: top.airline, departTime: top.departureTime, returnTime: top.arrivalTime },
+              hotel: { name: h.name, location: h.area },
+              groundTransport: `Airport transfer from ${top.destination} + local mobility pass`,
+              estimatedCost: top.price + h.totalPrice,
+              confidenceLevel: 96,
+              originalPrompt: tripInput,
+            };
+            setPlanResult(finalPlan);
+          }}
+        />
+      )}
+
+
 
 
       {/* ─── HOTEL SELECTION STEP ─── */}
