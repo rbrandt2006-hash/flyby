@@ -147,6 +147,14 @@ export default function Dashboard() {
   const [isPlanning, setIsPlanning] = useState(false);
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
   const [flightResults, setFlightResults] = useState<Flight[]>([]);
+  const [bookingResults, setBookingResults] = useState<{
+    chips: ParsedChips;
+    flights: Flight[];
+    hotels: HotelOption[];
+    ground: GroundTransportOption[];
+    reasons: { flight?: string; hotel?: string; ground?: string };
+    nights: number;
+  } | null>(null);
   const [selectedFlightFromResults, setSelectedFlightFromResults] = useState<Flight | null>(null);
   const [showHotelStep, setShowHotelStep] = useState(false);
   const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([]);
