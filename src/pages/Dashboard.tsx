@@ -64,7 +64,7 @@ interface TripPlan {
 
 // Generate trip plan based on parsed destination
 const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true; flights?: never }> => {
-  await new Promise(r => setTimeout(r, 350));
+  await new Promise(r => setTimeout(r, 850));
 
   const parsed = parseTravelRequest(prompt);
   const destAirport = parsed.destination?.airports[0];
@@ -618,28 +618,15 @@ export default function Dashboard() {
       {/* ─── HERO + COMMAND BAR (only when no active conversation) ─── */}
       {!activeThreadId && (
         <>
-          <motion.div variants={itemVariants} className="text-center pt-4 md:pt-8 space-y-4">
+          <motion.div variants={itemVariants} className="text-center pt-4 md:pt-8 space-y-3">
             <motion.h1
               className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground tracking-tight leading-tight"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
             >
-              {getRandomHeadline().split(/(?<=\.)/).map((part, i) => {
-                const trimmed = part.trim();
-                if (!trimmed) return null;
-                if (i > 0) return <span key={i} className="text-muted-foreground font-semibold"><br />{trimmed}</span>;
-                return <span key={i}>{trimmed}</span>;
-              })}
+              Corporate travel, without the chaos.
             </motion.h1>
-            <motion.p
-              className="text-base md:text-lg text-muted-foreground max-w-lg mx-auto"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35, duration: 0.6 }}
-            >
-              Your AI-powered travel command center.
-            </motion.p>
           </motion.div>
 
           <ScrollReveal delay={0.1}>
@@ -649,6 +636,15 @@ export default function Dashboard() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3, duration: 0.5 }}
             >
+              <motion.p
+                className="text-sm text-muted-foreground text-center mb-3"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35, duration: 0.5 }}
+              >
+                Your AI-powered travel command center.
+              </motion.p>
+
               {(showLearnedBadge || preferenceLabels.length > 0) && (
                 <div className="flex justify-center mb-3">
                   <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} />
@@ -672,21 +668,7 @@ export default function Dashboard() {
                     className="flex-1 bg-transparent text-base md:text-lg outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
                   />
 
-                  {voiceRecording.state === 'idle' && (
-                    <Button type="button" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={voiceRecording.startRecording} disabled={isPlanning} aria-label="Record voice">
-                      <Mic className="w-5 h-5" />
-                    </Button>
-                  )}
-                  {voiceRecording.state === 'recording' && (
-                    <Button type="button" size="icon" className="shrink-0" onClick={voiceRecording.stopRecording} aria-label="Stop recording">
-                      <motion.div animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }} className="w-2.5 h-2.5 rounded-full bg-destructive-foreground" />
-                    </Button>
-                  )}
-                  {voiceRecording.state === 'processing' && (
-                    <Button type="button" variant="ghost" size="icon" disabled className="shrink-0">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    </Button>
-                  )}
+                  {/* Voice recording UI hidden until reliably wired. Keep state so confirm/edit handlers don't crash. */}
 
                   <Button
                     type="submit"

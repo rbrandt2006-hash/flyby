@@ -10,6 +10,7 @@ import { DemoModeProvider } from "@/contexts/DemoModeContext";
 import AppLayout from "@/components/layout/AppLayout";
 import { useUserRole } from "@/hooks/useUserRole";
 import GetStarted from "./pages/GetStarted";
+import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Trips from "./pages/Trips";
@@ -20,6 +21,13 @@ import Settings from "./pages/Settings";
 import IntegrationManage from "./pages/IntegrationManage";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
+
+function needsOnboarding(): boolean {
+  try {
+    return localStorage.getItem("flyby_pending_onboarding") === "true" &&
+      localStorage.getItem("flyby_onboarding_complete") !== "true";
+  } catch { return false; }
+}
 
 const queryClient = new QueryClient();
 
@@ -36,6 +44,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   if (!user) {
     return <Navigate to="/get-started" replace />;
+  }
+
+  if (needsOnboarding()) {
+    return <Navigate to="/onboarding" replace />;
   }
   
   return (
@@ -86,6 +98,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/get-started" element={user ? <Navigate to="/" replace /> : <GetStarted />} />
+      <Route path="/onboarding" element={user ? <Onboarding /> : <Navigate to="/get-started" replace />} />
       <Route path="/auth" element={<Navigate to="/get-started" replace />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

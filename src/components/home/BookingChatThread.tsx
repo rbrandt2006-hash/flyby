@@ -166,10 +166,7 @@ export function BookingChatThread({
                   {m.text}
                 </div>
               ) : m.kind === "loading" ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Searching…
-                </div>
+                <ResultsSkeleton />
               ) : (
                 <div className="w-full space-y-3">
                   {m.note && (
@@ -191,12 +188,7 @@ export function BookingChatThread({
             </motion.div>
           ))}
         </AnimatePresence>
-        {isThinking && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            Searching…
-          </div>
-        )}
+        {isThinking && <ResultsSkeleton />}
       </div>
 
       {/* Input */}
@@ -228,6 +220,41 @@ export function BookingChatThread({
           <ArrowUp className="w-4 h-4" />
         </Button>
       </form>
+    </div>
+  );
+}
+
+function ResultsSkeleton() {
+  return (
+    <div className="w-full space-y-4 animate-in fade-in duration-300">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        <span>Searching flights and hotels…</span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="rounded-xl border border-border bg-card p-4 space-y-3 overflow-hidden relative"
+          >
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-md bg-muted shimmer" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 w-3/4 rounded bg-muted shimmer" />
+                <div className="h-2.5 w-1/2 rounded bg-muted shimmer" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="h-2.5 w-full rounded bg-muted shimmer" />
+              <div className="h-2.5 w-5/6 rounded bg-muted shimmer" />
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <div className="h-3 w-16 rounded bg-muted shimmer" />
+              <div className="h-7 w-20 rounded-md bg-muted shimmer" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
