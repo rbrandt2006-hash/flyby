@@ -882,8 +882,9 @@ export default function Dashboard() {
 
       {/* ─── OPERATIONS + FINANCE PANELS ─── */}
       <ScrollReveal delay={0.15}>
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Team traveling now */}
+        <div className={cn("grid gap-6", demoMode ? "md:grid-cols-2" : "md:grid-cols-1 max-w-2xl mx-auto")}>
+          {/* Team traveling now — demo only */}
+          {demoMode && (
           <Card className="border border-border/50 shadow-sm">
             <div className="p-5 pb-3">
               <div className="flex items-center justify-between">
@@ -941,6 +942,7 @@ export default function Dashboard() {
               ))}
             </CardContent>
           </Card>
+          )}
 
           {/* Travel spend overview */}
           <Card className="border border-border/50 shadow-sm">
@@ -956,46 +958,60 @@ export default function Dashboard() {
               </div>
             </div>
             <CardContent className="pt-0 space-y-5">
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold tracking-tight text-foreground">$10,840</span>
-                  <span className="flex items-center gap-0.5 text-sm font-medium text-success">
-                    <TrendingDown className="w-3.5 h-3.5" /> 12%
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Monthly spend · vs last month</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Upcoming high-cost trips</p>
-                <div className="space-y-1.5">
-                  <div 
-                    className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                    onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_london_2025"))}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Plane className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-sm">SF → London (Team offsite)</span>
+              {demoMode ? (
+                <>
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold tracking-tight text-foreground">$10,840</span>
+                      <span className="flex items-center gap-0.5 text-sm font-medium text-success">
+                        <TrendingDown className="w-3.5 h-3.5" /> 12%
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">$1,650</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
+                    <p className="text-xs text-muted-foreground mt-1">Monthly spend · vs last month</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Upcoming high-cost trips</p>
+                    <div className="space-y-1.5">
+                      <div 
+                        className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
+                        onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_london_2025"))}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Plane className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-sm">SF → London (Team offsite)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">$1,650</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
+                        </div>
+                      </div>
+                      <div 
+                        className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
+                        onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_tokyo_2025"))}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Plane className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-sm">NYC → Tokyo (Client visit)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">$2,500</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div 
-                    className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                    onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_tokyo_2025"))}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Plane className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-sm">NYC → Tokyo (Client visit)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">$2,500</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
-                    </div>
+                </>
+              ) : (
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold tracking-tight text-foreground">$0</span>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">Connect a card to start tracking.</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate("/expenses")}>
+                    <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Connect a card
+                  </Button>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
