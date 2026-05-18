@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { DemoModeProvider } from "@/contexts/DemoModeContext";
 import AppLayout from "@/components/layout/AppLayout";
 import { useUserRole } from "@/hooks/useUserRole";
 import GetStarted from "./pages/GetStarted";
@@ -107,9 +108,11 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <ThemeProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
+          <DemoModeProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </DemoModeProvider>
         </ThemeProvider>
       </AuthProvider>
     </TooltipProvider>

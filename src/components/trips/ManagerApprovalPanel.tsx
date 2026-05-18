@@ -234,10 +234,6 @@ export function ManagerApprovalPanel({
 
         <CollapsibleContent>
           <CardContent className="space-y-4 pt-0">
-            <p className="text-xs text-muted-foreground">
-              Demo: As a manager, approve or reject pending trips. Calendar sync
-              occurs only after approval.
-            </p>
 
             {/* Pending */}
             {pendingTrips.length > 0 && (

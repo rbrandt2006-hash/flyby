@@ -1,10 +1,13 @@
 import { useState, useMemo } from "react";
-import { Search, Users } from "lucide-react";
+import { Search, Users, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { type TeamMember } from "@/components/team/TeamMemberCard";
 import { TeamMemberRow } from "@/components/team/TeamMemberRow";
 import { TeamMemberDetailPanel } from "@/components/team/TeamMemberDetailPanel";
 import { GlassPanel } from "@/components/team/GlassPanel";
 import { cn } from "@/lib/utils";
+import { useDemoMode } from "@/contexts/DemoModeContext";
+import { toast } from "sonner";
 
 // Mock team data
 const mockTeamMembers: TeamMember[] = [
@@ -60,10 +63,12 @@ const mockTeamMembers: TeamMember[] = [
 type Filter = "all" | "traveling" | "office";
 
 export default function Team() {
+  const { demoMode } = useDemoMode();
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
+  const teamMembers = demoMode ? mockTeamMembers : [];
 
   const handleMemberClick = (member: TeamMember) => {
     setSelectedMember(member);
@@ -71,7 +76,7 @@ export default function Team() {
   };
 
   const filtered = useMemo(() => {
-    let list = mockTeamMembers;
+    let list = teamMembers;
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -85,7 +90,7 @@ export default function Team() {
     if (filter === "traveling") return list.filter((m) => m.upcomingTrip);
     if (filter === "office") return list.filter((m) => !m.upcomingTrip);
     return list;
-  }, [filter, search]);
+  }, [filter, search, teamMembers]);
 
   const travelingMembers = filtered.filter((m) => m.upcomingTrip);
   const officeMembers = filtered.filter((m) => !m.upcomingTrip);
@@ -209,12 +214,22 @@ export default function Team() {
           <div className="w-14 h-14 rounded-full glass-row flex items-center justify-center">
             <Users className="w-6 h-6 text-muted-foreground/50" />
           </div>
-          <div>
-            <p className="font-medium text-foreground">No team members found</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Try adjusting your search or filter
+          <div className="max-w-sm">
+            <p className="font-medium text-foreground">
+              {teamMembers.length === 0 ? "Invite teammates to see where everyone's traveling." : "No team members found"}
             </p>
+            {teamMembers.length > 0 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Try adjusting your search or filter
+              </p>
+            )}
           </div>
+          {teamMembers.length === 0 && (
+            <Button onClick={() => toast.success("Invite link copied — share it with your team")}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Invite
+            </Button>
+          )}
         </GlassPanel>
       )}
 

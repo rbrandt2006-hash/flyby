@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2, Trash2 } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2, Trash2, CreditCard } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
@@ -31,6 +31,7 @@ import { getRandomHeadline } from "@/data/heroHeadlines";
 import { TravelerDetailPanel } from "@/components/home/TravelerDetailPanel";
 import { TripSpendSlideOver, getTripSpendData } from "@/components/home/TripSpendSlideOver";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useDemoMode } from "@/contexts/DemoModeContext";
 
 interface TripPlan {
   destination: string;
@@ -184,6 +185,7 @@ const teamTraveling = [
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { demoMode } = useDemoMode();
   const { createTrip, deleteTrip } = useTrips();
   const { createChat } = useChats();
   const { getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
@@ -572,10 +574,11 @@ export default function Dashboard() {
   }, []);
 
   const upcomingTrips = useMemo(() => {
-    if (!Array.isArray(localTrips)) return getDemoTrips().filter(t => !removedIds.has(t.id));
+    if (!Array.isArray(localTrips)) return demoMode ? getDemoTrips().filter(t => !removedIds.has(t.id)) : [];
     const activeLocalTrips = localTrips.filter(t => t && t.id && (t.status === 'draft' || t.status === 'pending' || t.status === 'confirmed') && !removedIds.has(t.id));
-    if (activeLocalTrips.length > 0) {
-      return activeLocalTrips.slice(0, 4).map(t => ({
+    const nonDemoActive = demoMode ? activeLocalTrips : activeLocalTrips.filter(t => !t.id.startsWith('demo_'));
+    if (nonDemoActive.length > 0) {
+      return nonDemoActive.slice(0, 4).map(t => ({
         id: t.id, destination: t.destination || "Unknown destination",
         dates: formatTripDates(t.startDate, t.endDate),
         status: t.status === 'confirmed' ? 'approved' as const : t.status === 'pending' ? 'pending' as const : 'draft' as const,
@@ -583,8 +586,8 @@ export default function Dashboard() {
         estimatedCost: typeof t.estimatedCost === 'number' ? t.estimatedCost : 0,
       }));
     }
-    return getDemoTrips().filter(t => !removedIds.has(t.id));
-  }, [localTrips, formatTripDates, removedIds]);
+    return demoMode ? getDemoTrips().filter(t => !removedIds.has(t.id)) : [];
+  }, [localTrips, formatTripDates, removedIds, demoMode]);
 
   function getDemoTrips() {
     return [
@@ -593,7 +596,12 @@ export default function Dashboard() {
     ];
   }
 
-  const exampleCommands: string[] = [];
+  const exampleQueries = [
+    "Book me a flight to LA next Thursday",
+    "I have a conference in Berlin in July",
+    "Plan a 3-day trip to Austin for SXSW",
+    "Find me a hotel near Times Square for Tuesday",
+  ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -719,6 +727,22 @@ export default function Dashboard() {
                   </motion.p>
                 )}
               </AnimatePresence>
+
+              {/* Example query suggestions (shown when no chat history yet, or always in non-demo) */}
+              {(!demoMode || threadList.length === 0) && (
+                <div className="mt-5 flex flex-wrap gap-2 justify-center">
+                  {exampleQueries.map(q => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => { setTripInput(q); }}
+                      className="text-xs px-3 py-1.5 rounded-full border border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-secondary transition-colors"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Quick access: history when conversations exist */}
               {threadList.length > 0 && (
@@ -858,8 +882,9 @@ export default function Dashboard() {
 
       {/* ─── OPERATIONS + FINANCE PANELS ─── */}
       <ScrollReveal delay={0.15}>
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Team traveling now */}
+        <div className={cn("grid gap-6", demoMode ? "md:grid-cols-2" : "md:grid-cols-1 max-w-2xl mx-auto")}>
+          {/* Team traveling now — demo only */}
+          {demoMode && (
           <Card className="border border-border/50 shadow-sm">
             <div className="p-5 pb-3">
               <div className="flex items-center justify-between">
@@ -917,6 +942,7 @@ export default function Dashboard() {
               ))}
             </CardContent>
           </Card>
+          )}
 
           {/* Travel spend overview */}
           <Card className="border border-border/50 shadow-sm">
@@ -932,46 +958,60 @@ export default function Dashboard() {
               </div>
             </div>
             <CardContent className="pt-0 space-y-5">
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold tracking-tight text-foreground">$10,840</span>
-                  <span className="flex items-center gap-0.5 text-sm font-medium text-success">
-                    <TrendingDown className="w-3.5 h-3.5" /> 12%
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Monthly spend · vs last month</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Upcoming high-cost trips</p>
-                <div className="space-y-1.5">
-                  <div 
-                    className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                    onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_london_2025"))}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Plane className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-sm">SF → London (Team offsite)</span>
+              {demoMode ? (
+                <>
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold tracking-tight text-foreground">$10,840</span>
+                      <span className="flex items-center gap-0.5 text-sm font-medium text-success">
+                        <TrendingDown className="w-3.5 h-3.5" /> 12%
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">$1,650</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
+                    <p className="text-xs text-muted-foreground mt-1">Monthly spend · vs last month</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Upcoming high-cost trips</p>
+                    <div className="space-y-1.5">
+                      <div 
+                        className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
+                        onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_london_2025"))}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Plane className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-sm">SF → London (Team offsite)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">$1,650</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
+                        </div>
+                      </div>
+                      <div 
+                        className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
+                        onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_tokyo_2025"))}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Plane className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-sm">NYC → Tokyo (Client visit)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">$2,500</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div 
-                    className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                    onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_tokyo_2025"))}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Plane className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-sm">NYC → Tokyo (Client visit)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">$2,500</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
-                    </div>
+                </>
+              ) : (
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold tracking-tight text-foreground">$0</span>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">Connect a card to start tracking.</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate("/expenses")}>
+                    <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Connect a card
+                  </Button>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
