@@ -10,6 +10,7 @@ import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDow
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
 import { FlightSearchDialog, type FlightSelectionDraft } from "@/components/flights/FlightSearchDialog";
+import { NewTripWizard, type NewTripWizardResult } from "@/components/trips/NewTripWizard";
 import { TripCard, type Trip } from "@/components/trips/TripCard";
 import { TripEditDrawer } from "@/components/trips/TripEditDrawer";
 import { TripConfirmationModal } from "@/components/trips/TripConfirmationModal";
@@ -325,7 +326,8 @@ export default function Trips() {
     fetchTrips();
   }, [user]);
 
-  const handleFlightSelected = (selection: FlightSelectionDraft) => {
+  const handleWizardComplete = ({ flight: selection, hotel }: NewTripWizardResult) => {
+    const hotelCost = hotel?.totalPrice ?? 0;
     const newTrip = createTrip({
       destination: selection.destination,
       startDate: selection.departureDate,
@@ -345,13 +347,15 @@ export default function Trips() {
         price: selection.flight.price,
         emissions: selection.flight.co2Emissions,
       },
-      hotel: null,
+      hotel: hotel ? { name: hotel.name, location: hotel.destination } : null,
       groundTransport: null,
-      estimatedCost: selection.flight.price,
+      estimatedCost: selection.flight.price + hotelCost,
       confidenceLevel: 84,
     });
 
+    confirmLocalTrip(newTrip.id);
     setSelectedDraft(newTrip);
+    toast.success("Trip created — pending approval");
   };
 
   const handleTripClick = (trip: Trip) => {
@@ -626,10 +630,10 @@ export default function Trips() {
         onConnected={handleCalendarConnected}
       />
 
-      <FlightSearchDialog 
-        open={bookingDialogOpen} 
+      <NewTripWizard
+        open={bookingDialogOpen}
         onOpenChange={setBookingDialogOpen}
-        onFlightSelected={handleFlightSelected}
+        onComplete={handleWizardComplete}
       />
 
       <TripEditDrawer

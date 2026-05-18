@@ -27,16 +27,24 @@ interface FlightSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFlightSelected?: (selection: FlightSelectionDraft) => void;
+  /** When true, renders only the inner panel (no Dialog/Header) and does not auto-close on flight select. */
+  embedded?: boolean;
+  /** Pre-existing selection so the form can stay populated when navigating back in a wizard. */
+  initialSelection?: FlightSelectionDraft | null;
 }
 
-export function FlightSearchDialog({ open, onOpenChange, onFlightSelected }: FlightSearchDialogProps) {
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
-  const [departureDate, setDepartureDate] = useState<Date>();
-  const [returnDate, setReturnDate] = useState<Date>();
-  const [passengers, setPassengers] = useState("1");
-  const [tripType, setTripType] = useState("roundtrip");
-  const [cabinClass, setCabinClass] = useState("economy");
+export function FlightSearchDialog({ open, onOpenChange, onFlightSelected, embedded = false, initialSelection = null }: FlightSearchDialogProps) {
+  const [origin, setOrigin] = useState(initialSelection?.origin ?? "");
+  const [destination, setDestination] = useState(initialSelection?.destination ?? "");
+  const [departureDate, setDepartureDate] = useState<Date | undefined>(
+    initialSelection?.departureDate ? new Date(initialSelection.departureDate) : undefined
+  );
+  const [returnDate, setReturnDate] = useState<Date | undefined>(
+    initialSelection?.returnDate ? new Date(initialSelection.returnDate) : undefined
+  );
+  const [passengers, setPassengers] = useState(initialSelection?.passengers?.toString() ?? "1");
+  const [tripType, setTripType] = useState(initialSelection?.tripType ?? "roundtrip");
+  const [cabinClass, setCabinClass] = useState(initialSelection?.flight.cabinClass ?? "economy");
   const [showResults, setShowResults] = useState(false);
   const [flights, setFlights] = useState<Flight[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -85,15 +93,17 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected }: Fli
         returnDate: format(returnDate || departureDate, "yyyy-MM-dd"),
         passengers: parseInt(passengers),
         tripType,
-        flight,
+        flight: { ...flight, cabinClass },
       });
 
       toast.success("Flight selected", {
         description: `${flight.airline} ${flight.flightNumber} added to your draft trip`,
       });
 
-      onOpenChange(false);
-      resetForm();
+      if (!embedded) {
+        onOpenChange(false);
+        resetForm();
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to save selected flight";
       toast.error(message);
@@ -126,15 +136,17 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected }: Fli
     setDestination(temp);
   };
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+  const inner = (
+    <>
+      {!embedded && (
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Plane className="w-5 h-5 text-primary" />
             {showResults ? "Flight Results" : "Search Flights"}
           </DialogTitle>
         </DialogHeader>
+      )}
+
 
         {showResults && departureDate ? (
           <FlightResults
@@ -309,6 +321,17 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected }: Fli
             </p>
           </div>
         )}
+    </>
+  );
+
+  if (embedded) {
+    return <div className="space-y-4">{inner}</div>;
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+        {inner}
       </DialogContent>
     </Dialog>
   );
