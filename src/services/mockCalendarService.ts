@@ -65,7 +65,7 @@ function loadCreatedEvents(): Record<string, CalendarEvent> {
 }
 
 // Save created events to localStorage
-function saveCreatedEvents(events: Record<string, string>): void {
+function saveCreatedEvents(events: Record<string, CalendarEvent>): void {
   try {
     localStorage.setItem(CREATED_EVENTS_KEY, JSON.stringify(events));
   } catch (e) {
