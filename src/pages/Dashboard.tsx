@@ -22,6 +22,7 @@ import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { getHotelsForDestination } from "@/services/mockHotelService";
 import { generateUberOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
 import { BookingResultsPanel, type ParsedChips } from "@/components/home/BookingResultsPanel";
+import { BookingChatThread, type ChatMsg, type ChatThreadMeta, type BookingResults } from "@/components/home/BookingChatThread";
 import type { HotelOption } from "@/components/chats/booking/types";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
