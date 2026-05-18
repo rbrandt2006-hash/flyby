@@ -668,21 +668,7 @@ export default function Dashboard() {
                     className="flex-1 bg-transparent text-base md:text-lg outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
                   />
 
-                  {voiceRecording.state === 'idle' && (
-                    <Button type="button" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={voiceRecording.startRecording} disabled={isPlanning} aria-label="Record voice">
-                      <Mic className="w-5 h-5" />
-                    </Button>
-                  )}
-                  {voiceRecording.state === 'recording' && (
-                    <Button type="button" size="icon" className="shrink-0" onClick={voiceRecording.stopRecording} aria-label="Stop recording">
-                      <motion.div animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }} className="w-2.5 h-2.5 rounded-full bg-destructive-foreground" />
-                    </Button>
-                  )}
-                  {voiceRecording.state === 'processing' && (
-                    <Button type="button" variant="ghost" size="icon" disabled className="shrink-0">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    </Button>
-                  )}
+                  {/* Voice recording UI hidden until reliably wired. Keep state so confirm/edit handlers don't crash. */}
 
                   <Button
                     type="submit"
