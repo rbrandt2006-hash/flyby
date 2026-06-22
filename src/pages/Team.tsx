@@ -121,13 +121,14 @@ export default function Team() {
           m.upcomingTrip?.destination.toLowerCase().includes(q)
       );
     }
-    if (filter === "traveling") return list.filter((m) => m.upcomingTrip);
-    if (filter === "office") return list.filter((m) => !m.upcomingTrip);
+    if (filter === "traveling") return list.filter((m) => getMemberStatus(m) === "traveling");
+    if (filter === "office") return list.filter((m) => getMemberStatus(m) === "office" || getMemberStatus(m) === "returned");
     return list;
   }, [filter, search, teamMembers]);
 
-  const travelingMembers = filtered.filter((m) => m.upcomingTrip);
-  const officeMembers = filtered.filter((m) => !m.upcomingTrip);
+  const travelingMembers = filtered.filter((m) => getMemberStatus(m) === "traveling");
+  const upcomingMembers = filtered.filter((m) => getMemberStatus(m) === "upcoming");
+  const officeMembers = filtered.filter((m) => getMemberStatus(m) === "office" || getMemberStatus(m) === "returned");
 
   const filters: { key: Filter; label: string }[] = [
     { key: "all", label: "All" },
