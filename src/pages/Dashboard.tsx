@@ -274,7 +274,17 @@ export default function Dashboard() {
     const rawFlights = anyResult._flights || [];
     const parsed = anyResult._parsed;
     const nights = Math.max(1, Math.ceil((anyResult.endDate.getTime() - anyResult.startDate.getTime()) / (1000 * 60 * 60 * 24)));
-    const hotels = getHotelsForDestination({ destination: anyResult.destination, nights });
+    const rawHotels = getHotelsForDestination({ destination: anyResult.destination, nights });
+    const preferredHotelBrands = savedTravelPrefs.preferredHotelBrands || [];
+    const hotels = [...rawHotels].sort((a, b) => {
+      const cs = savedTravelPrefs.costSensitivity;
+      const priceW = cs === "high" ? 1.4 : cs === "low" ? 0.3 : 0.8;
+      const ratingW = cs === "low" ? 60 : cs === "high" ? 15 : 35;
+      const brandBonus = (h: typeof a) =>
+        preferredHotelBrands.some((b) => h.name.toLowerCase().includes(b.toLowerCase())) ? -40 : 0;
+      const score = (h: typeof a) => h.pricePerNight * priceW - h.rating * ratingW + brandBonus(h);
+      return score(a) - score(b);
+    });
     const ground = generateUberOptions(15);
 
     // Re-rank flights to respect saved "avoid layovers" + "cost sensitivity" preferences,
