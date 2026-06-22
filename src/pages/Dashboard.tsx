@@ -277,16 +277,22 @@ export default function Dashboard() {
     const hotels = getHotelsForDestination({ destination: anyResult.destination, nights });
     const ground = generateUberOptions(15);
 
-    // Re-rank flights to respect "avoid layovers" preference.
-    // Nonstop preferred even at a moderate price premium; otherwise keep original order.
-    const preferredAirlines = preferences.preferredAirlines || [];
-    const avoidLayovers = preferences.avoidsLayovers;
+    // Re-rank flights to respect saved "avoid layovers" + "cost sensitivity" preferences,
+    // falling back to the inferred (learned) prefs when no saved value is set.
+    const preferredAirlines =
+      (savedTravelPrefs.preferredAirlines && savedTravelPrefs.preferredAirlines.length > 0)
+        ? savedTravelPrefs.preferredAirlines
+        : (preferences.preferredAirlines || []);
+    const avoidLayovers = savedTravelPrefs.avoidLayovers || preferences.avoidsLayovers;
+    const costSensitivity = savedTravelPrefs.costSensitivity; // "low" | "medium" | "high"
+    const priceWeight = costSensitivity === "high" ? 1.6 : costSensitivity === "low" ? 0.3 : 1;
     const minPrice = rawFlights.reduce((m, f) => Math.min(m, f.price), Infinity);
     const scoreFlight = (f: typeof rawFlights[number]) => {
       let score = 0;
       if (avoidLayovers) score += f.stops === 0 ? 0 : 1000 + f.stops * 500;
       else score += f.stops * 80;
-      score += Math.max(0, f.price - minPrice) * (avoidLayovers ? 0.4 : 1);
+      const priceDampForLayovers = avoidLayovers ? 0.4 : 1;
+      score += Math.max(0, f.price - minPrice) * priceWeight * priceDampForLayovers;
       if (preferredAirlines.includes(f.airline)) score -= 60;
       return score;
     };
