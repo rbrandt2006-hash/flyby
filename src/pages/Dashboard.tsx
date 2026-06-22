@@ -12,6 +12,7 @@ import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
 import { useTrips } from "@/hooks/useTrips";
 import { useChats } from "@/hooks/useChats";
 import { usePreferences } from "@/hooks/usePreferences";
+import { useTravelPreferences } from "@/hooks/useTravelPreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { parsePurpose } from "@/services/tripTemplates";
