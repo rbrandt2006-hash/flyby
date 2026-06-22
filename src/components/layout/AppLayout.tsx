@@ -117,19 +117,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </motion.header>
 
-        {/* Main content */}
-        <AnimatePresence mode="wait">
-          <motion.main
-            key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: contentReady ? 1 : 0, y: contentReady ? 0 : 8 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            className="flex-1 w-full max-w-[90rem] mx-auto px-6 lg:px-10 py-8"
-          >
-            {children}
-          </motion.main>
-        </AnimatePresence>
+        {/* Main content — keyed by pathname so each route gets a fresh fade-in.
+            No AnimatePresence/exit so the new page renders immediately instead
+            of waiting for the old page to animate out (no blank flash). */}
+        <motion.main
+          key={location.pathname}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: contentReady ? 1 : 0, y: contentReady ? 0 : 8 }}
+          transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+          className="flex-1 w-full max-w-[90rem] mx-auto px-6 lg:px-10 py-8"
+        >
+          {children}
+        </motion.main>
 
         {/* Mobile bottom navigation */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border/50 flex justify-around py-2 px-4 z-50">
