@@ -838,7 +838,11 @@ export default function Trips() {
           connectedEmail={getConnectedEmail()}
           onDisconnect={handleDisconnect}
           onCreateTrip={handleCreateTrip}
+          draftsByEventId={Object.fromEntries(
+            Object.entries(draftsByEventId).map(([k, v]) => [k, { id: v.id, estimatedCost: v.estimatedCost }])
+          )}
         />
+
       )}
 
       {/* Confirmed/Upcoming Trips Section - excludes cancelled and archived */}
