@@ -1093,22 +1093,46 @@ export default function Trips() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="space-y-1">
                 <p className="text-xl font-semibold">{selectedDraft.destination}</p>
                 <p className="text-sm text-muted-foreground">
                   {format(new Date(selectedDraft.startDate), "MMM d")} – {format(new Date(selectedDraft.endDate), "MMM d, yyyy")}
                 </p>
+                {selectedDraft.sourceCalendarEventTitle && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>From calendar event: <span className="text-foreground">{selectedDraft.sourceCalendarEventTitle}</span></span>
+                  </div>
+                )}
               </div>
-              
+
               {selectedDraft.flight && (
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
                   <Plane className="w-4 h-4 text-primary mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm">{selectedDraft.flight.airline}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Depart: {selectedDraft.flight.departTime} • Return: {selectedDraft.flight.returnTime}
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">
+                      {selectedDraft.flight.airline}
+                      {selectedDraft.flight.flightNumber && (
+                        <span className="text-muted-foreground font-normal"> · {selectedDraft.flight.flightNumber}</span>
+                      )}
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      Depart: {selectedDraft.flight.departTime}
+                      {selectedDraft.flight.arrivalTime && ` → ${selectedDraft.flight.arrivalTime}`}
+                      {selectedDraft.flight.returnTime && ` • Return: ${selectedDraft.flight.returnTime}`}
+                    </p>
+                    {(selectedDraft.flight.duration || typeof selectedDraft.flight.stops === "number") && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedDraft.flight.duration}
+                        {typeof selectedDraft.flight.stops === "number" && (
+                          <> · {selectedDraft.flight.stops === 0 ? "Nonstop" : `${selectedDraft.flight.stops} stop${selectedDraft.flight.stops > 1 ? "s" : ""}`}</>
+                        )}
+                      </p>
+                    )}
+                    {typeof selectedDraft.flight.price === "number" && (
+                      <p className="text-xs font-medium text-foreground mt-1">${selectedDraft.flight.price.toLocaleString()}</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1131,33 +1155,44 @@ export default function Trips() {
                 <span className="text-lg font-bold text-primary">${selectedDraft.estimatedCost.toLocaleString()}</span>
               </div>
 
+              {selectedDraft.rationale && (
+                <div className="p-3 rounded-lg bg-muted/40 border border-border/50">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-foreground mb-1">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    Why I picked this
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{selectedDraft.rationale}</p>
+                </div>
+              )}
+
               <div className="flex gap-2 pt-2">
-                <Button 
+                <Button
                   className="flex-1"
                   onClick={() => {
-                    confirmLocalTrip(selectedDraft.id);
+                    const draft = selectedDraft;
                     setSelectedDraft(null);
-                    toast.success("Trip confirmed!");
+                    handleOpenConfirmModal(draft);
                   }}
                 >
-                  Confirm & Book
+                  <Check className="w-4 h-4 mr-1" />
+                  Confirm &amp; Book
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => handleDiscardDraft(selectedDraft)}
+                >
+                  Discard
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => setSelectedDraft(null)}
                 >
                   Close
                 </Button>
-                <Button 
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => handleDeleteClick(selectedDraft)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
               </div>
             </CardContent>
+
           </Card>
         </div>
       )}
