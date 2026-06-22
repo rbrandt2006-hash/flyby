@@ -188,7 +188,7 @@ export default function Dashboard() {
   const { demoMode } = useDemoMode();
   const { createTrip, deleteTrip } = useTrips();
   const { createChat } = useChats();
-  const { getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
+  const { preferences, getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
   const [tripInput, setTripInput] = useState("");
   const [isPlanning, setIsPlanning] = useState(false);
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
