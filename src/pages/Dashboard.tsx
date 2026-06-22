@@ -56,6 +56,9 @@ interface TripPlan {
   hotel: {
     name: string;
     location: string;
+    pricePerNight?: number;
+    totalPrice?: number;
+    nights?: number;
   };
   groundTransport: string;
   estimatedCost: number;
@@ -549,15 +552,29 @@ export default function Dashboard() {
 
   const handleSelectHotelFromStep = (hotel: HotelOption) => {
     if (!pendingPlanResult) return;
+    const nights = Math.max(
+      1,
+      Math.ceil(
+        (pendingPlanResult.endDate.getTime() - pendingPlanResult.startDate.getTime()) /
+          (1000 * 60 * 60 * 24),
+      ),
+    );
     const finalPlan: TripPlan = {
       ...pendingPlanResult,
-      hotel: { name: hotel.name, location: hotel.area },
+      hotel: {
+        name: hotel.name,
+        location: hotel.area,
+        pricePerNight: hotel.pricePerNight,
+        totalPrice: hotel.totalPrice,
+        nights,
+      },
       estimatedCost: pendingPlanResult.estimatedCost + hotel.totalPrice,
     };
     setPlanResult(finalPlan);
     setPendingPlanResult(null);
     setShowHotelStep(false);
     setHotelOptions([]);
+    toast.success("Hotel added to itinerary", { description: hotel.name });
   };
 
   const handleSkipHotel = () => {
@@ -897,9 +914,21 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
                     <Building2 className="w-5 h-5 text-primary" />
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       {planResult.hotel.name ? (
-                        <><p className="font-medium">{planResult.hotel.name}</p><p className="text-sm text-muted-foreground">{planResult.hotel.location}</p></>
+                        <>
+                          <p className="font-medium truncate">{planResult.hotel.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">{planResult.hotel.location}</p>
+                          {(planResult.hotel.pricePerNight || planResult.hotel.totalPrice) && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {planResult.hotel.pricePerNight ? `$${planResult.hotel.pricePerNight}/night` : null}
+                              {planResult.hotel.pricePerNight && planResult.hotel.totalPrice ? " · " : null}
+                              {planResult.hotel.totalPrice
+                                ? `$${planResult.hotel.totalPrice.toLocaleString()} total${planResult.hotel.nights ? ` (${planResult.hotel.nights} ${planResult.hotel.nights === 1 ? "night" : "nights"})` : ""}`
+                                : null}
+                            </p>
+                          )}
+                        </>
                       ) : (
                         <p className="text-sm text-muted-foreground">No hotel selected — you can add one later</p>
                       )}
