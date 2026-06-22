@@ -868,8 +868,10 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+          )}
 
           {/* Integrations */}
+          {activeSection === "integrations" && (
           <SettingsSection 
             id="integrations" 
             icon={Puzzle} 
