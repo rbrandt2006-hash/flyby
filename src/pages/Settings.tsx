@@ -371,7 +371,9 @@ export default function Settings() {
         {/* Right Content */}
         <div className="flex-1 min-w-0 space-y-6">
           {/* Profile & Account */}
+          {activeSection === "profile" && (
           <SettingsSection 
+
             id="profile" 
             icon={User} 
             title="Profile & Account" 
