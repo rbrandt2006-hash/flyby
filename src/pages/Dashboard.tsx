@@ -188,7 +188,7 @@ export default function Dashboard() {
   const { demoMode } = useDemoMode();
   const { createTrip, deleteTrip } = useTrips();
   const { createChat } = useChats();
-  const { getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
+  const { preferences, getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
   const [tripInput, setTripInput] = useState("");
   const [isPlanning, setIsPlanning] = useState(false);
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
@@ -261,11 +261,26 @@ export default function Dashboard() {
       _originCode?: string; _originCity?: string;
       _destCode?: string; _destCity?: string;
     };
-    const flights = anyResult._flights || [];
+    const rawFlights = anyResult._flights || [];
     const parsed = anyResult._parsed;
     const nights = Math.max(1, Math.ceil((anyResult.endDate.getTime() - anyResult.startDate.getTime()) / (1000 * 60 * 60 * 24)));
     const hotels = getHotelsForDestination({ destination: anyResult.destination, nights });
     const ground = generateUberOptions(15);
+
+    // Re-rank flights to respect "avoid layovers" preference.
+    // Nonstop preferred even at a moderate price premium; otherwise keep original order.
+    const preferredAirlines = preferences.preferredAirlines || [];
+    const avoidLayovers = preferences.avoidsLayovers;
+    const minPrice = rawFlights.reduce((m, f) => Math.min(m, f.price), Infinity);
+    const scoreFlight = (f: typeof rawFlights[number]) => {
+      let score = 0;
+      if (avoidLayovers) score += f.stops === 0 ? 0 : 1000 + f.stops * 500;
+      else score += f.stops * 80;
+      score += Math.max(0, f.price - minPrice) * (avoidLayovers ? 0.4 : 1);
+      if (preferredAirlines.includes(f.airline)) score -= 60;
+      return score;
+    };
+    const flights = [...rawFlights].sort((a, b) => scoreFlight(a) - scoreFlight(b));
 
     const anchor = parsed?.locationAnchor;
     const dateLabel = parsed?.dates?.raw
@@ -278,7 +293,24 @@ export default function Dashboard() {
 
     const reasons: { flight?: string; hotel?: string; ground?: string } = {};
     if (topFlight) {
-      reasons.flight = `Nonstop ${anyResult._originCode}→${anyResult._destCode} on ${topFlight.airline}, leaves ${topFlight.departureTime}. Lowest price for direct service that matches your preferred airlines.`;
+      const stopsLabel =
+        topFlight.stops === 0
+          ? "Nonstop"
+          : `${topFlight.stops} stop${topFlight.stops > 1 ? "s" : ""}`;
+      const isCheapest = topFlight.price === minPrice;
+      const airlinePreferred = preferredAirlines.includes(topFlight.airline);
+      const bits: string[] = [];
+      bits.push(
+        `${stopsLabel} ${anyResult._originCode}→${anyResult._destCode} on ${topFlight.airline} (${topFlight.flightNumber}), departs ${topFlight.departureTime} · ${topFlight.duration} · $${topFlight.price}.`,
+      );
+      const why: string[] = [];
+      if (topFlight.stops === 0 && avoidLayovers) why.push("nonstop matches your avoid-layovers preference");
+      else if (topFlight.stops === 0) why.push("nonstop service");
+      else if (avoidLayovers) why.push("no nonstop available on this route — best connecting option");
+      if (airlinePreferred) why.push(`on your preferred carrier ${topFlight.airline}`);
+      if (isCheapest) why.push("lowest fare available");
+      else why.push("competitive fare for the schedule");
+      reasons.flight = `${bits[0]} Picked because ${why.join(", ")}.`;
     }
     if (topHotel) {
       reasons.hotel = anchor
