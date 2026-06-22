@@ -615,6 +615,52 @@ export default function Settings() {
             
             <Separator />
 
+            {/* Ranking Preferences */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-0.5">
+                  <Label>Avoid layovers</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Prefer nonstop flights when ranking results.
+                  </p>
+                </div>
+                <Switch
+                  checked={preferences.avoidLayovers}
+                  onCheckedChange={updateAvoidLayovers}
+                  disabled={prefsSaving}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cost sensitivity</Label>
+                <div className="flex gap-2 flex-wrap">
+                  {(["low", "medium", "high"] as const).map((level) => (
+                    <Badge
+                      key={level}
+                      variant={preferences.costSensitivity === level ? "default" : "outline"}
+                      className={cn(
+                        "px-3 py-1 cursor-pointer capitalize transition-all",
+                        preferences.costSensitivity === level
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-secondary",
+                      )}
+                      onClick={() => updateCostSensitivity(level)}
+                    >
+                      {preferences.costSensitivity === level && (
+                        <Check className="w-3 h-3 mr-1" />
+                      )}
+                      {level}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Higher sensitivity weights price more heavily in recommendations.
+                </p>
+              </div>
+            </div>
+
+            <Separator />
+
+
             {/* Custom Preferences */}
             <div className="space-y-2">
               <Label>Custom Preferences</Label>
