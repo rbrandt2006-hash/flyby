@@ -9,7 +9,19 @@ import { cn } from "@/lib/utils";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { toast } from "sonner";
 
-// Mock team data
+// Build a date range relative to today and format as "Mon D"
+function relRange(startOffsetDays: number, durationDays: number) {
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() + startOffsetDays);
+  const end = new Date(start);
+  end.setDate(end.getDate() + durationDays);
+  return { startDate: fmt(start), endDate: fmt(end) };
+}
+
+// Mock team data — dates generated relative to today so the demo stays current.
 const mockTeamMembers: TeamMember[] = [
   {
     id: "1",
@@ -17,7 +29,8 @@ const mockTeamMembers: TeamMember[] = [
     role: "Product Manager",
     team: "Product",
     avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "New York, NY", startDate: "Apr 21", endDate: "Apr 24" },
+    // Currently on the road
+    upcomingTrip: { destination: "New York, NY", ...relRange(-1, 3) },
   },
   {
     id: "2",
@@ -25,7 +38,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "Sales Director",
     team: "Sales",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "Chicago, IL", startDate: "May 5", endDate: "May 7" },
+    upcomingTrip: { destination: "Chicago, IL", ...relRange(0, 2) },
   },
   {
     id: "3",
@@ -33,7 +46,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "Engineering Lead",
     team: "Engineering",
     avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "San Francisco, CA", startDate: "May 19", endDate: "May 22" },
+    upcomingTrip: { destination: "San Francisco, CA", ...relRange(8, 3) },
   },
   {
     id: "4",
@@ -48,7 +61,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "Account Executive",
     team: "Sales",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "Austin, TX", startDate: "Jun 9", endDate: "Jun 11" },
+    upcomingTrip: { destination: "Austin, TX", ...relRange(18, 2) },
   },
   {
     id: "6",
@@ -56,9 +69,10 @@ const mockTeamMembers: TeamMember[] = [
     role: "CFO",
     team: "Finance",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "London, UK", startDate: "Jul 14", endDate: "Jul 18" },
+    upcomingTrip: { destination: "London, UK", ...relRange(35, 4) },
   },
 ];
+
 
 type Filter = "all" | "traveling" | "office";
 
