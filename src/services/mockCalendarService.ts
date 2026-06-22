@@ -84,41 +84,53 @@ export const MOCK_CREDENTIALS = {
   accessToken: initialState.connected ? 'mock_access_token_xyz123' : null,
 };
 
-// Sample calendar events that suggest travel
-const MOCK_EVENTS: CalendarEvent[] = [
-  {
-    id: 'evt-001',
-    title: 'Q1 Sales Kickoff - NYC Office',
-    location: 'New York, NY',
-    startDate: '2026-05-12',
-    endDate: '2026-05-14',
-    description: 'Annual sales team meeting at headquarters',
-  },
-  {
-    id: 'evt-002',
-    title: 'Client Meeting - Acme Corp',
-    location: 'Chicago, IL',
-    startDate: '2026-06-09',
-    endDate: '2026-06-10',
-    description: 'Contract renewal discussion',
-  },
-  {
-    id: 'evt-003',
-    title: 'Tech Conference 2026',
-    location: 'San Francisco, CA',
-    startDate: '2026-07-15',
-    endDate: '2026-07-17',
-    description: 'Annual technology conference and networking event',
-  },
-  {
-    id: 'evt-004',
-    title: 'Partner Summit',
-    location: 'Austin, TX',
-    startDate: '2026-08-18',
-    endDate: '2026-08-20',
-    description: 'Strategic partner alignment meeting',
-  },
-];
+// Sample calendar events that suggest travel — dates generated relative to today
+// so the synced-calendar demo always looks current.
+function relDate(offsetDays: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().slice(0, 10);
+}
+
+function getMockEvents(): CalendarEvent[] {
+  const year = new Date().getFullYear();
+  return [
+    {
+      id: 'evt-001',
+      title: 'Sales Kickoff - NYC Office',
+      location: 'New York, NY',
+      startDate: relDate(6),
+      endDate: relDate(8),
+      description: 'Sales team meeting at headquarters',
+    },
+    {
+      id: 'evt-002',
+      title: 'Client Meeting - Acme Corp',
+      location: 'Chicago, IL',
+      startDate: relDate(20),
+      endDate: relDate(21),
+      description: 'Contract renewal discussion',
+    },
+    {
+      id: 'evt-003',
+      title: `Tech Conference ${year}`,
+      location: 'San Francisco, CA',
+      startDate: relDate(45),
+      endDate: relDate(47),
+      description: 'Annual technology conference and networking event',
+    },
+    {
+      id: 'evt-004',
+      title: 'Partner Summit',
+      location: 'Austin, TX',
+      startDate: relDate(75),
+      endDate: relDate(77),
+      description: 'Strategic partner alignment meeting',
+    },
+  ];
+}
+
 
 export async function connectGoogleCalendar(email?: string): Promise<{ success: boolean; email: string }> {
   // Simulate OAuth flow delay
@@ -157,7 +169,7 @@ export async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
   // Merge demo events with events created from booked trips
   const created = Object.values(loadCreatedEvents());
   // Sort by startDate ascending
-  return [...MOCK_EVENTS, ...created].sort((a, b) =>
+  return [...getMockEvents(), ...created].sort((a, b) =>
     a.startDate.localeCompare(b.startDate)
   );
 }
