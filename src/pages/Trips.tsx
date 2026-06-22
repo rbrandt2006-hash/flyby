@@ -32,6 +32,8 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { TripPlanningModal, type TripProposal } from "@/components/home/TripPlanningModal";
 import { useDemoMode } from "@/contexts/DemoModeContext";
+import { usePreferences } from "@/hooks/usePreferences";
+import { buildAutoDraftFromEvent } from "@/services/autoPlanService";
 
 export default function Trips() {
   const navigate = useNavigate();
