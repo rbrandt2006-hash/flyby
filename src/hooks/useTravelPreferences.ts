@@ -244,6 +244,47 @@ export function useTravelPreferences() {
     toast.success("Custom preference removed");
   }, []);
 
+
+  // Toggle avoid-layovers
+  const updateAvoidLayovers = useCallback(async (next: boolean) => {
+    if (!user?.id) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("travel_preferences")
+        .update({ avoid_layovers: next, updated_at: new Date().toISOString() } as never)
+        .eq("user_id", user.id);
+      if (error) throw error;
+      setPreferences(prev => ({ ...prev, avoidLayovers: next }));
+      toast.success(next ? "Avoiding layovers" : "Layovers allowed");
+    } catch (error) {
+      console.error("Error updating avoid_layovers:", error);
+      toast.error("Failed to update preference");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user?.id]);
+
+  // Set cost sensitivity (low/medium/high)
+  const updateCostSensitivity = useCallback(async (next: CostSensitivity) => {
+    if (!user?.id) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("travel_preferences")
+        .update({ cost_sensitivity: next, updated_at: new Date().toISOString() } as never)
+        .eq("user_id", user.id);
+      if (error) throw error;
+      setPreferences(prev => ({ ...prev, costSensitivity: next }));
+      toast.success(`Cost sensitivity: ${next}`);
+    } catch (error) {
+      console.error("Error updating cost_sensitivity:", error);
+      toast.error("Failed to update preference");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user?.id]);
+
   return {
     preferences,
     isLoading,
@@ -256,5 +297,7 @@ export function useTravelPreferences() {
     removeHotelBrand,
     addCustomPreference,
     removeCustomPreference,
+    updateAvoidLayovers,
+    updateCostSensitivity,
   };
 }
