@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { toast } from "sonner";
 
-// Build a date range relative to today and format as "Mon D"
+// Build a date range relative to today and format as "Mon D". Also
+// returns the raw Date objects so status logic can compare against today.
 function relRange(startOffsetDays: number, durationDays: number) {
   const fmt = (d: Date) =>
     d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -18,7 +19,13 @@ function relRange(startOffsetDays: number, durationDays: number) {
   start.setDate(start.getDate() + startOffsetDays);
   const end = new Date(start);
   end.setDate(end.getDate() + durationDays);
-  return { startDate: fmt(start), endDate: fmt(end) };
+  return {
+    destination: "", // filled by spread below
+    startDate: fmt(start),
+    endDate: fmt(end),
+    startAt: start,
+    endAt: end,
+  };
 }
 
 // Mock team data — dates generated relative to today so the demo stays current.
