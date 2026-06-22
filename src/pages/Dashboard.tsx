@@ -470,6 +470,11 @@ export default function Dashboard() {
     setLastResults(null);
     setBookingResults(null);
     setPlanResult(null);
+    setFlightResults([]);
+    setSelectedFlightFromResults(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
+    setPendingPlanResult(null);
     setTripInput("");
     setError(null);
     setInputError(null);
