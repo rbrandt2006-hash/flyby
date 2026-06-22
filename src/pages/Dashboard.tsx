@@ -230,14 +230,14 @@ export default function Dashboard() {
   const { preferences: savedTravelPrefs } = useTravelPreferences();
   const [tripInput, setTripInput] = useState("");
   const [isPlanning, setIsPlanning] = useState(false);
-  const [planResult, setPlanResult] = useState<TripPlan | null>(null);
-  const [flightResults, setFlightResults] = useState<Flight[]>([]);
+  const [planResult, setPlanResult] = useState<TripPlan | null>(() => loadBookingFlow()?.planResult ?? null);
+  const [flightResults, setFlightResults] = useState<Flight[]>(() => loadBookingFlow()?.flightResults ?? []);
   // Kept as a no-op setter for backward-compat with helpers that mirror current results.
   const setBookingResults = (_v: BookingResults | null) => { void _v; };
-  const [selectedFlightFromResults, setSelectedFlightFromResults] = useState<Flight | null>(null);
-  const [showHotelStep, setShowHotelStep] = useState(false);
+  const [selectedFlightFromResults, setSelectedFlightFromResults] = useState<Flight | null>(() => loadBookingFlow()?.selectedFlightFromResults ?? null);
+  const [showHotelStep, setShowHotelStep] = useState(() => loadBookingFlow()?.showHotelStep ?? false);
   const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([]);
-  const [pendingPlanResult, setPendingPlanResult] = useState<TripPlan | null>(null);
+  const [pendingPlanResult, setPendingPlanResult] = useState<TripPlan | null>(() => loadBookingFlow()?.pendingPlanResult ?? null);
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [needsDestination, setNeedsDestination] = useState(false);
