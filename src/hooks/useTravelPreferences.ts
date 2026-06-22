@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+export type CostSensitivity = "low" | "medium" | "high";
+
 export interface TravelPreferencesData {
   preferredSeat: "window" | "aisle" | "middle" | "no_preference";
   mealPreference: "standard" | "vegetarian" | "vegan" | "kosher" | "halal";
@@ -12,6 +14,8 @@ export interface TravelPreferencesData {
   budgetPerDay: number;
   customPreferences: string[];
   dietaryRestrictions: string | null;
+  avoidLayovers: boolean;
+  costSensitivity: CostSensitivity;
 }
 
 const defaultPreferences: TravelPreferencesData = {
@@ -23,6 +27,8 @@ const defaultPreferences: TravelPreferencesData = {
   budgetPerDay: 300,
   customPreferences: [],
   dietaryRestrictions: null,
+  avoidLayovers: false,
+  costSensitivity: "medium",
 };
 
 export function useTravelPreferences() {
