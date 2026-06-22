@@ -31,14 +31,41 @@ const defaultPreferences: TravelPreferencesData = {
   costSensitivity: "medium",
 };
 
+const GUEST_PREFS_KEY = "guest_travel_preferences";
+const isValidUuid = (v: string | undefined | null) =>
+  !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+
 export function useTravelPreferences() {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const [preferences, setPreferences] = useState<TravelPreferencesData>(defaultPreferences);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch preferences from Supabase
+  const useLocalStorage = isGuest || !isValidUuid(user?.id);
+
+  const persistLocal = useCallback((next: TravelPreferencesData) => {
+    try {
+      localStorage.setItem(GUEST_PREFS_KEY, JSON.stringify(next));
+    } catch (e) {
+      console.warn("Failed to persist guest preferences", e);
+    }
+  }, []);
+
+  // Fetch preferences
   useEffect(() => {
+    if (useLocalStorage) {
+      try {
+        const raw = localStorage.getItem(GUEST_PREFS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setPreferences({ ...defaultPreferences, ...parsed });
+        }
+      } catch (e) {
+        console.warn("Failed to load guest preferences", e);
+      }
+      setIsLoading(false);
+      return;
+    }
     if (!user?.id) {
       setIsLoading(false);
       return;
@@ -80,7 +107,7 @@ export function useTravelPreferences() {
     };
 
     fetchPreferences();
-  }, [user?.id]);
+  }, [user?.id, useLocalStorage]);
 
   // Update seat preference
   const updateSeatPreference = useCallback(async (seat: TravelPreferencesData["preferredSeat"]) => {
@@ -247,15 +274,21 @@ export function useTravelPreferences() {
 
   // Toggle avoid-layovers
   const updateAvoidLayovers = useCallback(async (next: boolean) => {
-    if (!user?.id) return;
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("travel_preferences")
-        .update({ avoid_layovers: next, updated_at: new Date().toISOString() } as never)
-        .eq("user_id", user.id);
-      if (error) throw error;
-      setPreferences(prev => ({ ...prev, avoidLayovers: next }));
+      if (useLocalStorage) {
+        const updated = { ...preferences, avoidLayovers: next };
+        persistLocal(updated);
+        setPreferences(updated);
+      } else {
+        if (!user?.id) return;
+        const { error } = await supabase
+          .from("travel_preferences")
+          .update({ avoid_layovers: next, updated_at: new Date().toISOString() } as never)
+          .eq("user_id", user.id);
+        if (error) throw error;
+        setPreferences(prev => ({ ...prev, avoidLayovers: next }));
+      }
       toast.success(next ? "Avoiding layovers" : "Layovers allowed");
     } catch (error) {
       console.error("Error updating avoid_layovers:", error);
@@ -263,19 +296,25 @@ export function useTravelPreferences() {
     } finally {
       setIsSaving(false);
     }
-  }, [user?.id]);
+  }, [user?.id, useLocalStorage, preferences, persistLocal]);
 
   // Set cost sensitivity (low/medium/high)
   const updateCostSensitivity = useCallback(async (next: CostSensitivity) => {
-    if (!user?.id) return;
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("travel_preferences")
-        .update({ cost_sensitivity: next, updated_at: new Date().toISOString() } as never)
-        .eq("user_id", user.id);
-      if (error) throw error;
-      setPreferences(prev => ({ ...prev, costSensitivity: next }));
+      if (useLocalStorage) {
+        const updated = { ...preferences, costSensitivity: next };
+        persistLocal(updated);
+        setPreferences(updated);
+      } else {
+        if (!user?.id) return;
+        const { error } = await supabase
+          .from("travel_preferences")
+          .update({ cost_sensitivity: next, updated_at: new Date().toISOString() } as never)
+          .eq("user_id", user.id);
+        if (error) throw error;
+        setPreferences(prev => ({ ...prev, costSensitivity: next }));
+      }
       toast.success(`Cost sensitivity: ${next}`);
     } catch (error) {
       console.error("Error updating cost_sensitivity:", error);
@@ -283,7 +322,7 @@ export function useTravelPreferences() {
     } finally {
       setIsSaving(false);
     }
-  }, [user?.id]);
+  }, [user?.id, useLocalStorage, preferences, persistLocal]);
 
   return {
     preferences,
