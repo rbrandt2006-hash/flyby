@@ -915,23 +915,103 @@ export default function Trips() {
         </Card>
       )}
 
-      {/* Draft Trips Section */}
+      {/* Drafts Section */}
       {draftTrips.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">Draft Trips</h2>
+            <Sparkles className="w-4 h-4 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Drafts</h2>
             <Badge variant="outline" className="text-xs">
               {draftTrips.length}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground -mt-2">
-            Click "Confirm" to submit for manager approval
+            Auto-generated itineraries from your calendar — review, then Confirm &amp; Book or Discard.
           </p>
           <div className="grid gap-3">
-            {draftTrips.map((draft, index) => renderTripCard(draft, index, false, false, true))}
+            {draftTrips.map((draft, index) => (
+              <Card
+                key={draft.id}
+                className="border-dashed border-2 border-border/60 bg-muted/10 hover:border-primary/30 hover:bg-muted/20 transition-all cursor-pointer animate-slide-up"
+                style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => setSelectedDraft(draft)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-xs bg-primary/5 border-primary/20 text-primary gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          Draft
+                        </Badge>
+                        {draft.sourceCalendarEventTitle && (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <Calendar className="w-3 h-3" />
+                            From: {draft.sourceCalendarEventTitle}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-primary/70" />
+                        <h3 className="font-medium text-foreground">{draft.destination}</h3>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span>
+                          {format(new Date(draft.startDate), "MMM d")} – {format(new Date(draft.endDate), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {draft.flight && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                            <Plane className="w-3.5 h-3.5" />
+                            <span>{draft.flight.airline}</span>
+                          </div>
+                        )}
+                        {draft.hotel && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                            <MapPin className="w-3.5 h-3.5" />
+                            <span>{draft.hotel.name}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Est. cost</p>
+                        <p className="font-medium text-foreground">
+                          ${draft.estimatedCost.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => handleDiscardDraft(draft, e)}
+                        >
+                          Discard
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenConfirmModal(draft);
+                          }}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Confirm &amp; Book
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       )}
+
 
       {/* Cancelled Trips Section - with archive action */}
       {(cancelledTrips.length > 0 || cancelledBackendTrips.length > 0) && (
