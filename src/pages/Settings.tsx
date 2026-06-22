@@ -177,7 +177,7 @@ export default function Settings() {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState("profile");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -234,24 +234,14 @@ export default function Settings() {
     const hash = location.hash.replace("#", "");
     if (hash && navSections.some(s => s.id === hash)) {
       setActiveSection(hash);
-      // Scroll to section after a brief delay
-      setTimeout(() => {
-        document.getElementById(hash)?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
     }
   }, [location.hash]);
-
-  // Simulate loading
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleNavClick = (sectionId: string) => {
     setActiveSection(sectionId);
     setMobileNavOpen(false);
     navigate(`/settings#${sectionId}`, { replace: true });
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "auto" });
   };
 
   const handleSaveProfile = async () => {
@@ -381,7 +371,9 @@ export default function Settings() {
         {/* Right Content */}
         <div className="flex-1 min-w-0 space-y-6">
           {/* Profile & Account */}
+          {activeSection === "profile" && (
           <SettingsSection 
+
             id="profile" 
             icon={User} 
             title="Profile & Account" 
@@ -469,8 +461,10 @@ export default function Settings() {
               </Button>
             </div>
           </SettingsSection>
+          )}
 
           {/* Appearance */}
+          {activeSection === "appearance" && (
           <SettingsSection
             id="appearance"
             icon={Palette}
@@ -488,8 +482,10 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+          )}
 
           {/* Travel Preferences */}
+          {activeSection === "travel" && (
           <SettingsSection 
             id="travel" 
             icon={Plane} 
@@ -790,8 +786,10 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+          )}
 
           {/* Security & Privacy */}
+          {activeSection === "security" && (
           <SettingsSection 
             id="security" 
             icon={Shield} 
@@ -870,8 +868,10 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+          )}
 
           {/* Integrations */}
+          {activeSection === "integrations" && (
           <SettingsSection 
             id="integrations" 
             icon={Puzzle} 
@@ -881,8 +881,10 @@ export default function Settings() {
           >
             <IntegrationsSettings />
           </SettingsSection>
+          )}
 
           {/* Product & Support */}
+          {activeSection === "support" && (
           <SettingsSection 
             id="support" 
             icon={HelpCircle} 
@@ -918,6 +920,9 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+          )}
+
+
 
           {/* Sign Out */}
           <div className="pt-6 pb-8">
