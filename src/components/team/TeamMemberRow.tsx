@@ -8,6 +8,15 @@ interface TeamMemberRowProps {
   onClick: () => void;
 }
 
+function getMemberStatus(member: TeamMember): "traveling" | "upcoming" | "returned" | "office" {
+  if (!member.upcomingTrip) return "office";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (today < member.upcomingTrip.startAt) return "upcoming";
+  if (today > member.upcomingTrip.endAt) return "returned";
+  return "traveling";
+}
+
 export function TeamMemberRow({ member, onClick }: TeamMemberRowProps) {
   const initials = member.name
     .split(" ")
@@ -15,7 +24,14 @@ export function TeamMemberRow({ member, onClick }: TeamMemberRowProps) {
     .join("")
     .toUpperCase();
 
-  const status = member.upcomingTrip ? "traveling" : "office";
+  const status = getMemberStatus(member);
+
+  const statusConfig = {
+    traveling: { label: "Traveling", className: "bg-success/15 text-success border-success/20" },
+    upcoming: { label: "Upcoming", className: "bg-primary/15 text-primary border-primary/20" },
+    returned: { label: "Returned", className: "bg-muted/40 text-muted-foreground border-border/30" },
+    office: { label: "At Office", className: "bg-muted/40 text-muted-foreground border-border/30" },
+  };
 
   return (
     <button
@@ -66,13 +82,10 @@ export function TeamMemberRow({ member, onClick }: TeamMemberRowProps) {
       <div
         className={cn(
           "glass-capsule rounded-full px-3 py-1 text-[11px] font-medium shrink-0",
-          status === "traveling" &&
-            "bg-success/15 text-success border-success/20",
-          status === "office" &&
-            "bg-muted/40 text-muted-foreground border-border/30"
+          statusConfig[status].className
         )}
       >
-        {status === "traveling" ? "Traveling" : "At Office"}
+        {statusConfig[status].label}
       </div>
     </button>
   );
