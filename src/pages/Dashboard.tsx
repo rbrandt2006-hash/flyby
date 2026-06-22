@@ -56,6 +56,9 @@ interface TripPlan {
   hotel: {
     name: string;
     location: string;
+    pricePerNight?: number;
+    totalPrice?: number;
+    nights?: number;
   };
   groundTransport: string;
   estimatedCost: number;
