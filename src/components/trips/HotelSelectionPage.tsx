@@ -226,10 +226,13 @@ export function HotelSelectionPage({
   ].filter(Boolean).length;
 
   const handleSelectHotel = (hotel: HotelOption) => {
+    // Notify parent — do NOT call onClose() here. onClose is the "cancel"
+    // path; the parent dismisses this page itself once it processes the
+    // selection. Calling both races with the parent's state updates and
+    // can clobber the just-selected hotel.
     onSelect(hotel);
     setDetailHotel(null);
     setSearchQuery("");
-    onClose();
   };
 
   const handleViewDetail = (hotel: HotelOption) => {
