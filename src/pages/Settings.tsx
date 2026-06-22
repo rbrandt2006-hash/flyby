@@ -881,8 +881,10 @@ export default function Settings() {
           >
             <IntegrationsSettings />
           </SettingsSection>
+          )}
 
           {/* Product & Support */}
+          {activeSection === "support" && (
           <SettingsSection 
             id="support" 
             icon={HelpCircle} 
