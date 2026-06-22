@@ -552,15 +552,29 @@ export default function Dashboard() {
 
   const handleSelectHotelFromStep = (hotel: HotelOption) => {
     if (!pendingPlanResult) return;
+    const nights = Math.max(
+      1,
+      Math.ceil(
+        (pendingPlanResult.endDate.getTime() - pendingPlanResult.startDate.getTime()) /
+          (1000 * 60 * 60 * 24),
+      ),
+    );
     const finalPlan: TripPlan = {
       ...pendingPlanResult,
-      hotel: { name: hotel.name, location: hotel.area },
+      hotel: {
+        name: hotel.name,
+        location: hotel.area,
+        pricePerNight: hotel.pricePerNight,
+        totalPrice: hotel.totalPrice,
+        nights,
+      },
       estimatedCost: pendingPlanResult.estimatedCost + hotel.totalPrice,
     };
     setPlanResult(finalPlan);
     setPendingPlanResult(null);
     setShowHotelStep(false);
     setHotelOptions([]);
+    toast.success("Hotel added to itinerary", { description: hotel.name });
   };
 
   const handleSkipHotel = () => {
