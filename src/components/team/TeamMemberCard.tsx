@@ -14,6 +14,8 @@ export interface TeamMember {
     destination: string;
     startDate: string;
     endDate: string;
+    startAt: Date;
+    endAt: Date;
   };
 }
 
