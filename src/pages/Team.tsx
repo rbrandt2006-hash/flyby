@@ -80,6 +80,19 @@ const mockTeamMembers: TeamMember[] = [
   },
 ];
 
+// Determine a member's current travel status based on today's date.
+// "traveling" = today is within the trip range (inclusive),
+// "upcoming"  = trip hasn't started yet,
+// "returned"  = trip has ended,
+// "office"    = no trip scheduled.
+function getMemberStatus(member: TeamMember): "traveling" | "upcoming" | "returned" | "office" {
+  if (!member.upcomingTrip) return "office";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (today < member.upcomingTrip.startAt) return "upcoming";
+  if (today > member.upcomingTrip.endAt) return "returned";
+  return "traveling";
+}
 
 type Filter = "all" | "traveling" | "office";
 
