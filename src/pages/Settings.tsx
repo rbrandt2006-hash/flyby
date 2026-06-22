@@ -208,6 +208,8 @@ export default function Settings() {
     removeHotelBrand,
     addCustomPreference,
     removeCustomPreference,
+    updateAvoidLayovers,
+    updateCostSensitivity,
   } = useTravelPreferences();
 
   // Notification settings
