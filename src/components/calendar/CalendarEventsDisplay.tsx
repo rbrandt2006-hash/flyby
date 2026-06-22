@@ -1,13 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Clock, Sparkles, X, ChevronRight } from "lucide-react";
+import { Calendar, MapPin, Clock, Sparkles, X, ChevronRight, Check } from "lucide-react";
 import { format } from "date-fns";
 import type { CalendarEvent } from "@/services/mockCalendarService";
 
 interface DraftSummary {
   id: string;
   estimatedCost: number;
+  status?: "draft" | "pending" | "confirmed" | "cancelled" | "archived";
+  approvalStatus?: "none" | "pending" | "approved" | "rejected";
 }
 
 interface CalendarEventsDisplayProps {
@@ -15,6 +17,7 @@ interface CalendarEventsDisplayProps {
   connectedEmail: string | null;
   onDisconnect: () => void;
   onCreateTrip?: (event: CalendarEvent) => void;
+  onViewTrip?: (tripId: string) => void;
   draftsByEventId?: Record<string, DraftSummary>;
 }
 
