@@ -75,40 +75,82 @@ export function CalendarEventsDisplay({
                         {format(new Date(event.startDate), "MMM d")} - {format(new Date(event.endDate), "MMM d, yyyy")}
                       </span>
                     </div>
-                    {draft ? (
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge variant="outline" className="text-[10px] bg-primary/5 border-primary/20 text-primary">
-                          <Sparkles className="w-3 h-3 mr-1" />
-                          Draft ready
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          Est. ${draft.estimatedCost.toLocaleString()}
-                        </span>
-                      </div>
-                    ) : (
+                    {draft ? (() => {
+                      const isBooked = draft.approvalStatus === "approved";
+                      const isPending = draft.status !== "draft" && draft.approvalStatus === "pending";
+                      const isConfirmedNoApproval = draft.status === "confirmed" && (!draft.approvalStatus || draft.approvalStatus === "none");
+                      const isReviewable = draft.status === "draft";
+
+                      let badge;
+                      if (isBooked) {
+                        badge = (
+                          <Badge variant="outline" className="text-[10px] bg-success/10 border-success/20 text-success">
+                            <Check className="w-3 h-3 mr-1" />
+                            Booked
+                          </Badge>
+                        );
+                      } else if (isPending) {
+                        badge = (
+                          <Badge variant="outline" className="text-[10px] bg-warning/10 border-warning/20 text-warning">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Pending approval
+                          </Badge>
+                        );
+                      } else if (isConfirmedNoApproval) {
+                        badge = (
+                          <Badge variant="outline" className="text-[10px] bg-success/10 border-success/20 text-success">
+                            <Check className="w-3 h-3 mr-1" />
+                            Confirmed
+                          </Badge>
+                        );
+                      } else {
+                        badge = (
+                          <Badge variant="outline" className="text-[10px] bg-primary/5 border-primary/20 text-primary">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            Draft ready
+                          </Badge>
+                        );
+                      }
+
+                      return (
+                        <div className="flex items-center gap-2 mt-2">
+                          {badge}
+                          <span className="text-xs text-muted-foreground">
+                            Est. ${draft.estimatedCost.toLocaleString()}
+                          </span>
+                        </div>
+                      );
+                    })() : (
                       event.description && (
                         <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{event.description}</p>
                       )
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant={draft ? "default" : "outline"}
-                    onClick={() => onCreateTrip?.(event)}
-                    className="shrink-0"
-                  >
-                    {draft ? (
-                      <>
-                        Review Draft
+                  {(() => {
+                    if (!draft) {
+                      return (
+                        <Button size="sm" variant="outline" onClick={() => onCreateTrip?.(event)} className="shrink-0">
+                          <Sparkles className="w-3.5 h-3.5 mr-1" />
+                          Generating…
+                        </Button>
+                      );
+                    }
+                    const isReviewable = draft.status === "draft";
+                    if (isReviewable) {
+                      return (
+                        <Button size="sm" variant="default" onClick={() => onCreateTrip?.(event)} className="shrink-0">
+                          Review Draft
+                          <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                        </Button>
+                      );
+                    }
+                    return (
+                      <Button size="sm" variant="outline" onClick={() => onViewTrip?.(draft.id)} className="shrink-0">
+                        View Trip
                         <ChevronRight className="w-3.5 h-3.5 ml-1" />
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5 mr-1" />
-                        Generating…
-                      </>
-                    )}
-                  </Button>
+                      </Button>
+                    );
+                  })()}
                 </div>
               </div>
             );
