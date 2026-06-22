@@ -37,7 +37,7 @@ const mockTeamMembers: TeamMember[] = [
     team: "Product",
     avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
     // Currently on the road
-    upcomingTrip: { destination: "New York, NY", ...relRange(-1, 3) },
+    upcomingTrip: { ...relRange(-1, 3), destination: "New York, NY" },
   },
   {
     id: "2",
@@ -45,7 +45,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "Sales Director",
     team: "Sales",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "Chicago, IL", ...relRange(0, 2) },
+    upcomingTrip: { ...relRange(0, 2), destination: "Chicago, IL" },
   },
   {
     id: "3",
@@ -53,7 +53,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "Engineering Lead",
     team: "Engineering",
     avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "San Francisco, CA", ...relRange(8, 3) },
+    upcomingTrip: { ...relRange(8, 3), destination: "San Francisco, CA" },
   },
   {
     id: "4",
@@ -68,7 +68,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "Account Executive",
     team: "Sales",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "Austin, TX", ...relRange(18, 2) },
+    upcomingTrip: { ...relRange(18, 2), destination: "Austin, TX" },
   },
   {
     id: "6",
@@ -76,7 +76,7 @@ const mockTeamMembers: TeamMember[] = [
     role: "CFO",
     team: "Finance",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-    upcomingTrip: { destination: "London, UK", ...relRange(35, 4) },
+    upcomingTrip: { ...relRange(35, 4), destination: "London, UK" },
   },
 ];
 
