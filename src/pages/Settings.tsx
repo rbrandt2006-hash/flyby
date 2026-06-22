@@ -920,6 +920,9 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+          )}
+
+
 
           {/* Sign Out */}
           <div className="pt-6 pb-8">
