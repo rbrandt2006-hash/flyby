@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+export type CostSensitivity = "low" | "medium" | "high";
+
 export interface TravelPreferencesData {
   preferredSeat: "window" | "aisle" | "middle" | "no_preference";
   mealPreference: "standard" | "vegetarian" | "vegan" | "kosher" | "halal";
@@ -12,6 +14,8 @@ export interface TravelPreferencesData {
   budgetPerDay: number;
   customPreferences: string[];
   dietaryRestrictions: string | null;
+  avoidLayovers: boolean;
+  costSensitivity: CostSensitivity;
 }
 
 const defaultPreferences: TravelPreferencesData = {
@@ -23,6 +27,8 @@ const defaultPreferences: TravelPreferencesData = {
   budgetPerDay: 300,
   customPreferences: [],
   dietaryRestrictions: null,
+  avoidLayovers: false,
+  costSensitivity: "medium",
 };
 
 export function useTravelPreferences() {
@@ -61,6 +67,9 @@ export function useTravelPreferences() {
             budgetPerDay: data.budget_threshold_per_day || 300,
             customPreferences: [],
             dietaryRestrictions: data.dietary_restrictions,
+            avoidLayovers: (data as { avoid_layovers?: boolean }).avoid_layovers ?? false,
+            costSensitivity:
+              ((data as { cost_sensitivity?: string }).cost_sensitivity as CostSensitivity) || "medium",
           });
         }
       } catch (error) {
@@ -235,6 +244,47 @@ export function useTravelPreferences() {
     toast.success("Custom preference removed");
   }, []);
 
+
+  // Toggle avoid-layovers
+  const updateAvoidLayovers = useCallback(async (next: boolean) => {
+    if (!user?.id) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("travel_preferences")
+        .update({ avoid_layovers: next, updated_at: new Date().toISOString() } as never)
+        .eq("user_id", user.id);
+      if (error) throw error;
+      setPreferences(prev => ({ ...prev, avoidLayovers: next }));
+      toast.success(next ? "Avoiding layovers" : "Layovers allowed");
+    } catch (error) {
+      console.error("Error updating avoid_layovers:", error);
+      toast.error("Failed to update preference");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user?.id]);
+
+  // Set cost sensitivity (low/medium/high)
+  const updateCostSensitivity = useCallback(async (next: CostSensitivity) => {
+    if (!user?.id) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("travel_preferences")
+        .update({ cost_sensitivity: next, updated_at: new Date().toISOString() } as never)
+        .eq("user_id", user.id);
+      if (error) throw error;
+      setPreferences(prev => ({ ...prev, costSensitivity: next }));
+      toast.success(`Cost sensitivity: ${next}`);
+    } catch (error) {
+      console.error("Error updating cost_sensitivity:", error);
+      toast.error("Failed to update preference");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user?.id]);
+
   return {
     preferences,
     isLoading,
@@ -247,5 +297,7 @@ export function useTravelPreferences() {
     removeHotelBrand,
     addCustomPreference,
     removeCustomPreference,
+    updateAvoidLayovers,
+    updateCostSensitivity,
   };
 }

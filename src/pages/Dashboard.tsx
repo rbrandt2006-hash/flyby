@@ -12,6 +12,7 @@ import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
 import { useTrips } from "@/hooks/useTrips";
 import { useChats } from "@/hooks/useChats";
 import { usePreferences } from "@/hooks/usePreferences";
+import { useTravelPreferences } from "@/hooks/useTravelPreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { parsePurpose } from "@/services/tripTemplates";
@@ -189,6 +190,7 @@ export default function Dashboard() {
   const { createTrip, deleteTrip } = useTrips();
   const { createChat } = useChats();
   const { preferences, getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
+  const { preferences: savedTravelPrefs } = useTravelPreferences();
   const [tripInput, setTripInput] = useState("");
   const [isPlanning, setIsPlanning] = useState(false);
   const [planResult, setPlanResult] = useState<TripPlan | null>(null);
@@ -242,7 +244,15 @@ export default function Dashboard() {
 
   const threadList: ChatThreadMeta[] = storedThreads.map(({ id, title, createdAt }) => ({ id, title, createdAt }));
 
-  const preferenceLabels = getActivePreferenceLabels();
+  const preferenceLabels = useMemo(() => {
+    const labels = getActivePreferenceLabels().filter(
+      (l) => l !== "Avoids layovers" && l !== "Cost-sensitive",
+    );
+    if (savedTravelPrefs.avoidLayovers) labels.push("Avoids layovers");
+    if (savedTravelPrefs.costSensitivity === "high") labels.push("Cost-sensitive");
+    else if (savedTravelPrefs.costSensitivity === "low") labels.push("Premium-friendly");
+    return labels;
+  }, [getActivePreferenceLabels, savedTravelPrefs.avoidLayovers, savedTravelPrefs.costSensitivity]);
   const showLearnedBadge = hasLearnedPreferences();
 
   const handleTranscriptReady = useCallback((transcript: string) => {
@@ -264,19 +274,35 @@ export default function Dashboard() {
     const rawFlights = anyResult._flights || [];
     const parsed = anyResult._parsed;
     const nights = Math.max(1, Math.ceil((anyResult.endDate.getTime() - anyResult.startDate.getTime()) / (1000 * 60 * 60 * 24)));
-    const hotels = getHotelsForDestination({ destination: anyResult.destination, nights });
+    const rawHotels = getHotelsForDestination({ destination: anyResult.destination, nights });
+    const preferredHotelBrands = savedTravelPrefs.preferredHotelBrands || [];
+    const hotels = [...rawHotels].sort((a, b) => {
+      const cs = savedTravelPrefs.costSensitivity;
+      const priceW = cs === "high" ? 1.4 : cs === "low" ? 0.3 : 0.8;
+      const ratingW = cs === "low" ? 60 : cs === "high" ? 15 : 35;
+      const brandBonus = (h: typeof a) =>
+        preferredHotelBrands.some((b) => h.name.toLowerCase().includes(b.toLowerCase())) ? -40 : 0;
+      const score = (h: typeof a) => h.pricePerNight * priceW - h.rating * ratingW + brandBonus(h);
+      return score(a) - score(b);
+    });
     const ground = generateUberOptions(15);
 
-    // Re-rank flights to respect "avoid layovers" preference.
-    // Nonstop preferred even at a moderate price premium; otherwise keep original order.
-    const preferredAirlines = preferences.preferredAirlines || [];
-    const avoidLayovers = preferences.avoidsLayovers;
+    // Re-rank flights to respect saved "avoid layovers" + "cost sensitivity" preferences,
+    // falling back to the inferred (learned) prefs when no saved value is set.
+    const preferredAirlines =
+      (savedTravelPrefs.preferredAirlines && savedTravelPrefs.preferredAirlines.length > 0)
+        ? savedTravelPrefs.preferredAirlines
+        : (preferences.preferredAirlines || []);
+    const avoidLayovers = savedTravelPrefs.avoidLayovers || preferences.avoidsLayovers;
+    const costSensitivity = savedTravelPrefs.costSensitivity; // "low" | "medium" | "high"
+    const priceWeight = costSensitivity === "high" ? 1.6 : costSensitivity === "low" ? 0.3 : 1;
     const minPrice = rawFlights.reduce((m, f) => Math.min(m, f.price), Infinity);
     const scoreFlight = (f: typeof rawFlights[number]) => {
       let score = 0;
       if (avoidLayovers) score += f.stops === 0 ? 0 : 1000 + f.stops * 500;
       else score += f.stops * 80;
-      score += Math.max(0, f.price - minPrice) * (avoidLayovers ? 0.4 : 1);
+      const priceDampForLayovers = avoidLayovers ? 0.4 : 1;
+      score += Math.max(0, f.price - minPrice) * priceWeight * priceDampForLayovers;
       if (preferredAirlines.includes(f.airline)) score -= 60;
       return score;
     };
