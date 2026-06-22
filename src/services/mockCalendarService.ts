@@ -169,7 +169,7 @@ export async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
   // Merge demo events with events created from booked trips
   const created = Object.values(loadCreatedEvents());
   // Sort by startDate ascending
-  return [...MOCK_EVENTS, ...created].sort((a, b) =>
+  return [...getMockEvents(), ...created].sort((a, b) =>
     a.startDate.localeCompare(b.startDate)
   );
 }
