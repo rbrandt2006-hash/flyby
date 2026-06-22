@@ -67,6 +67,9 @@ export function useTravelPreferences() {
             budgetPerDay: data.budget_threshold_per_day || 300,
             customPreferences: [],
             dietaryRestrictions: data.dietary_restrictions,
+            avoidLayovers: (data as { avoid_layovers?: boolean }).avoid_layovers ?? false,
+            costSensitivity:
+              ((data as { cost_sensitivity?: string }).cost_sensitivity as CostSensitivity) || "medium",
           });
         }
       } catch (error) {
