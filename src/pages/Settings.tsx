@@ -786,8 +786,10 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+          )}
 
           {/* Security & Privacy */}
+          {activeSection === "security" && (
           <SettingsSection 
             id="security" 
             icon={Shield} 
