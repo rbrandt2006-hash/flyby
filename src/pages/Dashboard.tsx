@@ -66,6 +66,40 @@ interface TripPlan {
   originalPrompt: string;
 }
 
+// Persist an in-progress booking flow across route changes so users can jump
+// to another section (Trips, Team, Settings, etc.) without losing their place.
+const BOOKING_FLOW_KEY = "flyby_booking_flow_v1";
+
+interface PersistedBookingFlow {
+  planResult: TripPlan | null;
+  pendingPlanResult: TripPlan | null;
+  selectedFlightFromResults: Flight | null;
+  flightResults: Flight[];
+  showHotelStep: boolean;
+}
+
+const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+
+const bookingFlowReviver = (_key: string, value: unknown) => {
+  if (typeof value === "string" && isoDateRegex.test(value)) return new Date(value);
+  return value;
+};
+
+const loadBookingFlow = (): PersistedBookingFlow | null => {
+  try {
+    const raw = sessionStorage.getItem(BOOKING_FLOW_KEY);
+    return raw ? (JSON.parse(raw, bookingFlowReviver) as PersistedBookingFlow) : null;
+  } catch { return null; }
+};
+
+const saveBookingFlow = (flow: PersistedBookingFlow) => {
+  try { sessionStorage.setItem(BOOKING_FLOW_KEY, JSON.stringify(flow)); } catch { /* ignore */ }
+};
+
+const clearBookingFlow = () => {
+  try { sessionStorage.removeItem(BOOKING_FLOW_KEY); } catch { /* ignore */ }
+};
+
 // Generate trip plan based on parsed destination
 const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true; flights?: never }> => {
   await new Promise(r => setTimeout(r, 850));
