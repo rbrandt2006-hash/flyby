@@ -252,6 +252,10 @@ export default function Trips() {
     // If we already auto-generated a draft for this event, open it for review.
     const existing = draftsByEventId[event.id];
     if (existing) {
+      if (existing.status !== "draft") {
+        navigate(`/trips/${existing.id}`);
+        return;
+      }
       setSelectedDraft(existing);
       setDetailPanelOpen(true);
       return;
