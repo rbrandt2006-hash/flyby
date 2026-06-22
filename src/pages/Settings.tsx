@@ -482,8 +482,10 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+          )}
 
           {/* Travel Preferences */}
+          {activeSection === "travel" && (
           <SettingsSection 
             id="travel" 
             icon={Plane} 
