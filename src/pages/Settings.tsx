@@ -177,7 +177,7 @@ export default function Settings() {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState("profile");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
