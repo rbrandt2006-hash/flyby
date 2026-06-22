@@ -241,7 +241,7 @@ export default function Settings() {
     setActiveSection(sectionId);
     setMobileNavOpen(false);
     navigate(`/settings#${sectionId}`, { replace: true });
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "auto" });
   };
 
   const handleSaveProfile = async () => {
