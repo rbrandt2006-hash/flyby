@@ -267,7 +267,7 @@ export function HotelSelectionPage({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] bg-background flex flex-col"
+          className="fixed left-0 right-0 top-16 bottom-16 md:bottom-0 z-40 bg-background flex flex-col"
         >
           <AnimatePresence mode="wait">
             {detailHotel ? (

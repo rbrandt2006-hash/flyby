@@ -66,6 +66,40 @@ interface TripPlan {
   originalPrompt: string;
 }
 
+// Persist an in-progress booking flow across route changes so users can jump
+// to another section (Trips, Team, Settings, etc.) without losing their place.
+const BOOKING_FLOW_KEY = "flyby_booking_flow_v1";
+
+interface PersistedBookingFlow {
+  planResult: TripPlan | null;
+  pendingPlanResult: TripPlan | null;
+  selectedFlightFromResults: Flight | null;
+  flightResults: Flight[];
+  showHotelStep: boolean;
+}
+
+const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+
+const bookingFlowReviver = (_key: string, value: unknown) => {
+  if (typeof value === "string" && isoDateRegex.test(value)) return new Date(value);
+  return value;
+};
+
+const loadBookingFlow = (): PersistedBookingFlow | null => {
+  try {
+    const raw = sessionStorage.getItem(BOOKING_FLOW_KEY);
+    return raw ? (JSON.parse(raw, bookingFlowReviver) as PersistedBookingFlow) : null;
+  } catch { return null; }
+};
+
+const saveBookingFlow = (flow: PersistedBookingFlow) => {
+  try { sessionStorage.setItem(BOOKING_FLOW_KEY, JSON.stringify(flow)); } catch { /* ignore */ }
+};
+
+const clearBookingFlow = () => {
+  try { sessionStorage.removeItem(BOOKING_FLOW_KEY); } catch { /* ignore */ }
+};
+
 // Generate trip plan based on parsed destination
 const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true; flights?: never }> => {
   await new Promise(r => setTimeout(r, 850));
@@ -196,14 +230,14 @@ export default function Dashboard() {
   const { preferences: savedTravelPrefs } = useTravelPreferences();
   const [tripInput, setTripInput] = useState("");
   const [isPlanning, setIsPlanning] = useState(false);
-  const [planResult, setPlanResult] = useState<TripPlan | null>(null);
-  const [flightResults, setFlightResults] = useState<Flight[]>([]);
+  const [planResult, setPlanResult] = useState<TripPlan | null>(() => loadBookingFlow()?.planResult ?? null);
+  const [flightResults, setFlightResults] = useState<Flight[]>(() => loadBookingFlow()?.flightResults ?? []);
   // Kept as a no-op setter for backward-compat with helpers that mirror current results.
   const setBookingResults = (_v: BookingResults | null) => { void _v; };
-  const [selectedFlightFromResults, setSelectedFlightFromResults] = useState<Flight | null>(null);
-  const [showHotelStep, setShowHotelStep] = useState(false);
+  const [selectedFlightFromResults, setSelectedFlightFromResults] = useState<Flight | null>(() => loadBookingFlow()?.selectedFlightFromResults ?? null);
+  const [showHotelStep, setShowHotelStep] = useState(() => loadBookingFlow()?.showHotelStep ?? false);
   const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([]);
-  const [pendingPlanResult, setPendingPlanResult] = useState<TripPlan | null>(null);
+  const [pendingPlanResult, setPendingPlanResult] = useState<TripPlan | null>(() => loadBookingFlow()?.pendingPlanResult ?? null);
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [needsDestination, setNeedsDestination] = useState(false);
@@ -244,6 +278,39 @@ export default function Dashboard() {
       return out;
     });
   }, [messages, activeThreadId]);
+
+  // Restore in-progress booking flow when the dashboard remounts (e.g. after
+  // navigating to Trips/Team/Settings and back). Hotel options are regenerated
+  // on return so we don't bloat sessionStorage with the full inventory.
+  useEffect(() => {
+    const flow = loadBookingFlow();
+    if (flow?.showHotelStep && flow?.pendingPlanResult) {
+      const nights = Math.max(
+        1,
+        Math.ceil(
+          (flow.pendingPlanResult.endDate.getTime() - flow.pendingPlanResult.startDate.getTime()) /
+            (1000 * 60 * 60 * 24),
+        ),
+      );
+      setHotelOptions(getHotelsForDestination({ destination: flow.pendingPlanResult.destination, nights }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save the booking flow whenever it changes so users can leave and resume later.
+  useEffect(() => {
+    if (!planResult && !pendingPlanResult && !showHotelStep) {
+      clearBookingFlow();
+      return;
+    }
+    saveBookingFlow({
+      planResult,
+      pendingPlanResult,
+      selectedFlightFromResults,
+      flightResults,
+      showHotelStep,
+    });
+  }, [planResult, pendingPlanResult, selectedFlightFromResults, flightResults, showHotelStep]);
 
   const threadList: ChatThreadMeta[] = storedThreads.map(({ id, title, createdAt }) => ({ id, title, createdAt }));
 
@@ -403,6 +470,11 @@ export default function Dashboard() {
     setLastResults(null);
     setBookingResults(null);
     setPlanResult(null);
+    setFlightResults([]);
+    setSelectedFlightFromResults(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
+    setPendingPlanResult(null);
     setTripInput("");
     setError(null);
     setInputError(null);
@@ -424,6 +496,11 @@ export default function Dashboard() {
       setBookingResults(null);
     }
     setPlanResult(null);
+    setFlightResults([]);
+    setSelectedFlightFromResults(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
+    setPendingPlanResult(null);
   };
 
   const handleDeleteThread = (id: string) => {
@@ -438,6 +515,10 @@ export default function Dashboard() {
   const runInitialPlan = async (text: string) => {
     setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]);
     setPlanResult(null);
+    setSelectedFlightFromResults(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
+    setPendingPlanResult(null);
     setIsPlanning(true); setIsThinking(true);
     startNewThread(text);
     try {
