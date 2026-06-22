@@ -797,5 +797,5 @@ export function HotelSelectionPage({
     </AnimatePresence>
   );
 
-  return content;
+  return createPortal(content, document.body);
 }
