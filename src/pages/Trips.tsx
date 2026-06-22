@@ -39,6 +39,7 @@ export default function Trips() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
+  const { preferences } = usePreferences();
   const { 
     trips: localTrips, 
     createTrip, 
