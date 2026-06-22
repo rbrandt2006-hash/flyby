@@ -279,6 +279,39 @@ export default function Dashboard() {
     });
   }, [messages, activeThreadId]);
 
+  // Restore in-progress booking flow when the dashboard remounts (e.g. after
+  // navigating to Trips/Team/Settings and back). Hotel options are regenerated
+  // on return so we don't bloat sessionStorage with the full inventory.
+  useEffect(() => {
+    const flow = loadBookingFlow();
+    if (flow?.showHotelStep && flow?.pendingPlanResult) {
+      const nights = Math.max(
+        1,
+        Math.ceil(
+          (flow.pendingPlanResult.endDate.getTime() - flow.pendingPlanResult.startDate.getTime()) /
+            (1000 * 60 * 60 * 24),
+        ),
+      );
+      setHotelOptions(getHotelsForDestination({ destination: flow.pendingPlanResult.destination, nights }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save the booking flow whenever it changes so users can leave and resume later.
+  useEffect(() => {
+    if (!planResult && !pendingPlanResult && !showHotelStep) {
+      clearBookingFlow();
+      return;
+    }
+    saveBookingFlow({
+      planResult,
+      pendingPlanResult,
+      selectedFlightFromResults,
+      flightResults,
+      showHotelStep,
+    });
+  }, [planResult, pendingPlanResult, selectedFlightFromResults, flightResults, showHotelStep]);
+
   const threadList: ChatThreadMeta[] = storedThreads.map(({ id, title, createdAt }) => ({ id, title, createdAt }));
 
   const preferenceLabels = useMemo(() => {
