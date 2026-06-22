@@ -668,15 +668,22 @@ export function HotelSelectionPage({
                             const thumbnailUrl = hotel.images[0];
 
                             return (
-                              <motion.button
+                              <motion.div
                                 key={hotel.id}
                                 initial={{ opacity: 0, y: 12 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.25 }}
                                 whileTap={{ scale: 0.98 }}
+                                tabIndex={0}
                                 onClick={() => handleViewDetail(hotel)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    handleViewDetail(hotel);
+                                  }
+                                }}
                                 className={cn(
-                                  "w-full rounded-2xl border text-left transition-all overflow-hidden group",
+                                  "w-full rounded-2xl border text-left transition-all overflow-hidden group cursor-pointer",
                                   isSelected
                                     ? "border-primary ring-2 ring-primary/20"
                                     : "border-border hover:border-primary/30 hover:shadow-lg"
@@ -753,8 +760,18 @@ export function HotelSelectionPage({
                                         </Badge>
                                       ))}
                                   </div>
+                                  <Button
+                                    size="sm"
+                                    className="w-full mt-3"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSelectHotel(hotel);
+                                    }}
+                                  >
+                                    Select
+                                  </Button>
                                 </div>
-                              </motion.button>
+                              </motion.div>
                             );
                           })}
                         </div>
