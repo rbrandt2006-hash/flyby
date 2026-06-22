@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -29,57 +29,58 @@ function needsOnboarding(): boolean {
   } catch { return false; }
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function FullScreenSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+    </div>
+  );
+}
+
+/**
+ * Single parent layout route: mounted ONCE and kept across child navigations
+ * (Trips ↔ Team ↔ Settings ↔ etc.). The child `<Outlet/>` swaps without
+ * remounting `UserProfileProvider` or `AppLayout`, so the profile fetch and
+ * intro logic don't re-run on every nav click.
+ */
+function ProtectedLayout() {
   const { user, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return <Navigate to="/get-started" replace />;
-  }
 
-  if (needsOnboarding()) {
-    return <Navigate to="/onboarding" replace />;
-  }
-  
+  if (loading) return <FullScreenSpinner />;
+  if (!user) return <Navigate to="/get-started" replace />;
+  if (needsOnboarding()) return <Navigate to="/onboarding" replace />;
+
   return (
     <UserProfileProvider>
-      <AppLayout>{children}</AppLayout>
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
     </UserProfileProvider>
   );
 }
 
-function AdminRoute({ children }: { children: React.ReactNode }) {
+function AdminLayout() {
   const { user, loading } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
-  
-  if (loading || roleLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return <Navigate to="/get-started" replace />;
-  }
-  
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-  
+
+  if (loading || roleLoading) return <FullScreenSpinner />;
+  if (!user) return <Navigate to="/get-started" replace />;
+  if (!isAdmin) return <Navigate to="/" replace />;
+
   return (
     <UserProfileProvider>
-      <AppLayout>{children}</AppLayout>
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
     </UserProfileProvider>
   );
 }
@@ -87,28 +88,29 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <FullScreenSpinner />;
 
   return (
     <Routes>
       <Route path="/get-started" element={user ? <Navigate to="/" replace /> : <GetStarted />} />
       <Route path="/onboarding" element={user ? <Onboarding /> : <Navigate to="/get-started" replace />} />
       <Route path="/auth" element={<Navigate to="/get-started" replace />} />
-      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-      <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
-      <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
-      <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
-      <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/settings/integrations/:provider" element={<ProtectedRoute><IntegrationManage /></ProtectedRoute>} />
-      <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
+
+      <Route element={<ProtectedLayout />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/trips" element={<Trips />} />
+        <Route path="/trips/:tripId" element={<TripDetail />} />
+        <Route path="/team" element={<Team />} />
+        <Route path="/expenses" element={<Expenses />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/settings/integrations/:provider" element={<IntegrationManage />} />
+        <Route path="/help" element={<Help />} />
+      </Route>
+
+      <Route element={<AdminLayout />}>
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Route>
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
