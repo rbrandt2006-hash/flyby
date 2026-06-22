@@ -515,6 +515,10 @@ export default function Dashboard() {
   const runInitialPlan = async (text: string) => {
     setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]);
     setPlanResult(null);
+    setSelectedFlightFromResults(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
+    setPendingPlanResult(null);
     setIsPlanning(true); setIsThinking(true);
     startNewThread(text);
     try {
