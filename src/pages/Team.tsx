@@ -215,6 +215,35 @@ export default function Team() {
         </GlassPanel>
       )}
 
+      {/* Upcoming Travel */}
+      {(filter === "all") && upcomingMembers.length > 0 && (
+        <GlassPanel className="p-6 space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse-subtle" />
+            <h2 className="text-base font-semibold text-foreground">
+              Upcoming Travel
+            </h2>
+            <span className="text-xs text-muted-foreground ml-1">
+              {upcomingMembers.length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {upcomingMembers.map((member, i) => (
+              <div
+                key={member.id}
+                className="animate-slide-up"
+                style={{ animationDelay: `${(travelingMembers.length + i) * 60}ms` }}
+              >
+                <TeamMemberRow
+                  member={member}
+                  onClick={() => handleMemberClick(member)}
+                />
+              </div>
+            ))}
+          </div>
+        </GlassPanel>
+      )}
+
       {/* At Office */}
       {(filter === "all" || filter === "office") && officeMembers.length > 0 && (
         <GlassPanel className="p-6 space-y-4">
@@ -231,7 +260,7 @@ export default function Team() {
               <div
                 key={member.id}
                 className="animate-slide-up"
-                style={{ animationDelay: `${(travelingMembers.length + i) * 60}ms` }}
+                style={{ animationDelay: `${(travelingMembers.length + upcomingMembers.length + i) * 60}ms` }}
               >
                 <TeamMemberRow
                   member={member}
