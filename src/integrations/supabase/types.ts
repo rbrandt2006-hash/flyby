@@ -664,7 +664,9 @@ export type Database = {
       }
       travel_preferences: {
         Row: {
+          avoid_layovers: boolean
           budget_threshold_per_day: number | null
+          cost_sensitivity: string
           created_at: string
           dietary_restrictions: string | null
           id: string
@@ -676,7 +678,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avoid_layovers?: boolean
           budget_threshold_per_day?: number | null
+          cost_sensitivity?: string
           created_at?: string
           dietary_restrictions?: string | null
           id?: string
@@ -688,7 +692,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avoid_layovers?: boolean
           budget_threshold_per_day?: number | null
+          cost_sensitivity?: string
           created_at?: string
           dietary_restrictions?: string | null
           id?: string
