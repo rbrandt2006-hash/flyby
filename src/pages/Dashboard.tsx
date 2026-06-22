@@ -244,7 +244,15 @@ export default function Dashboard() {
 
   const threadList: ChatThreadMeta[] = storedThreads.map(({ id, title, createdAt }) => ({ id, title, createdAt }));
 
-  const preferenceLabels = getActivePreferenceLabels();
+  const preferenceLabels = useMemo(() => {
+    const labels = getActivePreferenceLabels().filter(
+      (l) => l !== "Avoids layovers" && l !== "Cost-sensitive",
+    );
+    if (savedTravelPrefs.avoidLayovers) labels.push("Avoids layovers");
+    if (savedTravelPrefs.costSensitivity === "high") labels.push("Cost-sensitive");
+    else if (savedTravelPrefs.costSensitivity === "low") labels.push("Premium-friendly");
+    return labels;
+  }, [getActivePreferenceLabels, savedTravelPrefs.avoidLayovers, savedTravelPrefs.costSensitivity]);
   const showLearnedBadge = hasLearnedPreferences();
 
   const handleTranscriptReady = useCallback((transcript: string) => {
