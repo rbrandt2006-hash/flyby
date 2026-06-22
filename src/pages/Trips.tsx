@@ -252,6 +252,10 @@ export default function Trips() {
     // If we already auto-generated a draft for this event, open it for review.
     const existing = draftsByEventId[event.id];
     if (existing) {
+      if (existing.status !== "draft") {
+        navigate(`/trips/${existing.id}`);
+        return;
+      }
       setSelectedDraft(existing);
       setDetailPanelOpen(true);
       return;
@@ -847,8 +851,14 @@ export default function Trips() {
           connectedEmail={getConnectedEmail()}
           onDisconnect={handleDisconnect}
           onCreateTrip={handleCreateTrip}
+          onViewTrip={(tripId) => navigate(`/trips/${tripId}`)}
           draftsByEventId={Object.fromEntries(
-            Object.entries(draftsByEventId).map(([k, v]) => [k, { id: v.id, estimatedCost: v.estimatedCost }])
+            Object.entries(draftsByEventId).map(([k, v]) => [k, {
+              id: v.id,
+              estimatedCost: v.estimatedCost,
+              status: v.status,
+              approvalStatus: v.approvalStatus,
+            }])
           )}
         />
 
