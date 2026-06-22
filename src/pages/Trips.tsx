@@ -489,6 +489,15 @@ export default function Trips() {
     toast.success("Trip restored to cancelled");
   };
 
+  // Discard a draft — no confirmation, no booking, no charge.
+  const handleDiscardDraft = (draft: LocalTrip, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    deleteLocalTrip(draft.id);
+    if (selectedDraft?.id === draft.id) setSelectedDraft(null);
+    toast.success("Draft discarded");
+  };
+
+
   const handleConfirmDelete = () => {
     if (tripToDelete) {
       deleteLocalTrip(tripToDelete.id);
