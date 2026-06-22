@@ -489,6 +489,15 @@ export default function Trips() {
     toast.success("Trip restored to cancelled");
   };
 
+  // Discard a draft — no confirmation, no booking, no charge.
+  const handleDiscardDraft = (draft: LocalTrip, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    deleteLocalTrip(draft.id);
+    if (selectedDraft?.id === draft.id) setSelectedDraft(null);
+    toast.success("Draft discarded");
+  };
+
+
   const handleConfirmDelete = () => {
     if (tripToDelete) {
       deleteLocalTrip(tripToDelete.id);
@@ -906,23 +915,103 @@ export default function Trips() {
         </Card>
       )}
 
-      {/* Draft Trips Section */}
+      {/* Drafts Section */}
       {draftTrips.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">Draft Trips</h2>
+            <Sparkles className="w-4 h-4 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Drafts</h2>
             <Badge variant="outline" className="text-xs">
               {draftTrips.length}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground -mt-2">
-            Click "Confirm" to submit for manager approval
+            Auto-generated itineraries from your calendar — review, then Confirm &amp; Book or Discard.
           </p>
           <div className="grid gap-3">
-            {draftTrips.map((draft, index) => renderTripCard(draft, index, false, false, true))}
+            {draftTrips.map((draft, index) => (
+              <Card
+                key={draft.id}
+                className="border-dashed border-2 border-border/60 bg-muted/10 hover:border-primary/30 hover:bg-muted/20 transition-all cursor-pointer animate-slide-up"
+                style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => setSelectedDraft(draft)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-xs bg-primary/5 border-primary/20 text-primary gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          Draft
+                        </Badge>
+                        {draft.sourceCalendarEventTitle && (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <Calendar className="w-3 h-3" />
+                            From: {draft.sourceCalendarEventTitle}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-primary/70" />
+                        <h3 className="font-medium text-foreground">{draft.destination}</h3>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span>
+                          {format(new Date(draft.startDate), "MMM d")} – {format(new Date(draft.endDate), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {draft.flight && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                            <Plane className="w-3.5 h-3.5" />
+                            <span>{draft.flight.airline}</span>
+                          </div>
+                        )}
+                        {draft.hotel && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                            <MapPin className="w-3.5 h-3.5" />
+                            <span>{draft.hotel.name}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Est. cost</p>
+                        <p className="font-medium text-foreground">
+                          ${draft.estimatedCost.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => handleDiscardDraft(draft, e)}
+                        >
+                          Discard
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenConfirmModal(draft);
+                          }}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Confirm &amp; Book
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       )}
+
 
       {/* Cancelled Trips Section - with archive action */}
       {(cancelledTrips.length > 0 || cancelledBackendTrips.length > 0) && (
@@ -1004,22 +1093,46 @@ export default function Trips() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="space-y-1">
                 <p className="text-xl font-semibold">{selectedDraft.destination}</p>
                 <p className="text-sm text-muted-foreground">
                   {format(new Date(selectedDraft.startDate), "MMM d")} – {format(new Date(selectedDraft.endDate), "MMM d, yyyy")}
                 </p>
+                {selectedDraft.sourceCalendarEventTitle && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>From calendar event: <span className="text-foreground">{selectedDraft.sourceCalendarEventTitle}</span></span>
+                  </div>
+                )}
               </div>
-              
+
               {selectedDraft.flight && (
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
                   <Plane className="w-4 h-4 text-primary mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm">{selectedDraft.flight.airline}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Depart: {selectedDraft.flight.departTime} • Return: {selectedDraft.flight.returnTime}
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">
+                      {selectedDraft.flight.airline}
+                      {selectedDraft.flight.flightNumber && (
+                        <span className="text-muted-foreground font-normal"> · {selectedDraft.flight.flightNumber}</span>
+                      )}
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      Depart: {selectedDraft.flight.departTime}
+                      {selectedDraft.flight.arrivalTime && ` → ${selectedDraft.flight.arrivalTime}`}
+                      {selectedDraft.flight.returnTime && ` • Return: ${selectedDraft.flight.returnTime}`}
+                    </p>
+                    {(selectedDraft.flight.duration || typeof selectedDraft.flight.stops === "number") && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedDraft.flight.duration}
+                        {typeof selectedDraft.flight.stops === "number" && (
+                          <> · {selectedDraft.flight.stops === 0 ? "Nonstop" : `${selectedDraft.flight.stops} stop${selectedDraft.flight.stops > 1 ? "s" : ""}`}</>
+                        )}
+                      </p>
+                    )}
+                    {typeof selectedDraft.flight.price === "number" && (
+                      <p className="text-xs font-medium text-foreground mt-1">${selectedDraft.flight.price.toLocaleString()}</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1042,33 +1155,44 @@ export default function Trips() {
                 <span className="text-lg font-bold text-primary">${selectedDraft.estimatedCost.toLocaleString()}</span>
               </div>
 
+              {selectedDraft.rationale && (
+                <div className="p-3 rounded-lg bg-muted/40 border border-border/50">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-foreground mb-1">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    Why I picked this
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{selectedDraft.rationale}</p>
+                </div>
+              )}
+
               <div className="flex gap-2 pt-2">
-                <Button 
+                <Button
                   className="flex-1"
                   onClick={() => {
-                    confirmLocalTrip(selectedDraft.id);
+                    const draft = selectedDraft;
                     setSelectedDraft(null);
-                    toast.success("Trip confirmed!");
+                    handleOpenConfirmModal(draft);
                   }}
                 >
-                  Confirm & Book
+                  <Check className="w-4 h-4 mr-1" />
+                  Confirm &amp; Book
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => handleDiscardDraft(selectedDraft)}
+                >
+                  Discard
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => setSelectedDraft(null)}
                 >
                   Close
                 </Button>
-                <Button 
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => handleDeleteClick(selectedDraft)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
               </div>
             </CardContent>
+
           </Card>
         </div>
       )}
