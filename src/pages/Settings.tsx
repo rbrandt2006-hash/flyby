@@ -234,18 +234,8 @@ export default function Settings() {
     const hash = location.hash.replace("#", "");
     if (hash && navSections.some(s => s.id === hash)) {
       setActiveSection(hash);
-      // Scroll to section after a brief delay
-      setTimeout(() => {
-        document.getElementById(hash)?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
     }
   }, [location.hash]);
-
-  // Simulate loading
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleNavClick = (sectionId: string) => {
     setActiveSection(sectionId);
