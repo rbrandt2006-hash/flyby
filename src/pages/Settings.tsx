@@ -461,8 +461,10 @@ export default function Settings() {
               </Button>
             </div>
           </SettingsSection>
+          )}
 
           {/* Appearance */}
+          {activeSection === "appearance" && (
           <SettingsSection
             id="appearance"
             icon={Palette}
