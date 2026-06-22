@@ -496,6 +496,11 @@ export default function Dashboard() {
       setBookingResults(null);
     }
     setPlanResult(null);
+    setFlightResults([]);
+    setSelectedFlightFromResults(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
+    setPendingPlanResult(null);
   };
 
   const handleDeleteThread = (id: string) => {
