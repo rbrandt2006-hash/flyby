@@ -26,6 +26,7 @@ export function CalendarEventsDisplay({
   connectedEmail,
   onDisconnect,
   onCreateTrip,
+  onViewTrip,
   draftsByEventId = {},
 }: CalendarEventsDisplayProps) {
   return (
