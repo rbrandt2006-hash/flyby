@@ -704,7 +704,7 @@ export default function Dashboard() {
     const isEarly = planResult.flight.departTime.includes("AM") && parseInt(planResult.flight.departTime) < 10;
     recordBookingChoice({ isEarlyFlight: isEarly, isDirect: true, isBudgetOption: planResult.estimatedCost < 2000 });
     toast.success("Trip booked and added to calendar.", {
-      action: { label: "View Calendar", onClick: () => navigate("/trips") },
+      action: { label: "View Calendar", onClick: () => navigate("/trips?view=calendar") },
     });
     setPlanResult(null);
     setTripInput("");
@@ -1038,7 +1038,7 @@ export default function Dashboard() {
                   <span className="text-2xl font-bold text-primary">${planResult.estimatedCost.toLocaleString()}</span>
                 </div>
                 <div className="flex gap-3 pt-1">
-                  <Button variant="default" className="flex-1" onClick={handleSaveDraft}>Save as Draft</Button>
+                  <Button variant="default" className="flex-1" onClick={handleSaveDraft}>Confirm &amp; Book</Button>
                   <Button variant="outline" className="flex-1" onClick={handleRefine}>Refine</Button>
                 </div>
               </CardContent>

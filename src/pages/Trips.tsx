@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ import { buildAutoDraftFromEvent } from "@/services/autoPlanService";
 
 export default function Trips() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
   const { preferences } = usePreferences();
@@ -71,6 +72,16 @@ export default function Trips() {
   const [showCancelled, setShowCancelled] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [calendarViewOpen, setCalendarViewOpen] = useState(false);
+
+  // Auto-open calendar view when navigated to /trips?view=calendar
+  useEffect(() => {
+    if (searchParams.get("view") === "calendar") {
+      setCalendarViewOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("view");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   
   // Trip planning modal state
   const [planningModalOpen, setPlanningModalOpen] = useState(false);
