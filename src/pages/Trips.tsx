@@ -72,6 +72,16 @@ export default function Trips() {
   const [showCancelled, setShowCancelled] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [calendarViewOpen, setCalendarViewOpen] = useState(false);
+
+  // Auto-open calendar view when navigated to /trips?view=calendar
+  useEffect(() => {
+    if (searchParams.get("view") === "calendar") {
+      setCalendarViewOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("view");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   
   // Trip planning modal state
   const [planningModalOpen, setPlanningModalOpen] = useState(false);
