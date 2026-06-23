@@ -380,9 +380,12 @@ export default function Dashboard() {
     const flights = [...rawFlights].sort((a, b) => scoreFlight(a) - scoreFlight(b));
 
     const anchor = parsed?.locationAnchor;
-    const dateLabel = parsed?.dates?.raw
-      ? parsed.dates.raw
-      : `${format(anyResult.startDate, "MMM d")}–${format(anyResult.endDate, "MMM d")}`;
+    // Always show the full formatted date range (e.g. "Jul 10 – Jul 14") instead
+    // of the raw parsed token (which could be just "july").
+    const sameMonth = anyResult.startDate.getMonth() === anyResult.endDate.getMonth();
+    const dateLabel = sameMonth
+      ? `${format(anyResult.startDate, "MMM d")} – ${format(anyResult.endDate, "d")}`
+      : `${format(anyResult.startDate, "MMM d")} – ${format(anyResult.endDate, "MMM d")}`;
 
     const topFlight = flights[0];
     const topHotel = hotels[0];
