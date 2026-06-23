@@ -37,6 +37,7 @@ import { buildAutoDraftFromEvent } from "@/services/autoPlanService";
 
 export default function Trips() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
   const { preferences } = usePreferences();
