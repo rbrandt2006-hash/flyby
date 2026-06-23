@@ -897,11 +897,9 @@ export default function Dashboard() {
               )}
 
               {/* Quick access: history when conversations exist */}
-              {threadList.length > 0 && (
-                <p className="mt-4 text-center text-xs text-muted-foreground">
-                  {threadList.length} past conversation{threadList.length === 1 ? "" : "s"} — use the chat thread to revisit them after your next search.
-                </p>
-              )}
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                Search by destination, dates, or trip type — e.g. "NYC next Monday" or "hotel in Austin under $200".
+              </p>
             </motion.div>
           </ScrollReveal>
         </>
