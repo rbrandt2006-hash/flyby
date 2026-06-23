@@ -310,6 +310,41 @@ function extractDates(lowered: string, original: string): { departure?: Date; re
     
     return { departure, return: returnDate, flexible, raw, duration };
   }
+
+  // "Month Day" or ranges like "July 10 to July 14", "July 10-14", "Jul 10–14"
+  const monthNameAlt = MONTHS.map((m) => m.names.join("|")).join("|");
+  const monthDayRe = new RegExp(
+    `\\b(${monthNameAlt})\\s+(\\d{1,2})(?:st|nd|rd|th)?` +
+      `(?:\\s*(?:to|through|until|thru|[-–—])\\s*(?:(${monthNameAlt})\\s+)?(\\d{1,2})(?:st|nd|rd|th)?)?` +
+      `(?:[,\\s]+(\\d{4}))?`,
+    "i",
+  );
+  const monthDayMatch = original.match(monthDayRe);
+  if (monthDayMatch) {
+    const startMonthName = monthDayMatch[1].toLowerCase();
+    const startMonth = MONTHS.find((m) => m.names.includes(startMonthName))!.index;
+    const startDay = parseInt(monthDayMatch[2], 10);
+    let year = monthDayMatch[5] ? parseInt(monthDayMatch[5], 10) : currentYear;
+    if (year < 100) year += 2000;
+    const candidate = new Date(year, startMonth, startDay);
+    if (!monthDayMatch[5] && candidate < now) year += 1;
+    departure = new Date(year, startMonth, startDay);
+
+    if (monthDayMatch[4]) {
+      const endMonthName = (monthDayMatch[3] || startMonthName).toLowerCase();
+      const endMonth = MONTHS.find((m) => m.names.includes(endMonthName))!.index;
+      const endDay = parseInt(monthDayMatch[4], 10);
+      let endYear = year;
+      // If end month is earlier than start month, roll over to next year
+      if (endMonth < startMonth) endYear += 1;
+      returnDate = new Date(endYear, endMonth, endDay);
+    }
+
+    raw = monthDayMatch[0].trim();
+    return { departure, return: returnDate, flexible: false, raw, duration };
+  }
+
+
   
   // Month patterns: "in March", "first week of August", "mid-January"
   for (const month of MONTHS) {
