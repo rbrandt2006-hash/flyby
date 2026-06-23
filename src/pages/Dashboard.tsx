@@ -1038,7 +1038,7 @@ export default function Dashboard() {
                   <span className="text-2xl font-bold text-primary">${planResult.estimatedCost.toLocaleString()}</span>
                 </div>
                 <div className="flex gap-3 pt-1">
-                  <Button variant="default" className="flex-1" onClick={handleSaveDraft}>Save as Draft</Button>
+                  <Button variant="default" className="flex-1" onClick={handleSaveDraft}>Confirm &amp; Book</Button>
                   <Button variant="outline" className="flex-1" onClick={handleRefine}>Refine</Button>
                 </div>
               </CardContent>
