@@ -750,9 +750,19 @@ export default function Dashboard() {
   }, [localTrips, formatTripDates, removedIds, demoMode]);
 
   function getDemoTrips() {
+    const today = new Date();
+    const addDays = (n: number) => new Date(today.getTime() + n * 24 * 60 * 60 * 1000);
+    const fmtRange = (start: Date, end: Date) => {
+      const sameMonth = start.getMonth() === end.getMonth();
+      return sameMonth
+        ? `${format(start, "MMM d")}-${format(end, "d, yyyy")}`
+        : `${format(start, "MMM d")}-${format(end, "MMM d, yyyy")}`;
+    };
+    const sfStart = addDays(9);  const sfEnd = addDays(11);
+    const seaStart = addDays(23); const seaEnd = addDays(25);
     return [
-      { id: "demo_trip_sf_2025", destination: "San Francisco, CA", dates: "May 12-14, 2026", status: "approved" as const, purpose: "Client meeting", estimatedCost: 1850 },
-      { id: "demo_trip_seattle_2025", destination: "Seattle, WA", dates: "Jun 2-4, 2026", status: "pending" as const, purpose: "Team offsite", estimatedCost: 2100 },
+      { id: "demo_trip_sf_2025", destination: "San Francisco, CA", dates: fmtRange(sfStart, sfEnd), status: "approved" as const, purpose: "Client meeting", estimatedCost: 1850 },
+      { id: "demo_trip_seattle_2025", destination: "Seattle, WA", dates: fmtRange(seaStart, seaEnd), status: "pending" as const, purpose: "Team offsite", estimatedCost: 2100 },
     ];
   }
 
