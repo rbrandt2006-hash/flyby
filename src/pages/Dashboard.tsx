@@ -707,6 +707,11 @@ export default function Dashboard() {
       action: { label: "View Calendar", onClick: () => navigate("/trips?view=calendar") },
     });
     setPlanResult(null);
+    setPendingPlanResult(null);
+    setShowHotelStep(false);
+    setSelectedFlightFromResults(null);
+    setFlightResults([]);
+    clearBookingFlow();
     setTripInput("");
     navigate("/trips");
   };
