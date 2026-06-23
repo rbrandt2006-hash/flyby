@@ -108,8 +108,9 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   const destAirport = parsed.destination?.airports[0];
   if (!destAirport) return { needsDestination: true };
 
-  // Default origin to user's home airport (SEA) when not parsed
-  const DEFAULT_HOME = { code: "SEA", city: "Seattle" };
+  // Default origin to user's home airport when not parsed. Mark as inferred so
+  // the chip displays "Nearest airport" instead of pretending we knew the origin.
+  const DEFAULT_HOME = { code: "SEA", city: "Nearest airport" };
   const originAirport = parsed.origin?.airports[0] || { code: DEFAULT_HOME.code, city: DEFAULT_HOME.city } as any;
   const purpose = parsePurpose(prompt);
 
@@ -379,9 +380,12 @@ export default function Dashboard() {
     const flights = [...rawFlights].sort((a, b) => scoreFlight(a) - scoreFlight(b));
 
     const anchor = parsed?.locationAnchor;
-    const dateLabel = parsed?.dates?.raw
-      ? parsed.dates.raw
-      : `${format(anyResult.startDate, "MMM d")}–${format(anyResult.endDate, "MMM d")}`;
+    // Always show the full formatted date range (e.g. "Jul 10 – Jul 14") instead
+    // of the raw parsed token (which could be just "july").
+    const sameMonth = anyResult.startDate.getMonth() === anyResult.endDate.getMonth();
+    const dateLabel = sameMonth
+      ? `${format(anyResult.startDate, "MMM d")} – ${format(anyResult.endDate, "d")}`
+      : `${format(anyResult.startDate, "MMM d")} – ${format(anyResult.endDate, "MMM d")}`;
 
     const topFlight = flights[0];
     const topHotel = hotels[0];

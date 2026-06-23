@@ -157,96 +157,92 @@ export function parseTravelRequest(input: string): ParsedTravelRequest {
   };
 }
 
+function resolveLocation(locationStr: string): Airport[] {
+  const direct = findAirports(locationStr);
+  if (direct.length) return direct;
+  const metro = getMetroAreaAirports(locationStr);
+  if (metro.length) return metro;
+  const resolved = resolveAmbiguousLocation(locationStr);
+  if (resolved.length) return resolved;
+  return [];
+}
+
+// City keyword fallback (expanded). Used only when verb patterns don't match.
+const CITY_KEYWORDS_RE = /\b(new york|nyc|los angeles|chicago|san francisco|sf|london|paris|tokyo|singapore|dubai|sydney|melbourne|hong kong|bangkok|amsterdam|barcelona|rome|berlin|munich|madrid|lisbon|prague|vienna|budapest|miami|vegas|las vegas|seattle|boston|denver|atlanta|dallas|houston|phoenix|orlando|honolulu|maui|cancun|cabo|toronto|vancouver|montreal|austin|nashville|portland|san diego|washington|washington dc|philadelphia|minneapolis|detroit|charlotte|tampa|salt lake city|kansas city|st louis|raleigh|pittsburgh|baltimore|cleveland|cincinnati|indianapolis|columbus|milwaukee|sacramento|new orleans|memphis|jacksonville)\b/i;
+
 function extractDestination(lowered: string, original: string): { airports: Airport[]; raw: string; inferred: boolean } {
-  // Common patterns for destination
+  // Pattern A — "X to Y" form. Capture Y as destination. Stops at date tokens / connector words.
+  const xToY = lowered.match(/\bto\s+([a-z][a-z\s'.-]*?)(?=\s+(?:from|on|in|for|next|this|around|sometime|near|tomorrow|tonight|by|via|\d|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|mon|tue|wed|thu|fri|sat|sun)\b|[,.!?]|$)/i);
+  if (xToY && xToY[1]) {
+    const locationStr = xToY[1].trim().replace(/[.,!?]+$/, "");
+    const airports = resolveLocation(locationStr);
+    if (airports.length) return { airports, raw: locationStr, inferred: false };
+  }
+
+  // Verb-led patterns
   const patterns = [
-    /(?:to|going to|fly(?:ing)? to|travel(?:ing)? to|headed to|heading to|visit(?:ing)?)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this|around|sometime|near|tomorrow|tonight)|$)/i,
+    /(?:going to|fly(?:ing)? to|travel(?:ing)? to|headed to|heading to|visit(?:ing)?)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this|around|sometime|near|tomorrow|tonight)|$)/i,
     /(?:trip to|flight to|flights? to|book(?:ing)?\s+(?:a\s+)?(?:flight|trip)\s+to)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|next|this|near|tomorrow|tonight)|$)/i,
     /(?:need to go to|want to go to|planning to go to)\s+([a-zA-Z\s,]+?)(?:\s+(?:from|on|in|for|near|tomorrow|tonight)|$)/i,
     /(?:anywhere warm|somewhere warm|beach|tropical)/i,
   ];
-  
+
   for (const pattern of patterns) {
     const match = original.match(pattern);
     if (match && match[1]) {
       const locationStr = match[1].trim().replace(/[.,!?]$/, "");
-      const airports = findAirports(locationStr);
-      
-      // Try metro area lookup
-      if (airports.length === 0) {
-        const metroAirports = getMetroAreaAirports(locationStr);
-        if (metroAirports.length) {
-          return { airports: metroAirports, raw: locationStr, inferred: false };
-        }
-      }
-      
-      // Try resolving ambiguous locations
-      if (airports.length === 0) {
-        const resolved = resolveAmbiguousLocation(locationStr);
-        if (resolved.length) {
-          return { airports: resolved, raw: locationStr, inferred: false };
-        }
-      }
-      
-      if (airports.length) {
-        return { airports, raw: locationStr, inferred: false };
-      }
+      const airports = resolveLocation(locationStr);
+      if (airports.length) return { airports, raw: locationStr, inferred: false };
     }
   }
-  
-  // Check for 3-letter airport codes directly
+
+  // 3-letter airport code
   const codeMatch = original.match(/\b([A-Z]{3})\b/);
   if (codeMatch) {
     const airports = findAirports(codeMatch[1]);
-    if (airports.length) {
-      return { airports, raw: codeMatch[1], inferred: false };
-    }
+    if (airports.length) return { airports, raw: codeMatch[1], inferred: false };
   }
-  
-  // Look for city names anywhere in the text
-  const cityPatterns = [
-    /\b(new york|nyc|los angeles|la|chicago|san francisco|sf|london|paris|tokyo|singapore|dubai|sydney|melbourne|hong kong|bangkok|amsterdam|barcelona|rome|berlin|munich|madrid|lisbon|prague|vienna|budapest|miami|vegas|las vegas|seattle|boston|denver|atlanta|dallas|houston|phoenix|orlando|honolulu|maui|cancun|cabo|toronto|vancouver|montreal)\b/i,
-  ];
-  
-  for (const pattern of cityPatterns) {
-    const match = lowered.match(pattern);
-    if (match) {
-      const airports = findAirports(match[1]);
-      if (airports.length) {
-        return { airports, raw: match[1], inferred: true };
-      }
-    }
+
+  // City keyword fallback. When "to" is present, only scan AFTER it so the
+  // origin city ("New York to London") isn't mistaken for the destination.
+  const toIdx = lowered.search(/\bto\b/);
+  const searchText = toIdx >= 0 ? lowered.slice(toIdx + 2) : lowered;
+  const cityMatch = searchText.match(CITY_KEYWORDS_RE);
+  if (cityMatch) {
+    const airports = findAirports(cityMatch[1]);
+    if (airports.length) return { airports, raw: cityMatch[1], inferred: true };
   }
-  
+
   return { airports: [], raw: "", inferred: false };
 }
 
 function extractOrigin(lowered: string, original: string): { airports: Airport[]; raw: string; inferred: boolean } {
-  // Common patterns for origin
+  // Explicit origin markers
   const patterns = [
     /(?:from|leaving from|departing from|out of|flying from)\s+([a-zA-Z\s,]+?)(?:\s+(?:to|on|in|for|next|this)|$)/i,
     /(?:starting in|based in|located in|i'm in|im in|currently in)\s+([a-zA-Z\s,]+?)(?:\s+(?:and|to|,)|$)/i,
   ];
-  
+
   for (const pattern of patterns) {
     const match = original.match(pattern);
     if (match && match[1]) {
       const locationStr = match[1].trim().replace(/[.,!?]$/, "");
-      const airports = findAirports(locationStr);
-      
-      if (airports.length === 0) {
-        const metroAirports = getMetroAreaAirports(locationStr);
-        if (metroAirports.length) {
-          return { airports: metroAirports, raw: locationStr, inferred: false };
-        }
-      }
-      
-      if (airports.length) {
-        return { airports, raw: locationStr, inferred: false };
-      }
+      const airports = resolveLocation(locationStr);
+      if (airports.length) return { airports, raw: locationStr, inferred: false };
     }
   }
-  
+
+  // "X to Y" form — treat left side as origin (no "from" required).
+  // Strip optional leading filler verbs like "i'm flying", "fly", "trip", etc.
+  const xToY = lowered.match(/^\s*(?:(?:i'?m|i am)\s+)?(?:flying|going|traveling|travelling|fly|head(?:ed|ing)?|trip|book(?:ing)?\s+(?:a\s+)?(?:flight|trip)|need\s+(?:a\s+flight|to\s+(?:fly|go)))?\s*([a-z][a-z\s'.-]*?)\s+to\s+/i);
+  if (xToY && xToY[1]) {
+    const locationStr = xToY[1].trim();
+    if (locationStr && !/^(a|the|my|next|this|tomorrow|tonight|today|flight|trip|plane|go|fly|head)$/i.test(locationStr)) {
+      const airports = resolveLocation(locationStr);
+      if (airports.length) return { airports, raw: locationStr, inferred: false };
+    }
+  }
+
   return { airports: [], raw: "", inferred: false };
 }
 
@@ -289,7 +285,39 @@ function extractDates(lowered: string, original: string): { departure?: Date; re
     }
   }
   
-  // Specific date patterns: "Jan 15", "January 15th", "1/15", "2025-01-15"
+  // "Month Day" or ranges like "July 10 to July 14", "July 10-14", "April 10-20"
+  const monthNameAlt = MONTHS.map((m) => m.names.join("|")).join("|");
+  const monthDayRe = new RegExp(
+    `\\b(${monthNameAlt})\\s+(\\d{1,2})(?:st|nd|rd|th)?` +
+      `(?:\\s*(?:to|through|until|thru|[-–—])\\s*(?:(${monthNameAlt})\\s+)?(\\d{1,2})(?:st|nd|rd|th)?)?` +
+      `(?:[,\\s]+(\\d{4}))?`,
+    "i",
+  );
+  const monthDayMatch = original.match(monthDayRe);
+  if (monthDayMatch) {
+    const startMonthName = monthDayMatch[1].toLowerCase();
+    const startMonth = MONTHS.find((m) => m.names.includes(startMonthName))!.index;
+    const startDay = parseInt(monthDayMatch[2], 10);
+    let year = monthDayMatch[5] ? parseInt(monthDayMatch[5], 10) : currentYear;
+    if (year < 100) year += 2000;
+    const candidate = new Date(year, startMonth, startDay);
+    if (!monthDayMatch[5] && candidate < now) year += 1;
+    departure = new Date(year, startMonth, startDay);
+
+    if (monthDayMatch[4]) {
+      const endMonthName = (monthDayMatch[3] || startMonthName).toLowerCase();
+      const endMonth = MONTHS.find((m) => m.names.includes(endMonthName))!.index;
+      const endDay = parseInt(monthDayMatch[4], 10);
+      let endYear = year;
+      if (endMonth < startMonth) endYear += 1;
+      returnDate = new Date(endYear, endMonth, endDay);
+    }
+
+    raw = monthDayMatch[0].trim();
+    return { departure, return: returnDate, flexible: false, raw, duration };
+  }
+
+  // Numeric date patterns: "1/15", "2025-01-15", "1/15-1/20"
   const specificDatePattern = /(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/;
   const specificMatch = original.match(specificDatePattern);
   if (specificMatch) {
@@ -297,11 +325,10 @@ function extractDates(lowered: string, original: string): { departure?: Date; re
     const day = parseInt(specificMatch[2]);
     let year = specificMatch[3] ? parseInt(specificMatch[3]) : currentYear;
     if (year < 100) year += 2000;
-    
+
     departure = new Date(year, month, day);
     raw = specificMatch[0];
-    
-    // Look for return date
+
     const remaining = original.slice(original.indexOf(specificMatch[0]) + specificMatch[0].length);
     const returnMatch = remaining.match(specificDatePattern);
     if (returnMatch) {
@@ -311,9 +338,13 @@ function extractDates(lowered: string, original: string): { departure?: Date; re
       if (rYear < 100) rYear += 2000;
       returnDate = new Date(rYear, rMonth, rDay);
     }
-    
+
     return { departure, return: returnDate, flexible, raw, duration };
   }
+
+
+
+
   
   // Month patterns: "in March", "first week of August", "mid-January"
   for (const month of MONTHS) {
