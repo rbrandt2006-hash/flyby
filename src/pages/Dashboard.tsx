@@ -151,7 +151,12 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
     },
     hotel: { name: hotelName, location: hotelLocation },
     groundTransport: `Airport transfer from ${destCode} + local mobility pass`,
-    estimatedCost: flights[0]?.price || (estimatedCostBase + Math.floor(Math.random() * 450) - 125),
+    estimatedCost: (() => {
+      const nights = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+      const flightPrice = flights[0]?.price ?? Math.round(estimatedCostBase * 0.4);
+      const hotelPricePerNight = destAirport.country === "United States" || destAirport.country === "USA" ? 245 : 310;
+      return flightPrice + hotelPricePerNight * nights;
+    })(),
     confidenceLevel: Math.min(98, 92 + Math.floor(Math.random() * 4)),
     originalPrompt: prompt,
     _flights: flights,
@@ -750,9 +755,19 @@ export default function Dashboard() {
   }, [localTrips, formatTripDates, removedIds, demoMode]);
 
   function getDemoTrips() {
+    const today = new Date();
+    const addDays = (n: number) => new Date(today.getTime() + n * 24 * 60 * 60 * 1000);
+    const fmtRange = (start: Date, end: Date) => {
+      const sameMonth = start.getMonth() === end.getMonth();
+      return sameMonth
+        ? `${format(start, "MMM d")}-${format(end, "d, yyyy")}`
+        : `${format(start, "MMM d")}-${format(end, "MMM d, yyyy")}`;
+    };
+    const sfStart = addDays(9);  const sfEnd = addDays(11);
+    const seaStart = addDays(23); const seaEnd = addDays(25);
     return [
-      { id: "demo_trip_sf_2025", destination: "San Francisco, CA", dates: "May 12-14, 2026", status: "approved" as const, purpose: "Client meeting", estimatedCost: 1850 },
-      { id: "demo_trip_seattle_2025", destination: "Seattle, WA", dates: "Jun 2-4, 2026", status: "pending" as const, purpose: "Team offsite", estimatedCost: 2100 },
+      { id: "demo_trip_sf_2025", destination: "San Francisco, CA", dates: fmtRange(sfStart, sfEnd), status: "approved" as const, purpose: "Client meeting", estimatedCost: 1850 },
+      { id: "demo_trip_seattle_2025", destination: "Seattle, WA", dates: fmtRange(seaStart, seaEnd), status: "pending" as const, purpose: "Team offsite", estimatedCost: 2100 },
     ];
   }
 
@@ -887,11 +902,9 @@ export default function Dashboard() {
               )}
 
               {/* Quick access: history when conversations exist */}
-              {threadList.length > 0 && (
-                <p className="mt-4 text-center text-xs text-muted-foreground">
-                  {threadList.length} past conversation{threadList.length === 1 ? "" : "s"} — use the chat thread to revisit them after your next search.
-                </p>
-              )}
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                Search by destination, dates, or trip type — e.g. "NYC next Monday" or "hotel in Austin under $200".
+              </p>
             </motion.div>
           </ScrollReveal>
         </>
@@ -1062,23 +1075,28 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <MapPin className="w-3 h-3" />{member.destination}
                     </p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <motion.div
-                          className={cn(
-                            "h-full rounded-full",
-                            member.statusType === "success" && "bg-success",
-                            member.statusType === "warning" && "bg-warning",
-                            member.statusType === "info" && "bg-primary",
-                          )}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(member.journeyStep / member.totalSteps) * 100}%` }}
-                          transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
-                        />
+                    <div className="mt-1.5 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <motion.div
+                            className={cn(
+                              "h-full rounded-full",
+                              member.statusType === "success" && "bg-success",
+                              member.statusType === "warning" && "bg-warning",
+                              member.statusType === "info" && "bg-primary",
+                            )}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(member.journeyStep / member.totalSteps) * 100}%` }}
+                            transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {member.journeyStep}/{member.totalSteps}
+                        </span>
                       </div>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {member.journeyStep}/{member.totalSteps}
-                      </span>
+                      <p className="text-[10px] text-muted-foreground/80">
+                        Trip step {member.journeyStep} of {member.totalSteps}
+                      </p>
                     </div>
                   </div>
                   <Badge
