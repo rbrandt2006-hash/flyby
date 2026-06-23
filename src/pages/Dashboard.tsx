@@ -108,8 +108,9 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   const destAirport = parsed.destination?.airports[0];
   if (!destAirport) return { needsDestination: true };
 
-  // Default origin to user's home airport (SEA) when not parsed
-  const DEFAULT_HOME = { code: "SEA", city: "Seattle" };
+  // Default origin to user's home airport when not parsed. Mark as inferred so
+  // the chip displays "Nearest airport" instead of pretending we knew the origin.
+  const DEFAULT_HOME = { code: "SEA", city: "Nearest airport" };
   const originAirport = parsed.origin?.airports[0] || { code: DEFAULT_HOME.code, city: DEFAULT_HOME.city } as any;
   const purpose = parsePurpose(prompt);
 
