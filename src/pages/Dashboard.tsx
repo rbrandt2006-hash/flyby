@@ -151,7 +151,12 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
     },
     hotel: { name: hotelName, location: hotelLocation },
     groundTransport: `Airport transfer from ${destCode} + local mobility pass`,
-    estimatedCost: flights[0]?.price || (estimatedCostBase + Math.floor(Math.random() * 450) - 125),
+    estimatedCost: (() => {
+      const nights = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+      const flightPrice = flights[0]?.price ?? Math.round(estimatedCostBase * 0.4);
+      const hotelPricePerNight = destAirport.country === "United States" || destAirport.country === "USA" ? 245 : 310;
+      return flightPrice + hotelPricePerNight * nights;
+    })(),
     confidenceLevel: Math.min(98, 92 + Math.floor(Math.random() * 4)),
     originalPrompt: prompt,
     _flights: flights,
