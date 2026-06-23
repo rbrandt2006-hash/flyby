@@ -1072,23 +1072,28 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <MapPin className="w-3 h-3" />{member.destination}
                     </p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <motion.div
-                          className={cn(
-                            "h-full rounded-full",
-                            member.statusType === "success" && "bg-success",
-                            member.statusType === "warning" && "bg-warning",
-                            member.statusType === "info" && "bg-primary",
-                          )}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(member.journeyStep / member.totalSteps) * 100}%` }}
-                          transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
-                        />
+                    <div className="mt-1.5 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <motion.div
+                            className={cn(
+                              "h-full rounded-full",
+                              member.statusType === "success" && "bg-success",
+                              member.statusType === "warning" && "bg-warning",
+                              member.statusType === "info" && "bg-primary",
+                            )}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(member.journeyStep / member.totalSteps) * 100}%` }}
+                            transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {member.journeyStep}/{member.totalSteps}
+                        </span>
                       </div>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {member.journeyStep}/{member.totalSteps}
-                      </span>
+                      <p className="text-[10px] text-muted-foreground/80">
+                        Trip step {member.journeyStep} of {member.totalSteps}
+                      </p>
                     </div>
                   </div>
                   <Badge
