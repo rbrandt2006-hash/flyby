@@ -704,7 +704,7 @@ export default function Dashboard() {
     const isEarly = planResult.flight.departTime.includes("AM") && parseInt(planResult.flight.departTime) < 10;
     recordBookingChoice({ isEarlyFlight: isEarly, isDirect: true, isBudgetOption: planResult.estimatedCost < 2000 });
     toast.success("Trip booked and added to calendar.", {
-      action: { label: "View Calendar", onClick: () => navigate("/trips") },
+      action: { label: "View Calendar", onClick: () => navigate("/trips?view=calendar") },
     });
     setPlanResult(null);
     setTripInput("");
