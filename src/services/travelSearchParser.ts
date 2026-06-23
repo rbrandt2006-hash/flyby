@@ -285,33 +285,7 @@ function extractDates(lowered: string, original: string): { departure?: Date; re
     }
   }
   
-  // Specific date patterns: "Jan 15", "January 15th", "1/15", "2025-01-15"
-  const specificDatePattern = /(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/;
-  const specificMatch = original.match(specificDatePattern);
-  if (specificMatch) {
-    const month = parseInt(specificMatch[1]) - 1;
-    const day = parseInt(specificMatch[2]);
-    let year = specificMatch[3] ? parseInt(specificMatch[3]) : currentYear;
-    if (year < 100) year += 2000;
-    
-    departure = new Date(year, month, day);
-    raw = specificMatch[0];
-    
-    // Look for return date
-    const remaining = original.slice(original.indexOf(specificMatch[0]) + specificMatch[0].length);
-    const returnMatch = remaining.match(specificDatePattern);
-    if (returnMatch) {
-      const rMonth = parseInt(returnMatch[1]) - 1;
-      const rDay = parseInt(returnMatch[2]);
-      let rYear = returnMatch[3] ? parseInt(returnMatch[3]) : year;
-      if (rYear < 100) rYear += 2000;
-      returnDate = new Date(rYear, rMonth, rDay);
-    }
-    
-    return { departure, return: returnDate, flexible, raw, duration };
-  }
-
-  // "Month Day" or ranges like "July 10 to July 14", "July 10-14", "Jul 10–14"
+  // "Month Day" or ranges like "July 10 to July 14", "July 10-14", "April 10-20"
   const monthNameAlt = MONTHS.map((m) => m.names.join("|")).join("|");
   const monthDayRe = new RegExp(
     `\\b(${monthNameAlt})\\s+(\\d{1,2})(?:st|nd|rd|th)?` +
@@ -335,7 +309,6 @@ function extractDates(lowered: string, original: string): { departure?: Date; re
       const endMonth = MONTHS.find((m) => m.names.includes(endMonthName))!.index;
       const endDay = parseInt(monthDayMatch[4], 10);
       let endYear = year;
-      // If end month is earlier than start month, roll over to next year
       if (endMonth < startMonth) endYear += 1;
       returnDate = new Date(endYear, endMonth, endDay);
     }
@@ -343,6 +316,33 @@ function extractDates(lowered: string, original: string): { departure?: Date; re
     raw = monthDayMatch[0].trim();
     return { departure, return: returnDate, flexible: false, raw, duration };
   }
+
+  // Numeric date patterns: "1/15", "2025-01-15", "1/15-1/20"
+  const specificDatePattern = /(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/;
+  const specificMatch = original.match(specificDatePattern);
+  if (specificMatch) {
+    const month = parseInt(specificMatch[1]) - 1;
+    const day = parseInt(specificMatch[2]);
+    let year = specificMatch[3] ? parseInt(specificMatch[3]) : currentYear;
+    if (year < 100) year += 2000;
+
+    departure = new Date(year, month, day);
+    raw = specificMatch[0];
+
+    const remaining = original.slice(original.indexOf(specificMatch[0]) + specificMatch[0].length);
+    const returnMatch = remaining.match(specificDatePattern);
+    if (returnMatch) {
+      const rMonth = parseInt(returnMatch[1]) - 1;
+      const rDay = parseInt(returnMatch[2]);
+      let rYear = returnMatch[3] ? parseInt(returnMatch[3]) : year;
+      if (rYear < 100) rYear += 2000;
+      returnDate = new Date(rYear, rMonth, rDay);
+    }
+
+    return { departure, return: returnDate, flexible, raw, duration };
+  }
+
+
 
 
   
