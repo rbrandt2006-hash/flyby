@@ -603,6 +603,22 @@ export default function Trips() {
     const isArchived = trip.status === "archived";
     const isConfirmed = trip.status === "confirmed";
 
+    // Booking status derived from calendar sync result
+    type BookingState = "confirmed" | "failed" | "pending" | "draft";
+    let bookingState: BookingState;
+    if (trip.calendarSyncError) bookingState = "failed";
+    else if (trip.calendarEventId) bookingState = "confirmed";
+    else if (isDraft) bookingState = "draft";
+    else bookingState = "pending";
+
+    const bookingConfig: Record<BookingState, { label: string; className: string; Icon: typeof Clock; tip: string }> = {
+      confirmed: { label: "Booking confirmed", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400", Icon: CheckCircle2, tip: "Calendar event created and booking is confirmed." },
+      pending:   { label: "Booking pending",   className: "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400",       Icon: Loader2,      tip: "Booking submitted — waiting for calendar sync to confirm." },
+      failed:    { label: "Booking failed",    className: "bg-destructive/10 text-destructive border-destructive/20",                     Icon: AlertTriangle,tip: trip.calendarSyncError || "Booking did not go through. Try again from the trip detail page." },
+      draft:     { label: "Not booked",        className: "bg-muted text-muted-foreground border-border",                                  Icon: Clock,        tip: "This itinerary is still a draft — confirm to book." },
+    };
+    const booking = bookingConfig[bookingState];
+
     return (
       <Card 
         key={trip.id}
