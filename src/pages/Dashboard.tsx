@@ -692,9 +692,68 @@ export default function Dashboard() {
 
   const [isBooking, setIsBooking] = useState(false);
 
+  // Idempotency: persist in-flight + recently completed booking keys across reloads
+  const BOOKING_IDEMPOTENCY_KEY = "flyby.bookingIdempotency.v1";
+  type IdempotencyRecord = { tripId?: string; status: "in_flight" | "completed"; ts: number };
+  const readIdempotencyMap = (): Record<string, IdempotencyRecord> => {
+    try {
+      const raw = sessionStorage.getItem(BOOKING_IDEMPOTENCY_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      // Expire entries older than 10 minutes so stale in_flight markers don't lock the user out
+      const now = Date.now();
+      const fresh: Record<string, IdempotencyRecord> = {};
+      Object.entries(parsed as Record<string, IdempotencyRecord>).forEach(([k, v]) => {
+        if (v && typeof v.ts === "number" && now - v.ts < 10 * 60 * 1000) fresh[k] = v;
+      });
+      return fresh;
+    } catch { return {}; }
+  };
+  const writeIdempotency = (key: string, record: IdempotencyRecord) => {
+    try {
+      const map = readIdempotencyMap();
+      map[key] = record;
+      sessionStorage.setItem(BOOKING_IDEMPOTENCY_KEY, JSON.stringify(map));
+    } catch { /* ignore quota errors */ }
+  };
+  const buildIdempotencyKey = (p: NonNullable<typeof planResult>): string => {
+    const parts = [
+      p.destination,
+      p.startDate.toISOString(),
+      p.endDate.toISOString(),
+      p.flight?.airline || "",
+      p.flight?.departTime || "",
+      p.hotel?.name || "",
+      String(p.estimatedCost ?? ""),
+    ];
+    return parts.join("|");
+  };
+
   const handleSaveDraft = async () => {
     if (!planResult || isBooking) return;
+    const idempotencyKey = buildIdempotencyKey(planResult);
+    const existing = readIdempotencyMap()[idempotencyKey];
+
+    if (existing?.status === "completed") {
+      toast.info("This trip is already booked.", {
+        action: { label: "View Calendar", onClick: () => navigate("/trips?view=calendar") },
+      });
+      setPlanResult(null);
+      setPendingPlanResult(null);
+      setShowHotelStep(false);
+      setSelectedFlightFromResults(null);
+      setFlightResults([]);
+      clearBookingFlow();
+      setTripInput("");
+      navigate("/trips");
+      return;
+    }
+    if (existing?.status === "in_flight") {
+      toast.warning("Booking already in progress — please wait.");
+      return;
+    }
+
     setIsBooking(true);
+    writeIdempotency(idempotencyKey, { status: "in_flight", ts: Date.now() });
     try {
       const startDate = planResult.startDate.toISOString();
       const endDate = planResult.endDate.toISOString();
@@ -707,6 +766,7 @@ export default function Dashboard() {
       if (!created || !created.id) {
         throw new Error("Trip could not be saved. Please try again.");
       }
+      writeIdempotency(idempotencyKey, { status: "completed", tripId: created.id, ts: Date.now() });
       try {
         createChat(`${planResult.destination} Trip`, []);
       } catch (chatErr) {
@@ -726,14 +786,18 @@ export default function Dashboard() {
       setTripInput("");
       navigate("/trips");
     } catch (err) {
+      // Clear the in_flight marker so the user can retry
+      try {
+        const map = readIdempotencyMap();
+        delete map[idempotencyKey];
+        sessionStorage.setItem(BOOKING_IDEMPOTENCY_KEY, JSON.stringify(map));
+      } catch { /* ignore */ }
       const message = err instanceof Error ? err.message : "Something went wrong while booking your trip.";
       console.error("Confirm & Book failed:", err);
       toast.error("Booking failed", {
         description: `${message} Your itinerary is still here — try again.`,
         action: { label: "Retry", onClick: () => handleSaveDraft() },
       });
-      // Intentionally do NOT clear planResult / booking flow so the
-      // "Confirm & Book" card stays visible until the booking succeeds.
     } finally {
       setIsBooking(false);
     }
