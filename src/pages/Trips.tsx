@@ -650,6 +650,19 @@ export default function Trips() {
                     {approval.label}
                   </Badge>
                 )}
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className={cn("text-xs gap-1 cursor-help", booking.className)}>
+                        <booking.Icon className={cn("w-3 h-3", bookingState === "pending" && "animate-spin")} />
+                        {booking.label}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs">
+                      {booking.tip}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <span className="text-xs text-muted-foreground">
                   {format(new Date(trip.createdAt), "MMM d, h:mm a")}
                 </span>
