@@ -690,30 +690,53 @@ export default function Dashboard() {
     }
   };
 
-  const handleSaveDraft = () => {
-    if (!planResult) return;
-    const startDate = planResult.startDate.toISOString();
-    const endDate = planResult.endDate.toISOString();
-    createTrip({
-      destination: planResult.destination, startDate, endDate,
-      purpose: planResult.purpose, flight: planResult.flight,
-      hotel: planResult.hotel, groundTransport: null,
-      estimatedCost: planResult.estimatedCost, confidenceLevel: planResult.confidenceLevel,
-    });
-    createChat(`${planResult.destination} Trip`, []);
-    const isEarly = planResult.flight.departTime.includes("AM") && parseInt(planResult.flight.departTime) < 10;
-    recordBookingChoice({ isEarlyFlight: isEarly, isDirect: true, isBudgetOption: planResult.estimatedCost < 2000 });
-    toast.success("Trip booked and added to calendar.", {
-      action: { label: "View Calendar", onClick: () => navigate("/trips?view=calendar") },
-    });
-    setPlanResult(null);
-    setPendingPlanResult(null);
-    setShowHotelStep(false);
-    setSelectedFlightFromResults(null);
-    setFlightResults([]);
-    clearBookingFlow();
-    setTripInput("");
-    navigate("/trips");
+  const [isBooking, setIsBooking] = useState(false);
+
+  const handleSaveDraft = async () => {
+    if (!planResult || isBooking) return;
+    setIsBooking(true);
+    try {
+      const startDate = planResult.startDate.toISOString();
+      const endDate = planResult.endDate.toISOString();
+      const created = createTrip({
+        destination: planResult.destination, startDate, endDate,
+        purpose: planResult.purpose, flight: planResult.flight,
+        hotel: planResult.hotel, groundTransport: null,
+        estimatedCost: planResult.estimatedCost, confidenceLevel: planResult.confidenceLevel,
+      });
+      if (!created || !created.id) {
+        throw new Error("Trip could not be saved. Please try again.");
+      }
+      try {
+        createChat(`${planResult.destination} Trip`, []);
+      } catch (chatErr) {
+        console.warn("Chat creation failed (non-fatal):", chatErr);
+      }
+      const isEarly = planResult.flight.departTime.includes("AM") && parseInt(planResult.flight.departTime) < 10;
+      recordBookingChoice({ isEarlyFlight: isEarly, isDirect: true, isBudgetOption: planResult.estimatedCost < 2000 });
+      toast.success("Trip booked and added to calendar.", {
+        action: { label: "View Calendar", onClick: () => navigate("/trips?view=calendar") },
+      });
+      setPlanResult(null);
+      setPendingPlanResult(null);
+      setShowHotelStep(false);
+      setSelectedFlightFromResults(null);
+      setFlightResults([]);
+      clearBookingFlow();
+      setTripInput("");
+      navigate("/trips");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong while booking your trip.";
+      console.error("Confirm & Book failed:", err);
+      toast.error("Booking failed", {
+        description: `${message} Your itinerary is still here — try again.`,
+        action: { label: "Retry", onClick: () => handleSaveDraft() },
+      });
+      // Intentionally do NOT clear planResult / booking flow so the
+      // "Confirm & Book" card stays visible until the booking succeeds.
+    } finally {
+      setIsBooking(false);
+    }
   };
 
   const handleDeleteClick = (trip: { id: string; destination: string }, e: React.MouseEvent) => {
