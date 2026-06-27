@@ -27,6 +27,7 @@ import { ContactSupportModal } from "@/components/settings/ContactSupportModal";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
 import { ProductTourModal } from "@/components/settings/ProductTourModal";
 import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
+import { LoyaltySection } from "@/components/settings/LoyaltySection";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import {
   User,
@@ -71,6 +72,7 @@ const navSections = [
   { id: "profile", label: "Profile & Account", icon: User },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "travel", label: "Travel Preferences", icon: Plane },
+  { id: "loyalty", label: "Loyalty Programs", icon: CreditCard },
   { id: "security", label: "Security & Privacy", icon: Shield },
   { id: "integrations", label: "Integrations", icon: Puzzle },
   { id: "support", label: "Product & Support", icon: HelpCircle },
@@ -868,6 +870,13 @@ export default function Settings() {
               </div>
             </div>
           </SettingsSection>
+          )}
+
+          {/* Loyalty Programs */}
+          {activeSection === "loyalty" && (
+            <motion.div variants={itemVariants}>
+              <LoyaltySection />
+            </motion.div>
           )}
 
           {/* Integrations */}
