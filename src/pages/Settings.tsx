@@ -27,6 +27,7 @@ import { ContactSupportModal } from "@/components/settings/ContactSupportModal";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
 import { ProductTourModal } from "@/components/settings/ProductTourModal";
 import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
+import { LoyaltySection } from "@/components/settings/LoyaltySection";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import {
   User,
