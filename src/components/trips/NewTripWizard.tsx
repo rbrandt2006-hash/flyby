@@ -11,6 +11,8 @@ import { Plane, Hotel, ClipboardCheck, Check, CalendarIcon, Search, Star, MapPin
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { FlightSearchDialog, type FlightSelectionDraft } from "@/components/flights/FlightSearchDialog";
+import { CompanyPicker } from "@/components/trips/CompanyPicker";
+import type { ClientCompany } from "@/hooks/useCompanies";
 import { toast } from "sonner";
 
 export interface HotelSelection {
@@ -32,6 +34,7 @@ export interface HotelSelection {
 export interface NewTripWizardResult {
   flight: FlightSelectionDraft;
   hotel: HotelSelection | null;
+  clientCompany: ClientCompany | null;
 }
 
 interface Props {
