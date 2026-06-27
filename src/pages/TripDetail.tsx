@@ -135,6 +135,18 @@ export default function TripDetail() {
     toast.success(`${hotel.name} added to your trip`);
   }, [trip, localTrips, updateTrip]);
 
+  const handleSelectCompany = useCallback((company: import("@/hooks/useCompanies").ClientCompany | null) => {
+    if (!trip) return;
+    setTrip({ ...trip, clientCompanyId: company?.id ?? null, clientCompanyName: company?.name ?? null });
+    if (localTrips.find(t => t.id === trip.id)) {
+      updateTrip(trip.id, {
+        clientCompanyId: company?.id ?? null,
+        clientCompanyName: company?.name ?? null,
+      });
+    }
+    toast.success(company ? `Linked to ${company.name}` : "Client link removed");
+  }, [trip, localTrips, updateTrip]);
+
   // Demo trips fallback data
   const demoTrips: Record<string, TripData> = {
     "demo_trip_sf_2025": {
