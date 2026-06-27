@@ -71,6 +71,7 @@ const navSections = [
   { id: "profile", label: "Profile & Account", icon: User },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "travel", label: "Travel Preferences", icon: Plane },
+  { id: "loyalty", label: "Loyalty Programs", icon: CreditCard },
   { id: "security", label: "Security & Privacy", icon: Shield },
   { id: "integrations", label: "Integrations", icon: Puzzle },
   { id: "support", label: "Product & Support", icon: HelpCircle },
