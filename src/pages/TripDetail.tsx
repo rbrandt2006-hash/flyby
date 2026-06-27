@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTrips, type LocalTrip } from "@/hooks/useTrips";
+import { CompanyPicker } from "@/components/trips/CompanyPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, differenceInDays } from "date-fns";
@@ -51,6 +52,8 @@ interface TripData {
     description?: string;
     reviewCount?: number;
   };
+  clientCompanyId?: string | null;
+  clientCompanyName?: string | null;
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -130,6 +133,18 @@ export default function TripDetail() {
     }
     setHotelPickerOpen(false);
     toast.success(`${hotel.name} added to your trip`);
+  }, [trip, localTrips, updateTrip]);
+
+  const handleSelectCompany = useCallback((company: import("@/hooks/useCompanies").ClientCompany | null) => {
+    if (!trip) return;
+    setTrip({ ...trip, clientCompanyId: company?.id ?? null, clientCompanyName: company?.name ?? null });
+    if (localTrips.find(t => t.id === trip.id)) {
+      updateTrip(trip.id, {
+        clientCompanyId: company?.id ?? null,
+        clientCompanyName: company?.name ?? null,
+      });
+    }
+    toast.success(company ? `Linked to ${company.name}` : "Client link removed");
   }, [trip, localTrips, updateTrip]);
 
   // Demo trips fallback data
@@ -233,6 +248,8 @@ export default function TripDetail() {
           estimatedCost: localTrip.estimatedCost,
           flight: localTrip.flight ? { ...localTrip.flight } : undefined,
           hotel: localTrip.hotel ? { ...localTrip.hotel } : undefined,
+          clientCompanyId: localTrip.clientCompanyId ?? null,
+          clientCompanyName: localTrip.clientCompanyName ?? null,
         });
         setIsLoading(false);
         return;
@@ -459,6 +476,30 @@ export default function TripDetail() {
                             <span className="text-sm text-muted-foreground">Estimated Cost</span>
                           </div>
                           <span className="text-xl font-bold text-foreground">${trip.estimatedCost.toLocaleString()}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Client / Company Card */}
+                    <Card className="border border-border/50">
+                      <CardContent className="p-5">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                            <Building2 className="w-5 h-5 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-2">
+                            <div>
+                              <p className="font-medium text-foreground">Client / Company</p>
+                              <p className="text-xs text-muted-foreground">
+                                Tie this trip to a client account for reporting and sales visibility.
+                              </p>
+                            </div>
+                            <CompanyPicker
+                              value={trip.clientCompanyId ?? null}
+                              onChange={handleSelectCompany}
+                              placeholder="Link to a client/company"
+                            />
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

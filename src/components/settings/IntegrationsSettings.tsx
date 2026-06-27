@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Check, Loader2, Calendar, Mail, MessageSquare, Users, ShieldCheck, Eye, Clock } from "lucide-react";
+import { Check, Loader2, Calendar, Mail, MessageSquare, Users, ShieldCheck, Eye, Clock, Cloud } from "lucide-react";
 import {
   connectGoogleCalendar,
   disconnectCalendar,
@@ -23,7 +23,7 @@ import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import flybyLogo from "@/assets/flyby-logo-icon.png";
 import { toast } from "sonner";
 
-type StubId = "outlook" | "slack" | "teams";
+type StubId = "outlook" | "slack" | "teams" | "salesforce";
 
 const stubIntegrations: {
   id: StubId;
@@ -52,6 +52,13 @@ const stubIntegrations: {
     description: "Team collaboration and notifications",
     icon: <Users className="w-5 h-5 text-violet-600" />,
     iconBg: "bg-violet-50 dark:bg-violet-950/30",
+  },
+  {
+    id: "salesforce",
+    name: "Salesforce CRM",
+    description: "Sync client accounts and link trips to opportunities",
+    icon: <Cloud className="w-5 h-5 text-sky-600" />,
+    iconBg: "bg-sky-50 dark:bg-sky-950/30",
   },
 ];
 

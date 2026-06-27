@@ -11,6 +11,8 @@ import { Plane, Hotel, ClipboardCheck, Check, CalendarIcon, Search, Star, MapPin
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { FlightSearchDialog, type FlightSelectionDraft } from "@/components/flights/FlightSearchDialog";
+import { CompanyPicker } from "@/components/trips/CompanyPicker";
+import type { ClientCompany } from "@/hooks/useCompanies";
 import { toast } from "sonner";
 
 export interface HotelSelection {
@@ -32,6 +34,7 @@ export interface HotelSelection {
 export interface NewTripWizardResult {
   flight: FlightSelectionDraft;
   hotel: HotelSelection | null;
+  clientCompany: ClientCompany | null;
 }
 
 interface Props {
@@ -85,6 +88,7 @@ export function NewTripWizard({ open, onOpenChange, onComplete }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [flight, setFlight] = useState<FlightSelectionDraft | null>(null);
   const [hotel, setHotel] = useState<HotelSelection | null>(null);
+  const [clientCompany, setClientCompany] = useState<ClientCompany | null>(null);
 
   // Step 2 form state
   const [hotelDestination, setHotelDestination] = useState("");
@@ -120,6 +124,7 @@ export function NewTripWizard({ open, onOpenChange, onComplete }: Props) {
     setStep(1);
     setFlight(null);
     setHotel(null);
+    setClientCompany(null);
     setHotelDestination("");
     setHotelDestinationTouched(false);
     setCheckIn(undefined);
@@ -185,7 +190,7 @@ export function NewTripWizard({ open, onOpenChange, onComplete }: Props) {
 
   const handleConfirmTrip = () => {
     if (!flight) return;
-    onComplete({ flight, hotel });
+    onComplete({ flight, hotel, clientCompany });
     resetAll();
     onOpenChange(false);
   };
@@ -405,6 +410,18 @@ export function NewTripWizard({ open, onOpenChange, onComplete }: Props) {
                 ) : (
                   <div className="mt-2 text-sm text-muted-foreground">No hotel — day trip</div>
                 )}
+              </div>
+
+              <div className="rounded-lg border p-4 space-y-2">
+                <Label className="text-sm font-medium">Client / Company</Label>
+                <p className="text-xs text-muted-foreground">
+                  Link this trip to a client account so it's visible on the trip card and in reports.
+                </p>
+                <CompanyPicker
+                  value={clientCompany?.id ?? null}
+                  onChange={setClientCompany}
+                  placeholder="Optional — pick or add a company"
+                />
               </div>
 
               <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">

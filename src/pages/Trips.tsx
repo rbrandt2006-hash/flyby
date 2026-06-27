@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays } from "lucide-react";
-import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw, Check, Clock, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw, Check, Clock, CheckCircle2, AlertTriangle, Loader2, Building2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
@@ -378,7 +378,7 @@ export default function Trips() {
     fetchTrips();
   }, [user]);
 
-  const handleWizardComplete = async ({ flight: selection, hotel }: NewTripWizardResult) => {
+  const handleWizardComplete = async ({ flight: selection, hotel, clientCompany }: NewTripWizardResult) => {
     const hotelCost = hotel?.totalPrice ?? 0;
     const newTrip = createTrip({
       destination: selection.destination,
@@ -403,6 +403,8 @@ export default function Trips() {
       groundTransport: null,
       estimatedCost: selection.flight.price + hotelCost,
       confidenceLevel: 84,
+      clientCompanyId: clientCompany?.id ?? null,
+      clientCompanyName: clientCompany?.name ?? null,
     });
 
     confirmLocalTrip(newTrip.id);
@@ -681,6 +683,12 @@ export default function Trips() {
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md w-fit">
                   <Plane className="w-3.5 h-3.5" />
                   <span>{trip.flight.airline}</span>
+                </div>
+              )}
+              {trip.clientCompanyName && (
+                <div className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary px-2 py-1 rounded-md w-fit border border-primary/20">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Client: {trip.clientCompanyName}</span>
                 </div>
               )}
             </div>
