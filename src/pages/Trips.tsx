@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays } from "lucide-react";
-import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw, Check, Clock, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw, Check, Clock, CheckCircle2, AlertTriangle, Loader2, Building2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
@@ -687,7 +687,7 @@ export default function Trips() {
               )}
               {trip.clientCompanyName && (
                 <div className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary px-2 py-1 rounded-md w-fit border border-primary/20">
-                  <MapPin className="w-3.5 h-3.5" />
+                  <Building2 className="w-3.5 h-3.5" />
                   <span>Client: {trip.clientCompanyName}</span>
                 </div>
               )}
