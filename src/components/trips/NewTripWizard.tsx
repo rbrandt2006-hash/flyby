@@ -412,6 +412,18 @@ export function NewTripWizard({ open, onOpenChange, onComplete }: Props) {
                 )}
               </div>
 
+              <div className="rounded-lg border p-4 space-y-2">
+                <Label className="text-sm font-medium">Client / Company</Label>
+                <p className="text-xs text-muted-foreground">
+                  Link this trip to a client account so it's visible on the trip card and in reports.
+                </p>
+                <CompanyPicker
+                  value={clientCompany?.id ?? null}
+                  onChange={setClientCompany}
+                  placeholder="Optional — pick or add a company"
+                />
+              </div>
+
               <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">
                 <div className="text-sm text-muted-foreground">Trip total</div>
                 <div className="text-xl font-semibold">${tripTotal.toLocaleString()}</div>
