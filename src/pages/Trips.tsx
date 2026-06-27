@@ -685,6 +685,12 @@ export default function Trips() {
                   <span>{trip.flight.airline}</span>
                 </div>
               )}
+              {trip.clientCompanyName && (
+                <div className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary px-2 py-1 rounded-md w-fit border border-primary/20">
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Client: {trip.clientCompanyName}</span>
+                </div>
+              )}
             </div>
             <div className="flex items-start gap-2">
               <div className="text-right shrink-0">
