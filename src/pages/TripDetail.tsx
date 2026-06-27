@@ -480,6 +480,30 @@ export default function TripDetail() {
                       </CardContent>
                     </Card>
 
+                    {/* Client / Company Card */}
+                    <Card className="border border-border/50">
+                      <CardContent className="p-5">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                            <Building2 className="w-5 h-5 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-2">
+                            <div>
+                              <p className="font-medium text-foreground">Client / Company</p>
+                              <p className="text-xs text-muted-foreground">
+                                Tie this trip to a client account for reporting and sales visibility.
+                              </p>
+                            </div>
+                            <CompanyPicker
+                              value={trip.clientCompanyId ?? null}
+                              onChange={handleSelectCompany}
+                              placeholder="Link to a client/company"
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
                     {/* Dates Card */}
                     <Card
                       className="border border-border/50 group transition-all cursor-pointer hover:border-primary/30 hover:shadow-md"
