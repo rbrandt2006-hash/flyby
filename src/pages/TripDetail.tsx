@@ -52,6 +52,8 @@ interface TripData {
     description?: string;
     reviewCount?: number;
   };
+  clientCompanyId?: string | null;
+  clientCompanyName?: string | null;
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
