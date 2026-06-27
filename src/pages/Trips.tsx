@@ -378,7 +378,7 @@ export default function Trips() {
     fetchTrips();
   }, [user]);
 
-  const handleWizardComplete = async ({ flight: selection, hotel }: NewTripWizardResult) => {
+  const handleWizardComplete = async ({ flight: selection, hotel, clientCompany }: NewTripWizardResult) => {
     const hotelCost = hotel?.totalPrice ?? 0;
     const newTrip = createTrip({
       destination: selection.destination,
@@ -403,6 +403,8 @@ export default function Trips() {
       groundTransport: null,
       estimatedCost: selection.flight.price + hotelCost,
       confidenceLevel: 84,
+      clientCompanyId: clientCompany?.id ?? null,
+      clientCompanyName: clientCompany?.name ?? null,
     });
 
     confirmLocalTrip(newTrip.id);
