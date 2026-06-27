@@ -872,6 +872,13 @@ export default function Settings() {
           </SettingsSection>
           )}
 
+          {/* Loyalty Programs */}
+          {activeSection === "loyalty" && (
+            <motion.div variants={itemVariants}>
+              <LoyaltySection />
+            </motion.div>
+          )}
+
           {/* Integrations */}
           {activeSection === "integrations" && (
           <SettingsSection 
