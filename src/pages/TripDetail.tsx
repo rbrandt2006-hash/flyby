@@ -236,6 +236,8 @@ export default function TripDetail() {
           estimatedCost: localTrip.estimatedCost,
           flight: localTrip.flight ? { ...localTrip.flight } : undefined,
           hotel: localTrip.hotel ? { ...localTrip.hotel } : undefined,
+          clientCompanyId: localTrip.clientCompanyId ?? null,
+          clientCompanyName: localTrip.clientCompanyName ?? null,
         });
         setIsLoading(false);
         return;
