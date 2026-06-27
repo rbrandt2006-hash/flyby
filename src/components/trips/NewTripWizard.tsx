@@ -88,6 +88,7 @@ export function NewTripWizard({ open, onOpenChange, onComplete }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [flight, setFlight] = useState<FlightSelectionDraft | null>(null);
   const [hotel, setHotel] = useState<HotelSelection | null>(null);
+  const [clientCompany, setClientCompany] = useState<ClientCompany | null>(null);
 
   // Step 2 form state
   const [hotelDestination, setHotelDestination] = useState("");
@@ -123,6 +124,7 @@ export function NewTripWizard({ open, onOpenChange, onComplete }: Props) {
     setStep(1);
     setFlight(null);
     setHotel(null);
+    setClientCompany(null);
     setHotelDestination("");
     setHotelDestinationTouched(false);
     setCheckIn(undefined);
@@ -188,7 +190,7 @@ export function NewTripWizard({ open, onOpenChange, onComplete }: Props) {
 
   const handleConfirmTrip = () => {
     if (!flight) return;
-    onComplete({ flight, hotel });
+    onComplete({ flight, hotel, clientCompany });
     resetAll();
     onOpenChange(false);
   };
