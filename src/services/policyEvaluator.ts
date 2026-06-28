@@ -43,10 +43,10 @@ export const FLIGHT_CLASS_LABEL: Record<string, string> = {
   first: "First",
 };
 
-interface TripLike {
+export interface TripLike {
   estimatedCost?: number;
-  flight?: { cabinClass?: string | null; price?: number | null } | null;
-  hotel?: { pricePerNight?: number | null } | null;
+  flight?: any | null;
+  hotel?: any | null;
   startDate?: string;
   endDate?: string;
 }
