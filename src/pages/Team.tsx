@@ -273,6 +273,49 @@ export default function Team() {
         </GlassPanel>
       )}
 
+      {/* Risk & Safety — Coming soon */}
+      <GlassPanel className="p-6 space-y-4 opacity-90">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center">
+              <ShieldAlert className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Risk & Safety</h2>
+              <p className="text-xs text-muted-foreground">Keep travelers safe wherever they go</p>
+            </div>
+          </div>
+          <Badge variant="secondary" className="gap-1">
+            <Clock className="w-3 h-3" />
+            Coming soon
+          </Badge>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="p-3 rounded-lg border border-border/60 bg-secondary/20">
+            <div className="flex items-center gap-2 mb-1">
+              <MapPinned className="w-4 h-4 text-muted-foreground" />
+              <p className="text-sm font-medium">High-risk destination alerts</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Flag trips to regions with active advisories before booking.</p>
+          </div>
+          <div className="p-3 rounded-lg border border-border/60 bg-secondary/20">
+            <div className="flex items-center gap-2 mb-1">
+              <ShieldAlert className="w-4 h-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Traveler check-in pings</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Scheduled safety check-ins with escalation to managers.</p>
+          </div>
+          <div className="p-3 rounded-lg border border-border/60 bg-secondary/20">
+            <div className="flex items-center gap-2 mb-1">
+              <Heart className="w-4 h-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Travel insurance coordination</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Attach policies per trip and surface claim contacts in-app.</p>
+          </div>
+        </div>
+      </GlassPanel>
+
+
       {/* Empty State */}
       {filtered.length === 0 && (
         <GlassPanel className="p-12 flex flex-col items-center justify-center text-center space-y-4">
