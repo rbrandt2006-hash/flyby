@@ -89,6 +89,7 @@ export default function TripDetail() {
   const { user } = useAuth();
   const { trips: localTrips, updateTrip } = useTrips();
   const { addExpense } = useExpenses();
+  const { policy: travelPolicy } = useTravelPolicy();
 
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [isLoading, setIsLoading] = useState(true);
