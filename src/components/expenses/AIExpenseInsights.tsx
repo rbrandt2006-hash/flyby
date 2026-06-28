@@ -61,6 +61,7 @@ function buildInsights() {
 
 export function AIExpenseInsights() {
   const [expanded, setExpanded] = useState(true);
+  const insights = useMemo(() => buildInsights(), []);
 
   return (
     <motion.div
