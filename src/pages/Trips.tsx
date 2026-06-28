@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays } from "lucide-react";
-import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw, Check, Clock, CheckCircle2, AlertTriangle, Loader2, Building2 } from "lucide-react";
+import { Plus, Calendar, Plane, MapPin, Trash2, Sparkles, DollarSign, ChevronDown, ChevronUp, Archive, RotateCcw, Check, Clock, CheckCircle2, AlertTriangle, Loader2, Building2, CloudLightning, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { CalendarEventsDisplay } from "@/components/calendar/CalendarEventsDisplay";
@@ -946,6 +946,34 @@ export default function Trips() {
           </div>
         </div>
       )}
+
+      {/* Predictive disruption rerouting — Coming soon */}
+      {(upcomingBackendTrips.length > 0 || confirmedTrips.length > 0) && (
+        <Card className="border-dashed border-border/60 bg-secondary/20">
+          <CardContent className="p-5 flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center shrink-0">
+              <CloudLightning className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-medium text-foreground">Predictive disruption rerouting</h3>
+                <Badge variant="secondary" className="gap-1">
+                  <Clock className="w-3 h-3" />
+                  Coming soon
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Flyby will watch your booked flights for weather and delay risk, then auto-propose rebookings before disruptions hit.
+              </p>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground/80 pt-1">
+                <Zap className="w-3 h-3" />
+                <span>Next step after booking status</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
 
       {/* Empty state when no active trips at all */}
       {upcomingBackendTrips.length === 0 && confirmedTrips.length === 0 && draftTrips.length === 0 && cancelledTrips.length === 0 && (
