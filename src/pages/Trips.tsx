@@ -35,6 +35,8 @@ import { TripPlanningModal, type TripProposal } from "@/components/home/TripPlan
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { usePreferences } from "@/hooks/usePreferences";
 import { buildAutoDraftFromEvent } from "@/services/autoPlanService";
+import { useTravelPolicy } from "@/hooks/useTravelPolicy";
+import { PolicyBadge } from "@/components/trips/PolicyBadge";
 
 export default function Trips() {
   const navigate = useNavigate();
