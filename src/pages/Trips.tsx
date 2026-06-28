@@ -44,6 +44,7 @@ export default function Trips() {
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
   const { preferences } = usePreferences();
+  const { policy: travelPolicy } = useTravelPolicy();
   const { 
     trips: localTrips, 
     createTrip, 
