@@ -20,6 +20,8 @@ import { TripSlideEditor } from "@/components/trips/TripSlideEditor";
 import { toast } from "sonner";
 import { AddExpenseModal } from "@/components/expenses/AddExpenseModal";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useTravelPolicy } from "@/hooks/useTravelPolicy";
+import { PolicyBadge } from "@/components/trips/PolicyBadge";
 import type { HotelOption } from "@/components/chats/booking/types";
 
 type TabType = "overview" | "itinerary" | "expenses";
