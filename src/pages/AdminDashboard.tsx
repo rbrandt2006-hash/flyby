@@ -16,6 +16,7 @@ import { useTrips } from "@/hooks/useTrips";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import SecurityAdminPanel from "@/components/admin/SecurityAdminPanel";
+import { DEMO_TRIPS, demoDate, getDemoTopDestinations } from "@/data/demoTrips";
 
 // Mock org data for MVP
 const mockOrgMembers = [
@@ -26,19 +27,18 @@ const mockOrgMembers = [
   { id: "u5", name: "Emily Watson", email: "emily@company.com", role: "user", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop", trips: 4, spend: 6200 },
 ];
 
-const mockPendingApprovals = [
-  { id: "a1", traveler: "Julia Chen", destination: "London, UK", dates: "Mar 15-19", cost: 3200, status: "pending" },
-  { id: "a2", traveler: "Marcus Johnson", destination: "Tokyo, Japan", dates: "Mar 22-28", cost: 5800, status: "pending" },
-  { id: "a3", traveler: "Emily Watson", destination: "Chicago, IL", dates: "Apr 2-4", cost: 1200, status: "pending" },
-];
+// Pending approvals derived from the shared demo seed so traveler/destination/
+// dates/cost stay consistent with Dashboard, Trips, and AI Expense Insights.
+const mockPendingApprovals = DEMO_TRIPS.slice(0, 3).map((t) => ({
+  id: `approval_${t.id}`,
+  traveler: t.traveler,
+  destination: t.destination,
+  dates: demoDate.range(t.startOffsetDays, t.endOffsetDays),
+  cost: t.estimatedCost,
+  status: "pending" as const,
+}));
 
-const mockTopDestinations = [
-  { city: "New York, NY", count: 12, spend: 18400 },
-  { city: "San Francisco, CA", count: 9, spend: 14200 },
-  { city: "London, UK", count: 6, spend: 22800 },
-  { city: "Chicago, IL", count: 5, spend: 6500 },
-  { city: "Tokyo, Japan", count: 3, spend: 14100 },
-];
+const mockTopDestinations = getDemoTopDestinations();
 
 const containerVariants = {
   hidden: { opacity: 0 },
