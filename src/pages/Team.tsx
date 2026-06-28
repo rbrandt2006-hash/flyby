@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Search, Users, UserPlus } from "lucide-react";
+import { Search, Users, UserPlus, ShieldAlert, Clock, MapPinned, Heart } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { type TeamMember } from "@/components/team/TeamMemberCard";
 import { TeamMemberRow } from "@/components/team/TeamMemberRow";
