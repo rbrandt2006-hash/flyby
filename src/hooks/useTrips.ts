@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { DEMO_TRIPS, demoDate } from "@/data/demoTrips";
 
 export interface TripTimelineEvent {
   id: string;
