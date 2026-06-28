@@ -398,6 +398,7 @@ export default function TripDetail() {
                   <div className="flex items-center gap-3">
                     <h1 className="text-lg font-semibold text-foreground">{trip.destination}</h1>
                     <Badge variant="outline" className={cn("text-xs", status.className)}>{status.label}</Badge>
+                    <PolicyBadge trip={trip as any} policy={travelPolicy} />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {format(new Date(trip.startDate), "MMM d")} – {format(new Date(trip.endDate), "MMM d, yyyy")}
