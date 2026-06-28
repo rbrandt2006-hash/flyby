@@ -42,46 +42,45 @@ interface TripSpendSlideOverProps {
   onClose: () => void;
 }
 
-const demoTrips: Record<string, TripSpendData> = {
-  demo_trip_london_2025: {
-    id: "demo_trip_london_2025",
-    route: "SF → London",
-    purpose: "Team offsite",
-    estimatedCost: 1650,
-    actualSpend: 1782,
-    travelers: 1,
-    status: "upcoming",
-    budgetStatus: "over",
-    budgetVariance: 8,
-    dates: "Mar 15–22, 2025",
-    destination: "London, UK",
-    expenses: { airfare: 920, hotel: 560, meals: 180, transport: 82, misc: 40 },
-    approvals: { pending: 3, approved: 8, disputed: 1 },
-    policyFlags: ["Hotel 12% over policy", "Late booking surcharge applied", "Business class upgrade pending approval"],
-    flight: "British Airways BA 286",
-    hotelName: "The Savoy",
-    tripPurpose: "Q2 team offsite and strategy planning",
-  },
-  demo_trip_tokyo_2025: {
-    id: "demo_trip_tokyo_2025",
-    route: "NYC → Tokyo",
-    purpose: "Client visit",
-    estimatedCost: 2500,
-    actualSpend: 2335,
-    travelers: 1,
-    status: "confirmed",
-    budgetStatus: "under",
-    budgetVariance: 7,
-    dates: "Apr 3–10, 2025",
-    destination: "Tokyo, Japan",
-    expenses: { airfare: 1450, hotel: 620, meals: 175, transport: 60, misc: 30 },
-    approvals: { pending: 1, approved: 6, disputed: 0 },
-    policyFlags: ["Per-diem meals within policy"],
-    flight: "ANA NH 9",
-    hotelName: "Aman Tokyo",
-    tripPurpose: "Client partnership renewal and contract negotiation",
-  },
-};
+import { DEMO_TRIPS, demoDate, getDemoSpendByTripName } from "@/data/demoTrips";
+
+// Build per-trip spend data from the shared demo seed so the slide-over
+// matches the high-cost widget, useTrips seeds, and admin dashboard.
+const demoTrips: Record<string, TripSpendData> = Object.fromEntries(
+  DEMO_TRIPS.map((seed) => {
+    const expenseSpend = getDemoSpendByTripName(seed.name);
+    const actualSpend = expenseSpend > 0 ? expenseSpend : seed.estimatedCost;
+    const variance = Math.round(
+      ((actualSpend - seed.estimatedCost) / seed.estimatedCost) * 100,
+    );
+    return [
+      seed.id,
+      {
+        id: seed.id,
+        route: seed.route,
+        purpose: seed.purpose,
+        estimatedCost: seed.estimatedCost,
+        actualSpend,
+        travelers: 1,
+        status: "upcoming" as const,
+        budgetStatus: (variance > 0 ? "over" : variance < 0 ? "under" : "within") as
+          | "over"
+          | "under"
+          | "within",
+        budgetVariance: Math.abs(variance),
+        dates: demoDate.range(seed.startOffsetDays, seed.endOffsetDays),
+        destination: seed.destination,
+        expenses: seed.expenses,
+        approvals: { pending: 2, approved: 5, disputed: 0 },
+        policyFlags:
+          variance > 5 ? [`Trip ${variance}% over original estimate`] : ["Within policy"],
+        flight: `${seed.airline} ${seed.flightNumber}`,
+        hotelName: seed.hotelName,
+        tripPurpose: seed.purpose,
+      } satisfies TripSpendData,
+    ];
+  }),
+);
 
 export function getTripSpendData(tripId: string): TripSpendData | null {
   return demoTrips[tripId] || null;

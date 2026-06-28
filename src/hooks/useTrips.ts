@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { DEMO_TRIPS, demoDate } from "@/data/demoTrips";
 
 export interface TripTimelineEvent {
   id: string;
@@ -77,60 +78,53 @@ export interface LocalTrip {
 }
 
 const STORAGE_KEY = "flyby_local_trips";
-const DEMO_SEED_KEY = "flyby_demo_seeded_v3";
+const DEMO_SEED_KEY = "flyby_demo_seeded_v4";
 
+// Demo trips are derived from the shared seed in src/data/demoTrips.ts so
+// the same trips appear consistently across the Dashboard, Admin Dashboard,
+// Trip Spend slide-over, and AI Expense Insights.
 function getDemoTrips(): LocalTrip[] {
   const now = new Date().toISOString();
-  return [
-    {
-      id: "demo_seattle_2026",
-      destination: "Seattle, WA",
-      startDate: "2026-06-02T00:00:00.000Z",
-      endDate: "2026-06-04T00:00:00.000Z",
-      purpose: "Team offsite",
-      status: "confirmed",
-      approvalStatus: "approved",
+  return DEMO_TRIPS.map((seed, i) => {
+    const isConfirmed = i === 0; // mark the first as confirmed/approved for variety
+    return {
+      id: seed.id,
+      destination: seed.destination,
+      startDate: demoDate.iso(seed.startOffsetDays),
+      endDate: demoDate.iso(seed.endOffsetDays),
+      purpose: seed.purpose,
+      status: (isConfirmed ? "confirmed" : "draft") as LocalTrip["status"],
+      approvalStatus: (isConfirmed ? "approved" : "none") as ApprovalStatus,
       calendarEventId: null,
       calendarSyncError: null,
       participants: [],
       chatId: null,
-      flight: { airline: "Alaska Airlines", departTime: "8:15 AM", returnTime: "5:30 PM", flightNumber: "AS1423", departureAirport: "SFO", arrivalAirport: "SEA" },
-      hotel: { name: "The Westin Seattle", location: "Downtown, Seattle" },
+      flight: {
+        airline: seed.airline,
+        departTime: seed.departTime,
+        returnTime: seed.returnTime,
+        flightNumber: seed.flightNumber,
+        departureAirport: seed.originAirport,
+        arrivalAirport: seed.destinationAirport,
+      },
+      hotel: { name: seed.hotelName, location: seed.hotelLocation },
       groundTransport: null,
-      estimatedCost: 2850,
-      confidenceLevel: 94,
-      aiReasoning: { costEfficiency: { score: 90, label: "High", detail: "Below average for Seattle" }, timeEfficiency: { score: 92, label: "Excellent", detail: "Direct flight, 2h 10m" }, policyCompliance: { score: 100, label: "Compliant", detail: "Within budget" }, riskLevel: { score: 10, label: "Low", detail: "No advisories" }, summary: "Optimized domestic trip with direct flights and downtown hotel." },
-      timeline: [{ id: "evt_demo_1", type: "created", description: "Trip created", timestamp: now }],
+      estimatedCost: seed.estimatedCost,
+      confidenceLevel: 90,
+      aiReasoning: {
+        costEfficiency: { score: 88, label: "High", detail: `Below average for ${seed.destination}` },
+        timeEfficiency: { score: 90, label: "Excellent", detail: "Direct flight" },
+        policyCompliance: { score: 100, label: "Compliant", detail: "Within budget" },
+        riskLevel: { score: 12, label: "Low", detail: "No advisories" },
+        summary: `Optimized trip to ${seed.destination} with ${seed.airline} and ${seed.hotelName}.`,
+      },
+      timeline: [{ id: `evt_${seed.id}`, type: "created", description: "Trip created", timestamp: now }],
       decisions: [],
       createdAt: now,
       updatedAt: now,
-      confirmedAt: now,
-      approvedAt: now,
-    },
-    {
-      id: "demo_tokyo_2026",
-      destination: "Tokyo, Japan",
-      startDate: "2026-07-20T00:00:00.000Z",
-      endDate: "2026-07-25T00:00:00.000Z",
-      purpose: "Client visit",
-      status: "draft",
-      approvalStatus: "none",
-      calendarEventId: null,
-      calendarSyncError: null,
-      participants: [],
-      chatId: null,
-      flight: { airline: "United Airlines", departTime: "11:30 AM", returnTime: "3:45 PM +1", flightNumber: "UA837", departureAirport: "SFO", arrivalAirport: "NRT" },
-      hotel: { name: "Park Hyatt Tokyo", location: "Shinjuku, Tokyo" },
-      groundTransport: null,
-      estimatedCost: 5800,
-      confidenceLevel: 88,
-      aiReasoning: { costEfficiency: { score: 82, label: "Good", detail: "Competitive for international" }, timeEfficiency: { score: 85, label: "Good", detail: "Nonstop to Narita" }, policyCompliance: { score: 100, label: "Compliant", detail: "Within budget" }, riskLevel: { score: 15, label: "Low", detail: "No advisories" }, summary: "United nonstop SFO→NRT with preferred hotel in Shinjuku business district." },
-      timeline: [{ id: "evt_demo_2", type: "created", description: "Trip created", timestamp: now }],
-      decisions: [],
-      createdAt: now,
-      updatedAt: now,
-    },
-  ];
+      ...(isConfirmed ? { confirmedAt: now, approvedAt: now } : {}),
+    };
+  });
 }
 
 function loadTripsFromStorage(): LocalTrip[] {
