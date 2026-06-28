@@ -692,6 +692,47 @@ export type Database = {
           },
         ]
       }
+      travel_policies: {
+        Row: {
+          approval_required_above: number | null
+          company_id: string
+          created_at: string
+          id: string
+          max_flight_class: string | null
+          max_flight_price: number | null
+          max_nightly_hotel_rate: number | null
+          updated_at: string
+        }
+        Insert: {
+          approval_required_above?: number | null
+          company_id: string
+          created_at?: string
+          id?: string
+          max_flight_class?: string | null
+          max_flight_price?: number | null
+          max_nightly_hotel_rate?: number | null
+          updated_at?: string
+        }
+        Update: {
+          approval_required_above?: number | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          max_flight_class?: string | null
+          max_flight_price?: number | null
+          max_nightly_hotel_rate?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "travel_policies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       travel_preferences: {
         Row: {
           avoid_layovers: boolean
