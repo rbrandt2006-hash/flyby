@@ -23,7 +23,7 @@ import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import flybyLogo from "@/assets/flyby-logo-icon.png";
 import { toast } from "sonner";
 
-type StubId = "outlook" | "slack" | "teams" | "salesforce";
+type StubId = "outlook" | "slack" | "teams" | "salesforce" | "workday";
 
 const stubIntegrations: {
   id: StubId;
