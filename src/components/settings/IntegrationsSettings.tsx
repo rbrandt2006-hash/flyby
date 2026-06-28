@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Check, Loader2, Calendar, Mail, MessageSquare, Users, ShieldCheck, Eye, Clock, Cloud } from "lucide-react";
+import { Check, Loader2, Calendar, Mail, MessageSquare, Users, ShieldCheck, Eye, Clock, Cloud, Briefcase } from "lucide-react";
 import {
   connectGoogleCalendar,
   disconnectCalendar,
