@@ -60,6 +60,13 @@ const stubIntegrations: {
     icon: <Cloud className="w-5 h-5 text-sky-600" />,
     iconBg: "bg-sky-50 dark:bg-sky-950/30",
   },
+  {
+    id: "workday",
+    name: "Workday HRIS",
+    description: "Auto-provision new hires and sync travel profiles from your HR system",
+    icon: <Briefcase className="w-5 h-5 text-orange-600" />,
+    iconBg: "bg-orange-50 dark:bg-orange-950/30",
+  },
 ];
 
 export function IntegrationsSettings() {
