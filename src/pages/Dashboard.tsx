@@ -1237,32 +1237,22 @@ export default function Dashboard() {
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Upcoming high-cost trips</p>
                     <div className="space-y-1.5">
-                      <div 
-                        className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                        onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_london_2025"))}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Plane className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span className="text-sm">SF → London (Team offsite)</span>
+                      {getTopHighCostDemoTrips(2).map((t) => (
+                        <div
+                          key={t.id}
+                          className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
+                          onClick={() => setSelectedSpendTrip(getTripSpendData(t.id))}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Plane className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="text-sm">{t.route} ({t.purpose})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">${t.estimatedCost.toLocaleString()}</span>
+                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold">$1,650</span>
-                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
-                        </div>
-                      </div>
-                      <div 
-                        className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                        onClick={() => setSelectedSpendTrip(getTripSpendData("demo_trip_tokyo_2025"))}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Plane className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span className="text-sm">NYC → Tokyo (Client visit)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold">$2,500</span>
-                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
                 </>
