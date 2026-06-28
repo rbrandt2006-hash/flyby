@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { getRandomHeadline } from "@/data/heroHeadlines";
 import { TravelerDetailPanel } from "@/components/home/TravelerDetailPanel";
 import { TripSpendSlideOver, getTripSpendData } from "@/components/home/TripSpendSlideOver";
+import { getTopHighCostDemoTrips } from "@/data/demoTrips";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 
