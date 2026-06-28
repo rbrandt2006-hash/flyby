@@ -668,6 +668,7 @@ export default function Trips() {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+                <PolicyBadge trip={trip} policy={travelPolicy} />
                 <span className="text-xs text-muted-foreground">
                   {format(new Date(trip.createdAt), "MMM d, h:mm a")}
                 </span>
