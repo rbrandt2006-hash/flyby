@@ -35,6 +35,8 @@ import { TripPlanningModal, type TripProposal } from "@/components/home/TripPlan
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { usePreferences } from "@/hooks/usePreferences";
 import { buildAutoDraftFromEvent } from "@/services/autoPlanService";
+import { useTravelPolicy } from "@/hooks/useTravelPolicy";
+import { PolicyBadge } from "@/components/trips/PolicyBadge";
 
 export default function Trips() {
   const navigate = useNavigate();
@@ -42,6 +44,7 @@ export default function Trips() {
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
   const { preferences } = usePreferences();
+  const { policy: travelPolicy } = useTravelPolicy();
   const { 
     trips: localTrips, 
     createTrip, 
@@ -665,6 +668,7 @@ export default function Trips() {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+                <PolicyBadge trip={trip} policy={travelPolicy} />
                 <span className="text-xs text-muted-foreground">
                   {format(new Date(trip.createdAt), "MMM d, h:mm a")}
                 </span>

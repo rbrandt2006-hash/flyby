@@ -28,6 +28,7 @@ import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
 import { ProductTourModal } from "@/components/settings/ProductTourModal";
 import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
 import { LoyaltySection } from "@/components/settings/LoyaltySection";
+import { PolicySection } from "@/components/settings/PolicySection";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import {
   User,
@@ -73,6 +74,7 @@ const navSections = [
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "travel", label: "Travel Preferences", icon: Plane },
   { id: "loyalty", label: "Loyalty Programs", icon: CreditCard },
+  { id: "policy", label: "Travel Policy", icon: Shield },
   { id: "security", label: "Security & Privacy", icon: Shield },
   { id: "integrations", label: "Integrations", icon: Puzzle },
   { id: "support", label: "Product & Support", icon: HelpCircle },
@@ -878,6 +880,14 @@ export default function Settings() {
               <LoyaltySection />
             </motion.div>
           )}
+
+          {/* Travel Policy */}
+          {activeSection === "policy" && (
+            <motion.div variants={itemVariants}>
+              <PolicySection />
+            </motion.div>
+          )}
+
 
           {/* Integrations */}
           {activeSection === "integrations" && (

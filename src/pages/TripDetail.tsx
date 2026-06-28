@@ -20,6 +20,8 @@ import { TripSlideEditor } from "@/components/trips/TripSlideEditor";
 import { toast } from "sonner";
 import { AddExpenseModal } from "@/components/expenses/AddExpenseModal";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useTravelPolicy } from "@/hooks/useTravelPolicy";
+import { PolicyBadge } from "@/components/trips/PolicyBadge";
 import type { HotelOption } from "@/components/chats/booking/types";
 
 type TabType = "overview" | "itinerary" | "expenses";
@@ -87,6 +89,7 @@ export default function TripDetail() {
   const { user } = useAuth();
   const { trips: localTrips, updateTrip } = useTrips();
   const { addExpense } = useExpenses();
+  const { policy: travelPolicy } = useTravelPolicy();
 
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [isLoading, setIsLoading] = useState(true);
@@ -396,6 +399,7 @@ export default function TripDetail() {
                   <div className="flex items-center gap-3">
                     <h1 className="text-lg font-semibold text-foreground">{trip.destination}</h1>
                     <Badge variant="outline" className={cn("text-xs", status.className)}>{status.label}</Badge>
+                    <PolicyBadge trip={trip as any} policy={travelPolicy} />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {format(new Date(trip.startDate), "MMM d")} – {format(new Date(trip.endDate), "MMM d, yyyy")}
