@@ -881,6 +881,14 @@ export default function Settings() {
             </motion.div>
           )}
 
+          {/* Travel Policy */}
+          {activeSection === "policy" && (
+            <motion.div variants={itemVariants}>
+              <PolicySection />
+            </motion.div>
+          )}
+
+
           {/* Integrations */}
           {activeSection === "integrations" && (
           <SettingsSection 
