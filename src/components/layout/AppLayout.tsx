@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import IntroAnimation, { hasIntroPlayed, prefersReducedMotion } from "@/components/home/IntroAnimation";
+import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
 import { GlobalSearchDropdown } from "./GlobalSearchDropdown";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -57,9 +58,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-                  alt="FlyBy"
+                  alt="Flyby AI"
                   className="h-10 w-auto shrink-0"
-                  src="/lovable-uploads/eb656c8d-2d9c-4190-9b5e-fa90371682e7.png"
+                  src={flybyLogo.url}
                 />
               </Link>
 
