@@ -20,7 +20,7 @@ import {
   getConnectedEmail,
 } from "@/services/mockCalendarService";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
-import flybyLogo from "@/assets/flyby-logo-icon.png";
+import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
 import { toast } from "sonner";
 
 type StubId = "outlook" | "slack" | "teams" | "salesforce" | "workday";
@@ -195,7 +195,7 @@ export function IntegrationsSettings() {
         <DialogContent className="sm:max-w-md p-0 overflow-hidden">
           <div className="p-6 space-y-5">
             <div className="flex items-center gap-3">
-              <img src={flybyLogo} alt="Flyby" className="w-10 h-10 rounded-lg" />
+              <img src={flybyLogo.url} alt="Flyby AI" className="w-10 h-10 rounded-lg" />
               <div className="text-sm text-muted-foreground">→</div>
               <div className="w-10 h-10 rounded-lg bg-white border border-border flex items-center justify-center">
                 <svg viewBox="0 0 24 24" className="w-6 h-6">

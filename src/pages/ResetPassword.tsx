@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Check, Eye, EyeOff } from "lucide-react";
+import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -136,9 +137,9 @@ export default function ResetPassword() {
         <div className="w-full max-w-md animate-fade-in">
           <div className="flex items-center justify-center mb-8">
             <img 
-              alt="flyby" 
-              className="h-10 mix-blend-multiply" 
-              src="/lovable-uploads/961e595a-2d00-479f-b364-022c8127f18a.png" 
+              alt="Flyby AI" 
+              className="h-10" 
+              src={flybyLogo.url} 
             />
           </div>
 
@@ -170,9 +171,9 @@ export default function ResetPassword() {
         <div className="w-full max-w-md animate-fade-in">
           <div className="flex items-center justify-center mb-8">
             <img 
-              alt="flyby" 
-              className="h-10 mix-blend-multiply" 
-              src="/lovable-uploads/961e595a-2d00-479f-b364-022c8127f18a.png" 
+              alt="Flyby AI" 
+              className="h-10" 
+              src={flybyLogo.url} 
             />
           </div>
 
@@ -199,9 +200,9 @@ export default function ResetPassword() {
       <div className="w-full max-w-md animate-fade-in">
         <div className="flex items-center justify-center mb-8">
           <img 
-            alt="flyby" 
-            className="h-10 mix-blend-multiply" 
-            src="/lovable-uploads/961e595a-2d00-479f-b364-022c8127f18a.png" 
+            alt="Flyby AI" 
+            className="h-10" 
+            src={flybyLogo.url} 
           />
         </div>
 

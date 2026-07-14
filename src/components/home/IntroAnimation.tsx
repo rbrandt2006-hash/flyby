@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plane } from "lucide-react";
+import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
 
 interface IntroAnimationProps {
   onComplete: () => void;
@@ -109,8 +110,8 @@ export default function IntroAnimation({ onComplete }: IntroAnimationProps) {
               transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] as const }}
             >
               <img
-                src="/lovable-uploads/eb656c8d-2d9c-4190-9b5e-fa90371682e7.png"
-                alt="FlyBy"
+                src={flybyLogo.url}
+                alt="Flyby AI"
                 className="h-12"
               />
             </motion.div>

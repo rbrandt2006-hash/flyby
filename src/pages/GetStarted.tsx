@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2, Briefcase, User } from "lucide-react";
 import { toast } from "sonner";
-import flybyLogo from "@/assets/flyby-logo-icon.png";
+import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
 
 type Mode = "signup" | "signin";
 type EmailMode = "work" | "personal";
@@ -62,9 +62,9 @@ export default function GetStarted() {
         className="w-full max-w-sm"
       >
         <div className="flex flex-col items-center mb-8">
-          <img src={flybyLogo} alt="Flyby" className="h-16 w-auto mb-6" />
+          <img src={flybyLogo.url} alt="Flyby AI" className="h-16 w-auto mb-6" />
           <h1 className="text-2xl font-bold tracking-tight text-center">
-            {mode === "signup" ? "Create your Flyby account" : "Welcome back"}
+            {mode === "signup" ? "Create your Flyby AI account" : "Welcome back"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5 text-center">
             {mode === "signup" ? "Corporate travel, without the chaos." : "Sign in to continue."}
