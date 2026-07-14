@@ -161,7 +161,7 @@ export default function Auth() {
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
         <div className="w-full max-w-md animate-fade-in">
           <div className="flex items-center justify-center mb-8">
-            <img alt="flyby" className="h-10 mix-blend-multiply" src="/lovable-uploads/961e595a-2d00-479f-b364-022c8127f18a.png" />
+            <img alt="Flyby AI" className="h-10" src={flybyLogo.url} />
           </div>
           <TwoFactorVerifyStep
             maskedPhone={twoFactorMaskedPhone}
@@ -177,7 +177,7 @@ export default function Auth() {
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="flex items-center justify-center mb-8">
-          <img alt="flyby" className="h-10 mix-blend-multiply" src="/lovable-uploads/961e595a-2d00-479f-b364-022c8127f18a.png" />
+          <img alt="Flyby AI" className="h-10" src={flybyLogo.url} />
         </div>
 
         <Card className="border-border/50 shadow-xl">

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, ArrowLeft, Plane, Heart, Armchair, Calendar, Check } from "lucide-react";
-import flybyLogo from "@/assets/flyby-logo-icon.png";
+import flybyLogo from "@/assets/fy-ai-logo.png.asset.json";
 import { toast } from "sonner";
 
 const STEPS = [
@@ -59,7 +59,7 @@ export default function Onboarding() {
     <div className="min-h-screen flex flex-col bg-background px-6 py-8">
       {/* Header */}
       <div className="flex items-center justify-between max-w-md mx-auto w-full mb-6">
-        <img src={flybyLogo} alt="Flyby" className="h-8 w-auto" />
+        <img src={flybyLogo.url} alt="Flyby AI" className="h-8 w-auto" />
         <button onClick={finish} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
           Skip for now
         </button>
