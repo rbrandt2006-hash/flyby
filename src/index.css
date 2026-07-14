@@ -38,11 +38,11 @@
     --accent: 38 92% 50%;
     --accent-foreground: 222 47% 11%;
     
-    /* CTA Blue - Light blue primary action */
-    --cta: 209 52% 81%;
-    --cta-hover: 209 52% 75%;
-    --cta-active: 209 52% 70%;
-    --cta-foreground: 222 47% 11%;
+    /* CTA Blue - Matches the Flyby AI logo */
+    --cta: 218 56% 64%;
+    --cta-hover: 218 56% 58%;
+    --cta-active: 218 56% 52%;
+    --cta-foreground: 0 0% 100%;
 
     /* Status colors */
     --success: 142 76% 36%;
@@ -114,10 +114,10 @@
     --accent: 38 85% 55%;
     --accent-foreground: 225 16% 12%;
     
-    /* CTA Blue - Strong, saturated primary action (dark mode) */
-    --cta: 217 91% 60%;
-    --cta-hover: 217 85% 55%;
-    --cta-active: 217 80% 50%;
+    /* CTA Blue - Logo-matched primary action (dark mode) */
+    --cta: 218 70% 60%;
+    --cta-hover: 218 70% 54%;
+    --cta-active: 218 70% 48%;
     --cta-foreground: 0 0% 100%;
 
     --success: 142 60% 45%;
