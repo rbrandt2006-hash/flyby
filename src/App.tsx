@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import IntegrationManage from "./pages/IntegrationManage";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
+import OAuthConsent from "./pages/OAuthConsent";
 
 function needsOnboarding(): boolean {
   try {
@@ -90,9 +91,14 @@ function AppRoutes() {
 
   if (loading) return <FullScreenSpinner />;
 
+  // Resolve a safe same-origin ?next= path for post-auth redirect.
+  const nextParam = new URLSearchParams(window.location.search).get("next");
+  const safeNext = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : null;
+
   return (
     <Routes>
-      <Route path="/get-started" element={user ? <Navigate to="/" replace /> : <GetStarted />} />
+      <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+      <Route path="/get-started" element={user ? <Navigate to={safeNext ?? "/"} replace /> : <GetStarted />} />
       <Route path="/onboarding" element={user ? <Onboarding /> : <Navigate to="/get-started" replace />} />
       <Route path="/auth" element={<Navigate to="/get-started" replace />} />
 

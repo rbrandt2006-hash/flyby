@@ -30,14 +30,18 @@ export default function Onboarding() {
     setAirlines(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
 
   const finish = () => {
+    let next: string | null = null;
     try {
       const prefs = { airport: airport.trim().toUpperCase(), airlines, seat, calendarConnected };
       localStorage.setItem("flyby_onboarding_prefs", JSON.stringify(prefs));
       localStorage.setItem("flyby_onboarding_complete", "true");
       localStorage.removeItem("flyby_pending_onboarding");
+      next = localStorage.getItem("flyby_post_onboarding_next");
+      if (next) localStorage.removeItem("flyby_post_onboarding_next");
     } catch { /* ignore */ }
     toast.success("You're all set. Welcome aboard.");
-    navigate("/", { replace: true });
+    const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    navigate(target, { replace: true });
   };
 
   const next = () => {
