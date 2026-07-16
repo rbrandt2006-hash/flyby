@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import IntegrationManage from "./pages/IntegrationManage";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
+import OAuthConsent from "./pages/OAuthConsent";
 
 function needsOnboarding(): boolean {
   try {
