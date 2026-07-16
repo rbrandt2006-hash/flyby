@@ -16,6 +16,12 @@ export default function GetStarted() {
   const { signUp, signIn, signInAsGuest } = useAuth();
   const navigate = useNavigate();
 
+  // Preserve ?next= (e.g. from the OAuth consent route) through sign-in / sign-up / guest.
+  const nextParam = new URLSearchParams(window.location.search).get("next");
+  const safeNext =
+    nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : null;
+  const postAuthTarget = safeNext ?? "/";
+
   const [mode, setMode] = useState<Mode>("signup");
   const [emailMode, setEmailMode] = useState<EmailMode>("work");
   const [name, setName] = useState("");
@@ -35,13 +41,14 @@ export default function GetStarted() {
         try {
           localStorage.setItem("flyby_pending_onboarding", "true");
           localStorage.setItem("flyby_account_mode", emailMode);
+          if (safeNext) localStorage.setItem("flyby_post_onboarding_next", safeNext);
         } catch { /* ignore */ }
         toast.success("Account created — let's set things up.");
         navigate("/onboarding", { replace: true });
       } else {
         const { error } = await signIn(email.trim(), password);
         if (error) { toast.error(error.message); return; }
-        navigate("/", { replace: true });
+        navigate(postAuthTarget, { replace: true });
       }
     } finally {
       setLoading(false);
@@ -50,7 +57,7 @@ export default function GetStarted() {
 
   const handleGuest = () => {
     signInAsGuest();
-    navigate("/", { replace: true });
+    navigate(postAuthTarget, { replace: true });
   };
 
   return (
