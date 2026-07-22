@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTrips, type LocalTrip } from "@/hooks/useTrips";
 import { CompanyPicker } from "@/components/trips/CompanyPicker";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -265,7 +265,7 @@ export default function TripDetail() {
       }
 
       if (user && tripId) {
-        const { data, error } = await supabase
+        const { data, error } = await backend
           .from("trips").select("*").eq("id", tripId).single();
         if (!error && data) {
           setTrip({

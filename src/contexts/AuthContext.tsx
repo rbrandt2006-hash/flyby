@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import type { User, Session } from "@/integrations/backend/types";
+import { backend } from "@/integrations/backend/client";
 
 const GUEST_KEY = "flyby_guest_session";
 
@@ -35,42 +35,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
-    // Check for existing guest session
-    const hasGuest = localStorage.getItem(GUEST_KEY);
-    if (hasGuest === "true") {
+    const browsingAsGuest = localStorage.getItem(GUEST_KEY) === "true";
+
+    // Guests get the placeholder user, but the listener is still attached below
+    // so a token expiring or being revoked is handled rather than ignored.
+    if (browsingAsGuest) {
       setUser(guestUser);
       setIsGuest(true);
       setLoading(false);
-      return;
     }
 
     // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = backend.auth.onAuthStateChange(
       (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+        if (session) {
+          // A real session always wins: signing in ends guest browsing.
+          localStorage.removeItem(GUEST_KEY);
+          setIsGuest(false);
+          setSession(session);
+          setUser(session.user);
+        } else if (localStorage.getItem(GUEST_KEY) === "true") {
+          setSession(null);
+          setUser(guestUser);
+          setIsGuest(true);
+        } else {
+          setSession(null);
+          setUser(null);
+        }
         setLoading(false);
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    if (!browsingAsGuest) {
+      backend.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      });
+    }
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signInAsGuest = () => {
     localStorage.setItem(GUEST_KEY, "true");
+    // Choosing to browse as a guest means giving up any signed-in session.
+    // Leaving one behind would let hooks keep calling the backend with
+    // credentials the guest isn't supposed to be using.
+    void backend.auth.signOut();
+    setSession(null);
     setUser(guestUser);
     setIsGuest(true);
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await backend.auth.signInWithPassword({ email, password });
     if (!error) {
       localStorage.removeItem(GUEST_KEY);
       setIsGuest(false);
@@ -79,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { error } = await backend.auth.signUp({
       email,
       password,
       options: {
@@ -93,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     localStorage.removeItem(GUEST_KEY);
     setIsGuest(false);
-    await supabase.auth.signOut();
+    await backend.auth.signOut();
     setUser(null);
     setSession(null);
   };

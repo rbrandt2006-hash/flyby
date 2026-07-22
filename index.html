@@ -19,33 +19,33 @@
     <meta name="twitter:site" content="@flyby" />
     <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/797b2a42-4fc4-4e0d-b548-ccd8223de6a9/id-preview-4db2e7b1--2ec8592c-439a-4f2c-9f1e-5238e2d8a0fb.lovable.app-1773285206112.png">
 
-    <!-- Security Headers (client-side meta tags) -->
-    <!-- Note: Server-side headers are preferred for production. These are fallbacks. -->
-    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta http-equiv="X-Frame-Options" content="DENY" />
-    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <!-- Security headers.
+         Only `referrer` works as a meta tag. X-Frame-Options, X-Content-Type-Options
+         and Permissions-Policy are ignored by browsers when set here — they have to
+         arrive as real HTTP headers, so they are sent by the server instead:
+         the Vite dev server (see server.headers in vite.config.ts) in development,
+         and whatever serves `dist/` in production. -->
     <meta name="referrer" content="strict-origin-when-cross-origin" />
-    
+
     <!-- Content Security Policy -->
-    <!-- Allows: self, inline styles/scripts (for Vite HMR), images from https, fonts -->
+    <!-- Allows: self, inline styles/scripts (for Vite HMR), images from https, fonts.
+         The Flyby backend is reached same-origin — the dev server proxies /api,
+         /auth, /rest, /functions and /storage to it — so 'self' covers every API
+         call. If you point VITE_API_URL at a backend on another host, add that
+         origin to connect-src. -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval';
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       img-src 'self' data: blob: https: http://localhost:*;
       font-src 'self' https://fonts.gstatic.com;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.elevenlabs.io https://verify.twilio.com;
-      frame-ancestors 'none';
+      connect-src 'self';
       form-action 'self';
       base-uri 'self';
       object-src 'none';
       upgrade-insecure-requests;
     " />
     
-    <!-- Permissions Policy - restrict browser features -->
-    <meta http-equiv="Permissions-Policy" content="
-      camera=(), microphone=(self), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()
-    " />
     <meta property="og:title" content="Flyby AI">
   <meta name="twitter:title" content="Flyby AI">
   <meta property="og:description" content="Flyby predicts, plans, and manages business travel automatically. Reduce manual booking, prevent disruptions, and automate expense tracking.">

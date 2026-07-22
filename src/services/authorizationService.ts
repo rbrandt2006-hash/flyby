@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 
 /**
  * Authorization middleware service.
@@ -10,10 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
  * Uses the has_permission database function for server-side validation.
  */
 export async function checkPermission(permission: string): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await backend.auth.getUser();
   if (!user) return false;
 
-  const { data, error } = await supabase.rpc("has_permission", {
+  const { data, error } = await backend.rpc("has_permission", {
     _user_id: user.id,
     _permission: permission,
   });
@@ -31,10 +31,10 @@ export async function checkPermission(permission: string): Promise<boolean> {
  * Returns false if tenant is suspended or deleted.
  */
 export async function validateTenantStatus(): Promise<{ valid: boolean; status?: string }> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await backend.auth.getUser();
   if (!user) return { valid: false };
 
-  const { data: profile } = await supabase
+  const { data: profile } = await backend
     .from("profiles")
     .select("company_id")
     .eq("user_id", user.id)
@@ -42,7 +42,7 @@ export async function validateTenantStatus(): Promise<{ valid: boolean; status?:
 
   if (!profile?.company_id) return { valid: false, status: "no_tenant" };
 
-  const { data: company } = await supabase
+  const { data: company } = await backend
     .from("companies")
     .select("status")
     .eq("id", profile.company_id)
@@ -65,10 +65,10 @@ export async function validateObjectOwnership(
   table: string,
   objectId: string,
 ): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await backend.auth.getUser();
   if (!user) return false;
 
-  const { data: profile } = await supabase
+  const { data: profile } = await backend
     .from("profiles")
     .select("company_id")
     .eq("user_id", user.id)
@@ -80,7 +80,7 @@ export async function validateObjectOwnership(
   const tablesWithCompanyId = ["trips", "expenses", "messages", "documents"] as const;
   if (!tablesWithCompanyId.includes(table as any)) return false;
 
-  const { data, error } = await (supabase.from(table as any) as any)
+  const { data, error } = await (backend.from(table as any) as any)
     .select("company_id, user_id")
     .eq("id", objectId)
     .maybeSingle();
@@ -95,10 +95,10 @@ export async function validateObjectOwnership(
  * Gets all permissions for the current user based on their role.
  */
 export async function getUserPermissions(): Promise<string[]> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await backend.auth.getUser();
   if (!user) return [];
 
-  const { data: userRole } = await supabase
+  const { data: userRole } = await backend
     .from("user_roles")
     .select("role")
     .eq("user_id", user.id)
@@ -106,7 +106,7 @@ export async function getUserPermissions(): Promise<string[]> {
 
   const role = userRole?.role ?? "user";
 
-  const { data: rolePerms } = await (supabase.from("role_permissions") as any)
+  const { data: rolePerms } = await (backend.from("role_permissions") as any)
     .select("permission_id, permissions(name)")
     .eq("role", role);
 

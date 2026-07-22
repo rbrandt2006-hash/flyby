@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,7 @@ export function SwitchWorkspaceModal({ open, onOpenChange }: SwitchWorkspaceModa
       
       try {
         // Fetch user's profile to get current company
-        const { data: profile } = await supabase
+        const { data: profile } = await backend
           .from("profiles")
           .select("company_id")
           .eq("user_id", user.id)
@@ -54,7 +54,7 @@ export function SwitchWorkspaceModal({ open, onOpenChange }: SwitchWorkspaceModa
         }
 
         // Fetch the user's company
-        const { data: companies } = await supabase
+        const { data: companies } = await backend
           .from("companies")
           .select("id, name, domain");
 

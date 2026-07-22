@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck } from "lucide-react";
 import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
 
-// Beta helpers on the supabase-js auth client. Typed locally so TS is happy.
+// Authorizing a third-party app is an optional capability: the Flyby backend
+// only exposes it when an OAuth authorization server is configured. It is typed
+// locally and read defensively so this screen shows a clear message rather than
+// crashing when the capability isn't present.
 type OAuthClient = { name?: string; client_name?: string; redirect_uri?: string; redirect_uris?: string[] };
 type OAuthDetails = {
   client?: OAuthClient;
@@ -19,7 +22,10 @@ type OAuthApi = {
   approveAuthorization: (id: string) => Promise<{ data: OAuthDetails | null; error: { message: string } | null }>;
   denyAuthorization: (id: string) => Promise<{ data: OAuthDetails | null; error: { message: string } | null }>;
 };
-const oauth = (supabase.auth as unknown as { oauth: OAuthApi }).oauth;
+const oauth = (backend.auth as unknown as { oauth?: OAuthApi }).oauth;
+
+const OAUTH_UNAVAILABLE =
+  "Connecting third-party apps isn't enabled on this Flyby AI backend yet.";
 
 export default function OAuthConsent() {
   const [params] = useSearchParams();
@@ -39,10 +45,15 @@ export default function OAuthConsent() {
         setLoading(false);
         return;
       }
-      const { data: sess } = await supabase.auth.getSession();
+      const { data: sess } = await backend.auth.getSession();
       if (!sess.session) {
         const next = window.location.pathname + window.location.search;
         navigate(`/get-started?next=${encodeURIComponent(next)}`, { replace: true });
+        return;
+      }
+      if (!oauth) {
+        setError(OAUTH_UNAVAILABLE);
+        setLoading(false);
         return;
       }
       try {
@@ -71,6 +82,10 @@ export default function OAuthConsent() {
   }, [authorizationId, navigate]);
 
   async function decide(approve: boolean) {
+    if (!oauth) {
+      setError(OAUTH_UNAVAILABLE);
+      return;
+    }
     setBusy(true);
     try {
       const { data, error } = approve

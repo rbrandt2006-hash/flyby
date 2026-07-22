@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backendUrl, authHeaders } from "@/integrations/backend/client";
 
 export interface SearchFlightResult {
   id: string;
@@ -110,21 +110,14 @@ export function useTravelSearch() {
           ...(params.date && { date: params.date }),
         });
 
-        const { data, error: fnError } = await supabase.functions.invoke("search-travel", {
-          body: null,
-          headers: {},
-        });
-
-        // Since supabase.functions.invoke doesn't support query params well,
-        // we'll make a direct fetch call instead
+        // Fetched directly rather than through the client so the search can be
+        // aborted when the user keeps typing, and so the parameters travel in
+        // the query string the search endpoint expects.
         const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/search-travel?${queryParams.toString()}`,
+          backendUrl(`/functions/v1/search-travel?${queryParams.toString()}`),
           {
             method: "GET",
-            headers: {
-              "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-              "Content-Type": "application/json",
-            },
+            headers: { ...authHeaders(), "Content-Type": "application/json" },
             signal: abortControllerRef.current.signal,
           }
         );

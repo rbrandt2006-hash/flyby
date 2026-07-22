@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -61,6 +61,9 @@ export function ExpenseDetailModal({
             </div>
             <div>
               <DialogTitle className="text-xl">{expense.merchant}</DialogTitle>
+              <DialogDescription>
+                Full details for this expense, including trip, category, and receipt.
+              </DialogDescription>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant={status.variant}>{status.label}</Badge>
                 {expense.reimbursable && <Badge variant="outline" className="text-xs">Reimbursable</Badge>}

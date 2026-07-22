@@ -1,12 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-import { defineTool, type ToolContext } from "@lovable.dev/mcp-js";
-
-function supabaseForUser(ctx: ToolContext) {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+import { defineTool } from "@lovable.dev/mcp-js";
+import { queryTable } from "../backendClient";
 
 export default defineTool({
   name: "get_travel_preferences",
@@ -18,12 +11,17 @@ export default defineTool({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const { data, error } = await supabaseForUser(ctx)
-      .from("travel_preferences")
-      .select("*")
-      .eq("user_id", ctx.getUserId())
-      .maybeSingle();
+
+    // The backend scopes every read to the token's owner, so no user filter is
+    // needed here — and none can be supplied to widen it.
+    const { data, error } = await queryTable<Record<string, unknown> | null>(
+      ctx.getToken(),
+      "travel_preferences",
+      { single: "maybe" },
+    );
+
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+
     return {
       content: [{ type: "text", text: JSON.stringify(data ?? {}, null, 2) }],
       structuredContent: { preferences: data ?? null },

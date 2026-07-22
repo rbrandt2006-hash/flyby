@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -49,8 +49,11 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
+      // The current password goes with the request so the backend can verify it
+      // before changing anything — being signed in is not on its own enough.
+      const { error } = await backend.auth.updateUser({
+        password: newPassword,
+        current_password: currentPassword,
       });
 
       if (error) throw error;

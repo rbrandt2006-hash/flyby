@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -19,7 +19,7 @@ export function useSessionTimeout({ isAdmin = false }: UseSessionTimeoutOptions 
   const timeoutMs = isAdmin ? ADMIN_TIMEOUT_MS : STANDARD_TIMEOUT_MS;
 
   const handleSignOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    await backend.auth.signOut();
     toast.error("Session expired due to inactivity. Please sign in again.");
   }, []);
 

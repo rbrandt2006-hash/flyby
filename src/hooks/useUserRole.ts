@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend, isUnauthenticated } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 export type AppRole = "admin" | "moderator" | "user";
 
 export function useUserRole() {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -16,15 +16,26 @@ export function useUserRole() {
       return;
     }
 
+    // A guest has no account behind it, so there is no role to look up. They
+    // get the baseline role without a request that could only come back 401.
+    if (isGuest) {
+      setRole("user");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { data, error } = await supabase
+      const { data, error } = await backend
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (error) {
-        console.error("Error fetching user role:", error);
+        // Signed out or guest: fall back to the baseline role without noise.
+        if (!isUnauthenticated(error)) {
+          console.error("Error fetching user role:", error);
+        }
         setRole("user"); // Default to user
       } else {
         setRole((data?.role as AppRole) || "user");
@@ -34,7 +45,7 @@ export function useUserRole() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, isGuest]);
 
   useEffect(() => {
     fetchRole();
@@ -44,7 +55,7 @@ export function useUserRole() {
   const isModerator = role === "moderator" || role === "admin";
 
   const assignRole = useCallback(async (targetUserId: string, newRole: AppRole) => {
-    const { error } = await supabase
+    const { error } = await backend
       .from("user_roles")
       .upsert(
         { user_id: targetUserId, role: newRole },
@@ -54,7 +65,7 @@ export function useUserRole() {
   }, []);
 
   const removeRole = useCallback(async (targetUserId: string) => {
-    const { error } = await supabase
+    const { error } = await backend
       .from("user_roles")
       .delete()
       .eq("user_id", targetUserId);

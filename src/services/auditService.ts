@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 
 export type AuditAction =
   | "login_success"
@@ -39,17 +39,17 @@ interface AuditLogEntry {
  */
 export async function logAuditEvent(entry: AuditLogEntry): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await backend.auth.getUser();
     if (!user) return;
 
     // Get tenant_id from profile
-    const { data: profile } = await supabase
+    const { data: profile } = await backend
       .from("profiles")
       .select("company_id")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    await (supabase.from("audit_logs") as any).insert({
+    await (backend.from("audit_logs") as any).insert({
       user_id: user.id,
       tenant_id: profile?.company_id ?? null,
       action: entry.action,
@@ -71,7 +71,7 @@ export async function fetchAuditLogs(options?: {
   action?: string;
   userId?: string;
 }) {
-  let query = (supabase.from("audit_logs") as any)
+  let query = (backend.from("audit_logs") as any)
     .select("*")
     .order("created_at", { ascending: false })
     .limit(options?.limit ?? 100);

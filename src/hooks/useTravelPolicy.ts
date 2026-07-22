@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { TravelPolicy } from "@/services/policyEvaluator";
 
@@ -35,7 +35,7 @@ export function useTravelPolicy() {
         return;
       }
       // Get company id
-      const { data: prof } = await supabase
+      const { data: prof } = await backend
         .from("profiles")
         .select("company_id")
         .eq("user_id", user.id)
@@ -46,7 +46,7 @@ export function useTravelPolicy() {
         setPolicy(EMPTY);
         return;
       }
-      const { data } = await supabase
+      const { data } = await backend
         .from("travel_policies")
         .select("*")
         .eq("company_id", cid)
@@ -87,7 +87,7 @@ export function useTravelPolicy() {
         max_flight_class: next.max_flight_class,
         approval_required_above: next.approval_required_above,
       };
-      const { data, error } = await supabase
+      const { data, error } = await backend
         .from("travel_policies")
         .upsert(payload, { onConflict: "company_id" })
         .select()

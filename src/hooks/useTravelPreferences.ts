@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend, isUnauthenticated } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -73,14 +73,17 @@ export function useTravelPreferences() {
 
     const fetchPreferences = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await backend
           .from("travel_preferences")
           .select("*")
           .eq("user_id", user.id)
           .single();
 
         if (error && error.code !== "PGRST116") {
-          console.error("Error fetching preferences:", error);
+          // Signed out or guest: the defaults already in state apply.
+          if (!isUnauthenticated(error)) {
+            console.error("Error fetching preferences:", error);
+          }
           return;
         }
 
@@ -100,7 +103,9 @@ export function useTravelPreferences() {
           });
         }
       } catch (error) {
-        console.error("Error loading preferences:", error);
+        if (!isUnauthenticated(error)) {
+          console.error("Error loading preferences:", error);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -115,7 +120,7 @@ export function useTravelPreferences() {
     
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await backend
         .from("travel_preferences")
         .update({ preferred_seat: seat, updated_at: new Date().toISOString() })
         .eq("user_id", user.id);
@@ -139,7 +144,7 @@ export function useTravelPreferences() {
     setIsSaving(true);
     try {
       const dietaryValue = meal === "standard" ? null : meal;
-      const { error } = await supabase
+      const { error } = await backend
         .from("travel_preferences")
         .update({ dietary_restrictions: dietaryValue, updated_at: new Date().toISOString() })
         .eq("user_id", user.id);
@@ -163,7 +168,7 @@ export function useTravelPreferences() {
     const newAirlines = [...preferences.preferredAirlines, airline.trim()];
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await backend
         .from("travel_preferences")
         .update({ preferred_airlines: newAirlines, updated_at: new Date().toISOString() })
         .eq("user_id", user.id);
@@ -187,7 +192,7 @@ export function useTravelPreferences() {
     const newAirlines = preferences.preferredAirlines.filter(a => a !== airline);
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await backend
         .from("travel_preferences")
         .update({ preferred_airlines: newAirlines, updated_at: new Date().toISOString() })
         .eq("user_id", user.id);
@@ -211,7 +216,7 @@ export function useTravelPreferences() {
     const newBrands = [...preferences.preferredHotelBrands, brand.trim()];
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await backend
         .from("travel_preferences")
         .update({ preferred_hotel_brands: newBrands, updated_at: new Date().toISOString() })
         .eq("user_id", user.id);
@@ -235,7 +240,7 @@ export function useTravelPreferences() {
     const newBrands = preferences.preferredHotelBrands.filter(b => b !== brand);
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await backend
         .from("travel_preferences")
         .update({ preferred_hotel_brands: newBrands, updated_at: new Date().toISOString() })
         .eq("user_id", user.id);
@@ -282,7 +287,7 @@ export function useTravelPreferences() {
         setPreferences(updated);
       } else {
         if (!user?.id) return;
-        const { error } = await supabase
+        const { error } = await backend
           .from("travel_preferences")
           .update({ avoid_layovers: next, updated_at: new Date().toISOString() } as never)
           .eq("user_id", user.id);
@@ -308,7 +313,7 @@ export function useTravelPreferences() {
         setPreferences(updated);
       } else {
         if (!user?.id) return;
-        const { error } = await supabase
+        const { error } = await backend
           .from("travel_preferences")
           .update({ cost_sensitivity: next, updated_at: new Date().toISOString() } as never)
           .eq("user_id", user.id);

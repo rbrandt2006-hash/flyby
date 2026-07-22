@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useBackendCollection } from "./useBackendCollection";
 import { DEMO_TRIPS, demoDate } from "@/data/demoTrips";
 
 export interface TripTimelineEvent {
@@ -127,44 +128,18 @@ function getDemoTrips(): LocalTrip[] {
   });
 }
 
-function loadTripsFromStorage(): LocalTrip[] {
-  try {
-    // Seed demo trips if never seeded
-    const seeded = localStorage.getItem(DEMO_SEED_KEY);
-    if (!seeded) {
-      const demos = getDemoTrips();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(demos));
-      localStorage.setItem(DEMO_SEED_KEY, "true");
-      return demos;
-    }
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed: LocalTrip[] = JSON.parse(stored);
-      // Defensive: drop stale demo trips with implausible dates (>18mo out or in the past year)
-      const now = Date.now();
-      const maxFuture = now + 18 * 30 * 24 * 60 * 60 * 1000;
-      const minPast = now - 365 * 24 * 60 * 60 * 1000;
-      const cleaned = parsed.filter(t => {
-        const start = new Date(t.startDate).getTime();
-        return !isNaN(start) && start <= maxFuture && start >= minPast;
-      });
-      if (cleaned.length !== parsed.length) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-      }
-      return cleaned;
-    }
-  } catch (e) {
-    console.error("Failed to load trips from localStorage:", e);
-  }
-  return [];
-}
-
-function saveTripsToStorage(trips: LocalTrip[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
-  } catch (e) {
-    console.error("Failed to save trips to localStorage:", e);
-  }
+/**
+ * Drop trips with implausible dates — more than 18 months out, or over a year
+ * old. Guards against stale demo data lingering from an earlier seed.
+ */
+function withPlausibleDates(trips: LocalTrip[]): LocalTrip[] {
+  const now = Date.now();
+  const maxFuture = now + 18 * 30 * 24 * 60 * 60 * 1000;
+  const minPast = now - 365 * 24 * 60 * 60 * 1000;
+  return trips.filter((trip) => {
+    const start = new Date(trip.startDate).getTime();
+    return !isNaN(start) && start <= maxFuture && start >= minPast;
+  });
 }
 
 function generateAIReasoning(destination: string, cost: number): TripAIReasoning {
@@ -195,11 +170,18 @@ function generateAIReasoning(destination: string, cost: number): TripAIReasoning
 }
 
 export function useTrips() {
-  const [trips, setTrips] = useState<LocalTrip[]>(() => loadTripsFromStorage());
-
-  useEffect(() => {
-    saveTripsToStorage(trips);
-  }, [trips]);
+  // Trips live in the backend, cached locally so the first paint is instant.
+  // On a brand-new account the server has nothing, so the demo set is seeded
+  // once and then saved like any other change.
+  const [trips, setTrips] = useBackendCollection<LocalTrip[]>({
+    endpoint: "trips",
+    payloadKey: "trips",
+    cacheKey: STORAGE_KEY,
+    initial: [],
+    seed: getDemoTrips,
+    isEmpty: (rows) => !Array.isArray(rows) || rows.length === 0,
+    transform: withPlausibleDates,
+  });
 
   const createTrip = useCallback((tripData: {
     destination: string;

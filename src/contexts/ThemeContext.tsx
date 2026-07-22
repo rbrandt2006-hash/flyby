@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend, isUnauthenticated } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Theme = "light" | "dark" | "system";
@@ -37,7 +37,7 @@ function applyTheme(resolvedTheme: ResolvedTheme) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const [theme, setThemeState] = useState<Theme>(() => {
     // Load from localStorage immediately to prevent flash
     if (typeof window !== "undefined") {
@@ -77,20 +77,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Load theme preference from database when user is logged in
   useEffect(() => {
     async function loadThemeFromDB() {
-      if (!user?.id) {
+      // Guests have no stored profile, so the theme stays whatever the local
+      // preference is rather than being fetched from a protected table.
+      if (!user?.id || isGuest) {
         setIsLoading(false);
         return;
       }
 
       try {
-        const { data, error } = await supabase
+        const { data, error } = await backend
           .from("profiles")
           .select("theme_preference")
           .eq("user_id", user.id)
           .single();
 
         if (error) {
-          console.error("Error loading theme preference:", error);
+          // Signed out or guest: the locally stored theme stays in effect.
+          if (!isUnauthenticated(error)) {
+            console.error("Error loading theme preference:", error);
+          }
           setIsLoading(false);
           return;
         }
@@ -108,17 +113,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     loadThemeFromDB();
-  }, [user?.id]);
+  }, [user?.id, isGuest]);
 
   const setTheme = useCallback(async (newTheme: Theme) => {
     // Update state and localStorage immediately
     setThemeState(newTheme);
     localStorage.setItem(STORAGE_KEY, newTheme);
 
-    // Persist to database if user is logged in
-    if (user?.id) {
+    // Persist to the account, when there is one. A guest's choice stays local.
+    if (user?.id && !isGuest) {
       try {
-        await supabase
+        await backend
           .from("profiles")
           .update({ theme_preference: newTheme })
           .eq("user_id", user.id);
@@ -126,7 +131,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         console.error("Error saving theme preference:", error);
       }
     }
-  }, [user?.id]);
+  }, [user?.id, isGuest]);
 
   return (
     <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, isLoading }}>

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Check, Eye, EyeOff } from "lucide-react";
 import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
@@ -31,34 +31,38 @@ export default function ResetPassword() {
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [tokenError, setTokenError] = useState(false);
+  const [recoveryToken, setRecoveryToken] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if we have a valid session from the reset link
+  // The reset link carries a recovery token. It is exchanged for a session so
+  // the new password can be saved, and kept in state because the backend
+  // requires either it or the current password before changing a password.
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      // Check URL for error parameters (expired/invalid token)
+      const params = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const error = hashParams.get("error");
-      const errorDescription = hashParams.get("error_description");
-      
-      if (error || errorDescription) {
+
+      if (hashParams.get("error") || hashParams.get("error_description")) {
         setTokenError(true);
         return;
       }
 
-      // If no session and no recovery flow, show error
-      if (!session) {
-        // Give a moment for the auth state to update from the URL
-        setTimeout(async () => {
-          const { data: { session: updatedSession } } = await supabase.auth.getSession();
-          if (!updatedSession) {
-            setTokenError(true);
-          }
-        }, 1000);
+      const token = params.get("token") ?? hashParams.get("token");
+      if (token) {
+        const { error } = await backend.auth.verifyRecoveryToken(token);
+        if (error) {
+          setTokenError(true);
+          return;
+        }
+        setRecoveryToken(token);
+        return;
       }
+
+      // Without a token in the link there is nothing to verify — only an
+      // already-established session can continue.
+      const { data: { session } } = await backend.auth.getSession();
+      if (!session) setTokenError(true);
     };
 
     checkSession();
@@ -98,7 +102,10 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      const { error } = await backend.auth.updateUser({
+        password,
+        ...(recoveryToken ? { recovery_token: recoveryToken } : {}),
+      });
 
       if (error) {
         if (error.message.includes("expired") || error.message.includes("invalid")) {
@@ -117,7 +124,7 @@ export default function ResetPassword() {
       
       // Sign out and redirect after 3 seconds
       setTimeout(async () => {
-        await supabase.auth.signOut();
+        await backend.auth.signOut();
         navigate("/auth");
       }, 3000);
     } catch (err) {

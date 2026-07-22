@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -366,7 +366,7 @@ export default function Trips() {
   const fetchTrips = async () => {
     if (!user) return;
     
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from("trips")
       .select("*")
       .order("start_date", { ascending: false });
@@ -452,7 +452,7 @@ export default function Trips() {
   };
 
   const handleConfirmTripFromPanel = async (tripId: string) => {
-    const { error } = await supabase
+    const { error } = await backend
       .from("trips")
       .update({ status: "confirmed" })
       .eq("id", tripId);
@@ -468,7 +468,7 @@ export default function Trips() {
   };
 
   const handleCancelTrip = async (tripId: string) => {
-    const { error } = await supabase
+    const { error } = await backend
       .from("trips")
       .update({ status: "cancelled" })
       .eq("id", tripId);

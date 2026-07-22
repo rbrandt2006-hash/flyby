@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend, isUnauthenticated } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const guestProfile: UserProfile = {
@@ -51,7 +51,7 @@ export function useUserProfile() {
       setIsLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await backend
         .from("profiles")
         .select("*")
         .eq("user_id", user.id)
@@ -63,8 +63,12 @@ export function useUserProfile() {
 
       setProfile(data);
     } catch (err) {
-      console.error("Error fetching profile:", err);
-      setError(err instanceof Error ? err.message : "Failed to load profile");
+      // Signed out or browsing as a guest: there is no profile to load, and
+      // that is not an error worth surfacing.
+      if (!isUnauthenticated(err)) {
+        console.error("Error fetching profile:", err);
+        setError(err instanceof Error ? err.message : "Failed to load profile");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -75,11 +79,13 @@ export function useUserProfile() {
     fetchProfile();
   }, [fetchProfile]);
 
-  // Subscribe to realtime updates
+  // Subscribe to live profile updates.
+  // Guests have a placeholder user id but no backend session, so there is
+  // nothing to watch — subscribing would poll a protected table on a loop.
   useEffect(() => {
-    if (!user?.id) return;
+    if (isGuest || !user?.id) return;
 
-    const channel = supabase
+    const channel = backend
       .channel(`profile-${user.id}`)
       .on(
         "postgres_changes",
@@ -96,9 +102,9 @@ export function useUserProfile() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      backend.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, isGuest]);
 
   const updateAvatarUrl = useCallback((newUrl: string | null) => {
     setProfile((prev) => (prev ? { ...prev, avatar_url: newUrl } : null));

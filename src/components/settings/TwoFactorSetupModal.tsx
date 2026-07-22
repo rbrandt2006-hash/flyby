@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Phone, Shield, CheckCircle2, AlertTriangle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 
 interface TwoFactorSetupModalProps {
   open: boolean;
@@ -70,7 +70,7 @@ export function TwoFactorSetupModal({
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("twofa-send-sms", {
+      const { data, error } = await backend.functions.invoke("twofa-send-sms", {
         body: { phone: cleanPhone },
       });
 
@@ -108,7 +108,7 @@ export function TwoFactorSetupModal({
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("twofa-verify-sms", {
+      const { data, error } = await backend.functions.invoke("twofa-verify-sms", {
         body: { 
           phone: cleanPhone, 
           code: verificationCode,
@@ -147,7 +147,7 @@ export function TwoFactorSetupModal({
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("twofa-disable", {
+      const { data, error } = await backend.functions.invoke("twofa-disable", {
         body: {},
       });
 

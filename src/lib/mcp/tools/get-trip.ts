@@ -1,13 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
-import { defineTool, type ToolContext } from "@lovable.dev/mcp-js";
+import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-
-function supabaseForUser(ctx: ToolContext) {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+import { queryTable } from "../backendClient";
 
 export default defineTool({
   name: "get_trip",
@@ -21,13 +14,15 @@ export default defineTool({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const { data, error } = await supabaseForUser(ctx)
-      .from("trips")
-      .select("*")
-      .eq("id", trip_id)
-      .maybeSingle();
+
+    const { data, error } = await queryTable<Record<string, unknown> | null>(ctx.getToken(), "trips", {
+      filters: [{ column: "id", op: "eq", value: trip_id }],
+      single: "maybe",
+    });
+
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     if (!data) return { content: [{ type: "text", text: "Trip not found" }], isError: true };
+
     return {
       content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
       structuredContent: { trip: data },

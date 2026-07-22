@@ -1,13 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
-import { defineTool, type ToolContext } from "@lovable.dev/mcp-js";
+import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
+import { pick, queryTable } from "../backendClient";
 
-function supabaseForUser(ctx: ToolContext) {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+const FIELDS = [
+  "id", "title", "destination", "start_date", "end_date",
+  "status", "total_estimated_cost", "purpose",
+];
 
 export default defineTool({
   name: "list_trips",
@@ -25,20 +23,19 @@ export default defineTool({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const supabase = supabaseForUser(ctx);
-    let query = supabase
-      .from("trips")
-      .select("id,title,destination,start_date,end_date,status,total_estimated_cost,purpose")
-      .order("start_date", { ascending: false })
-      .limit(limit ?? 25);
-    if (status) query = query.eq("status", status);
-    const { data, error } = await query;
-    if (error) {
-      return { content: [{ type: "text", text: error.message }], isError: true };
-    }
+
+    const { data, error } = await queryTable<Record<string, unknown>[]>(ctx.getToken(), "trips", {
+      filters: status ? [{ column: "status", op: "eq", value: status }] : [],
+      order: [{ column: "start_date", ascending: false }],
+      limit: limit ?? 25,
+    });
+
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+
+    const trips = pick(data ?? [], FIELDS);
     return {
-      content: [{ type: "text", text: JSON.stringify(data ?? [], null, 2) }],
-      structuredContent: { trips: data ?? [] },
+      content: [{ type: "text", text: JSON.stringify(trips, null, 2) }],
+      structuredContent: { trips },
     };
   },
 });

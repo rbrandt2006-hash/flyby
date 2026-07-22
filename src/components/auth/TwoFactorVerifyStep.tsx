@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Shield, AlertTriangle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 
 interface TwoFactorVerifyStepProps {
   maskedPhone: string;
@@ -42,7 +42,7 @@ export function TwoFactorVerifyStep({
     setError(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("twofa-send-sms", {
+      const { data, error } = await backend.functions.invoke("twofa-send-sms", {
         body: {},
       });
 
@@ -69,7 +69,7 @@ export function TwoFactorVerifyStep({
     setError(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("twofa-verify-sms", {
+      const { data, error } = await backend.functions.invoke("twofa-verify-sms", {
         body: {
           code,
           enableAfterVerify: false, // Don't update profile, just verify

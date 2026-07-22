@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend, isUnauthenticated } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -36,7 +36,7 @@ export function useNotificationSettings() {
 
     try {
       setError(null);
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await backend
         .from("profiles")
         .select(
           "notify_trip_updates, notify_flight_disruptions, notify_expense_approvals, notify_weekly_summary, auto_match_expenses"
@@ -58,8 +58,11 @@ export function useNotificationSettings() {
         });
       }
     } catch (err: any) {
-      console.error("Failed to fetch notification settings:", err);
-      setError(err.message || "Failed to load notification settings");
+      // Signed out or browsing as a guest: the defaults already in state apply.
+      if (!isUnauthenticated(err)) {
+        console.error("Failed to fetch notification settings:", err);
+        setError(err.message || "Failed to load notification settings");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +98,7 @@ export function useNotificationSettings() {
       };
 
       try {
-        const { error: updateError } = await supabase
+        const { error: updateError } = await backend
           .from("profiles")
           .update({ [dbKeyMap[key]]: value, updated_at: new Date().toISOString() })
           .eq("user_id", user.id);

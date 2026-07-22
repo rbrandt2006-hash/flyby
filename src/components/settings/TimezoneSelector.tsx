@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend, isUnauthenticated } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
@@ -46,7 +46,7 @@ export function TimezoneSelector() {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await backend
         .from("profiles")
         .select("timezone")
         .eq("user_id", user.id)
@@ -58,7 +58,10 @@ export function TimezoneSelector() {
         setTimezone(data.timezone);
       }
     } catch (err) {
-      console.error("Failed to fetch timezone:", err);
+      // Signed out or browsing as a guest: keep the local timezone, quietly.
+      if (!isUnauthenticated(err)) {
+        console.error("Failed to fetch timezone:", err);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +82,7 @@ export function TimezoneSelector() {
     setIsSaving(true);
 
     try {
-      const { error } = await supabase
+      const { error } = await backend
         .from("profiles")
         .update({ timezone: newTimezone, updated_at: new Date().toISOString() })
         .eq("user_id", user.id);

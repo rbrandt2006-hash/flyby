@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, AlertCircle } from "lucide-react";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { TwoFactorVerifyStep } from "@/components/auth/TwoFactorVerifyStep";
 import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
 import { validatePassword } from "@/lib/passwordPolicy";
@@ -74,7 +74,7 @@ export default function Auth() {
     try {
       if (isLogin) {
         // Check if 2FA is required before completing login
-        const { data: check2FA } = await supabase.functions.invoke("twofa-check-required", {
+        const { data: check2FA } = await backend.functions.invoke("twofa-check-required", {
           body: { email }
         });
 
@@ -151,7 +151,7 @@ export default function Auth() {
 
   const handle2FACancel = async () => {
     // Sign out since password was already verified
-    await supabase.auth.signOut();
+    await backend.auth.signOut();
     setRequires2FA(false);
     setTwoFactorMaskedPhone("");
   };

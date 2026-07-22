@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lightbulb, ChevronDown, ChevronUp, TrendingUp, AlertTriangle, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { DEMO_TRIPS, getDemoSpendByTripName } from "@/data/demoTrips";
 import { demoExpenses } from "./demoExpenseData";
 
@@ -81,9 +80,11 @@ export function AIExpenseInsights() {
           <p className="font-semibold text-sm">AI Expense Insights</p>
           <p className="text-xs text-muted-foreground">3 observations this month · Updated just now</p>
         </div>
-        <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground">
+        {/* The whole header is already the toggle, so this is a plain indicator.
+            A nested <button> here is invalid HTML and would be unreachable. */}
+        <span className="shrink-0 flex items-center justify-center w-8 h-8 text-muted-foreground">
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </Button>
+        </span>
       </button>
 
       <AnimatePresence>

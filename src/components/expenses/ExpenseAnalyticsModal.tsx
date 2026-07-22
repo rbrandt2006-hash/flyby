@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -136,6 +136,9 @@ export function ExpenseAnalyticsModal({ open, onOpenChange, expenses = demoExpen
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-2xl font-bold">Travel Analytics Dashboard</DialogTitle>
+          <DialogDescription>
+            Spend breakdowns by trip, category and month across your travel.
+          </DialogDescription>
           <p className="text-sm text-muted-foreground mt-1">{monthLabel} · Enterprise spend overview</p>
         </DialogHeader>
 

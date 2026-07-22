@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend, isUnauthenticated } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -46,14 +46,18 @@ export function useLoyaltyPrograms() {
       setIsLoading(false);
       return;
     }
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from("loyalty_programs")
       .select("id, kind, program_name, member_id")
       .eq("user_id", user!.id)
       .order("created_at", { ascending: true });
     if (error) {
-      console.error("[loyalty] load failed", error);
-      toast.error("Couldn't load loyalty programs");
+      // Signed out or guest: show an empty list rather than an error toast the
+      // user can't do anything about.
+      if (!isUnauthenticated(error)) {
+        console.error("[loyalty] load failed", error);
+        toast.error("Couldn't load loyalty programs");
+      }
       setPrograms([]);
     } else {
       setPrograms((data ?? []) as LoyaltyProgram[]);
@@ -74,7 +78,7 @@ export function useLoyaltyPrograms() {
         toast.success("Loyalty program added");
         return next;
       }
-      const { data, error } = await supabase
+      const { data, error } = await backend
         .from("loyalty_programs")
         .insert({ ...input, user_id: user!.id })
         .select("id, kind, program_name, member_id")
@@ -102,7 +106,7 @@ export function useLoyaltyPrograms() {
         toast.success("Updated");
         return;
       }
-      const { error } = await supabase
+      const { error } = await backend
         .from("loyalty_programs")
         .update(patch)
         .eq("id", id);
@@ -127,7 +131,7 @@ export function useLoyaltyPrograms() {
         toast.success("Removed");
         return;
       }
-      const { error } = await supabase.from("loyalty_programs").delete().eq("id", id);
+      const { error } = await backend.from("loyalty_programs").delete().eq("id", id);
       if (error) throw error;
       setPrograms(prev => prev.filter(p => p.id !== id));
       toast.success("Removed");

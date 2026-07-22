@@ -1,13 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
-import { defineTool, type ToolContext } from "@lovable.dev/mcp-js";
+import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
+import { pick, queryTable } from "../backendClient";
 
-function supabaseForUser(ctx: ToolContext) {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+const FIELDS = [
+  "id", "description", "amount", "currency", "category",
+  "status", "trip_id", "created_at",
+];
 
 export default defineTool({
   name: "list_expenses",
@@ -23,18 +21,23 @@ export default defineTool({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    let q = supabaseForUser(ctx)
-      .from("expenses")
-      .select("id,description,amount,currency,category,status,trip_id,created_at")
-      .order("created_at", { ascending: false })
-      .limit(limit ?? 25);
-    if (status) q = q.eq("status", status);
-    if (trip_id) q = q.eq("trip_id", trip_id);
-    const { data, error } = await q;
+
+    const filters = [];
+    if (status) filters.push({ column: "status", op: "eq", value: status });
+    if (trip_id) filters.push({ column: "trip_id", op: "eq", value: trip_id });
+
+    const { data, error } = await queryTable<Record<string, unknown>[]>(ctx.getToken(), "expenses", {
+      filters,
+      order: [{ column: "created_at", ascending: false }],
+      limit: limit ?? 25,
+    });
+
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+
+    const expenses = pick(data ?? [], FIELDS);
     return {
-      content: [{ type: "text", text: JSON.stringify(data ?? [], null, 2) }],
-      structuredContent: { expenses: data ?? [] },
+      content: [{ type: "text", text: JSON.stringify(expenses, null, 2) }],
+      structuredContent: { expenses },
     };
   },
 });

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useBackendCollection } from "./useBackendCollection";
 
 export interface ChatUser {
   id: string;
@@ -113,34 +114,16 @@ export const systemUser: ChatUser = {
 
 const STORAGE_KEY = "flyby_chats";
 
-function loadChatsFromStorage(): Chat[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (e) {
-    console.error("Failed to load chats from localStorage:", e);
-  }
-  return [];
-}
-
-function saveChatsToStorage(chats: Chat[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
-  } catch (e) {
-    console.error("Failed to save chats to localStorage:", e);
-  }
-}
-
 export function useChats() {
-  const [chats, setChats] = useState<Chat[]>(() => loadChatsFromStorage());
+  // Conversations are stored in the backend, so a thread opened on one device
+  // is there on the next.
+  const [chats, setChats] = useBackendCollection<Chat[]>({
+    endpoint: "chats",
+    payloadKey: "chats",
+    cacheKey: STORAGE_KEY,
+    initial: [],
+  });
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-
-  // Persist chats to localStorage whenever they change
-  useEffect(() => {
-    saveChatsToStorage(chats);
-  }, [chats]);
 
   // Find existing 1:1 chat between current user and another participant
   const findExistingChat = useCallback((participantId: string): Chat | null => {

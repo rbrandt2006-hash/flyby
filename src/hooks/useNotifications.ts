@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useBackendCollection } from "./useBackendCollection";
 
 export interface AppNotification {
   id: string;
@@ -37,11 +38,14 @@ function saveNotificationsToStorage(notifications: AppNotification[]) {
 }
 
 export function useNotifications() {
-  const [notifications, setNotifications] = useState<AppNotification[]>(() => loadNotificationsFromStorage());
-
-  useEffect(() => {
-    saveNotificationsToStorage(notifications);
-  }, [notifications]);
+  // Notifications are stored per user in the backend, so the unread badge is
+  // the same wherever they sign in.
+  const [notifications, setNotifications] = useBackendCollection<AppNotification[]>({
+    endpoint: "notifications",
+    payloadKey: "notifications",
+    cacheKey: STORAGE_KEY,
+    initial: [],
+  });
 
   const addNotification = useCallback((notification: Omit<AppNotification, "id" | "timestamp" | "read">): AppNotification => {
     const newNotification: AppNotification = {

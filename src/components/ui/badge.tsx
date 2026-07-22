@@ -25,8 +25,14 @@ const badgeVariants = cva(
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
-}
+// Forwards its ref so a Badge can act as a Tooltip/Popover trigger (via
+// `asChild`), which attaches a ref to the element it wraps. Without this the
+// trigger has nothing to anchor to and React warns on every render.
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
+  ({ className, variant, ...props }, ref) => (
+    <div ref={ref} className={cn(badgeVariants({ variant }), className)} {...props} />
+  ),
+);
+Badge.displayName = "Badge";
 
 export { Badge, badgeVariants };

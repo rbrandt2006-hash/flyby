@@ -1,18 +1,18 @@
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 
 /**
  * Tracks the current session in the active_sessions table.
  */
 export async function trackSession(): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await backend.auth.getUser();
     if (!user) return;
 
     const ua = navigator.userAgent;
     const browser = detectBrowser(ua);
     const tokenHash = simpleHash(user.id + Date.now().toString());
 
-    await (supabase.from("active_sessions") as any).insert({
+    await (backend.from("active_sessions") as any).insert({
       user_id: user.id,
       session_token_hash: tokenHash,
       device_info: ua.slice(0, 200),
@@ -27,7 +27,7 @@ export async function trackSession(): Promise<void> {
  * Fetches active sessions for the current user.
  */
 export async function getActiveSessions() {
-  return (supabase.from("active_sessions") as any)
+  return (backend.from("active_sessions") as any)
     .select("*")
     .eq("revoked", false)
     .order("last_active_at", { ascending: false });
@@ -37,7 +37,7 @@ export async function getActiveSessions() {
  * Revokes a specific session.
  */
 export async function revokeSession(sessionId: string) {
-  return (supabase.from("active_sessions") as any)
+  return (backend.from("active_sessions") as any)
     .update({ revoked: true, revoked_at: new Date().toISOString() })
     .eq("id", sessionId);
 }
@@ -46,10 +46,10 @@ export async function revokeSession(sessionId: string) {
  * Revokes all sessions except current.
  */
 export async function revokeAllOtherSessions(currentSessionId: string) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await backend.auth.getUser();
   if (!user) return;
 
-  return (supabase.from("active_sessions") as any)
+  return (backend.from("active_sessions") as any)
     .update({ revoked: true, revoked_at: new Date().toISOString() })
     .eq("user_id", user.id)
     .eq("revoked", false)

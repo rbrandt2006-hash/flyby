@@ -5,7 +5,7 @@ import { X, MessageSquare, MapPin, Plane, Building2, Calendar, Users, Navigation
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import flybyLogo from "@/assets/flyby-logo-new.png";
+import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
 import { TravelerMessageComposer } from "@/components/home/TravelerMessageComposer";
 import { useChats } from "@/hooks/useChats";
 
@@ -215,7 +215,7 @@ export function TravelerDetailPanel({ traveler, open, onClose }: TravelerDetailP
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <img src={flybyLogo} alt="FlyBy" className="h-5 opacity-40" />
+                  <img src={flybyLogo.url} alt="Flyby AI" className="h-5 opacity-40" />
                   <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted transition-colors">
                     <X className="w-5 h-5 text-muted-foreground" />
                   </button>

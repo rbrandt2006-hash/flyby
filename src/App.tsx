@@ -130,7 +130,13 @@ const App = () => (
       <AuthProvider>
         <ThemeProvider>
           <DemoModeProvider>
-            <BrowserRouter>
+            {/* Opt in to the v7 behaviours now: state updates wrapped in
+                startTransition, and splat-relative route resolution. Both match
+                how this app already routes, so enabling them early keeps the
+                eventual React Router 7 upgrade a no-op. */}
+            <BrowserRouter
+              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+            >
               <AppRoutes />
             </BrowserRouter>
           </DemoModeProvider>

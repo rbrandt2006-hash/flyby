@@ -1,11 +1,8 @@
 {
   "version": 1,
-  "asset_id": "e4ccb480-aaa5-4bf1-a999-565ba10c957f",
-  "project_id": "2ec8592c-439a-4f2c-9f1e-5238e2d8a0fb",
-  "url": "/__l5e/assets-v1/e4ccb480-aaa5-4bf1-a999-565ba10c957f/flyby-ai-logo.png",
-  "r2_key": "a/v1/2ec8592c-439a-4f2c-9f1e-5238e2d8a0fb/e4ccb480-aaa5-4bf1-a999-565ba10c957f/flyby-ai-logo.png",
+  "url": "/flyby-ai-logo.png",
   "original_filename": "flyby-ai-logo.png",
-  "size": 166145,
   "content_type": "image/png",
-  "created_at": "2026-07-14T22:10:42Z"
+  "size": 166145,
+  "note": "Served from public/flyby-ai-logo.png. The url previously pointed at a build-platform CDN path (/__l5e/assets-v1/...) that only resolved on that platform, so the logo was broken anywhere else. The file itself is committed here so it works locally and in any deploy."
 }

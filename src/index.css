@@ -1,8 +1,10 @@
+/* CSS requires @import to come before any other rule, and Tailwind's directives
+   below expand into rules — so the font import has to be first. */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 /* 
   flyby Design System

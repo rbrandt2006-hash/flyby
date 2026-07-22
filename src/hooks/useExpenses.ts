@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { useBackendCollection } from "./useBackendCollection";
 
 export interface Expense {
   id: string;
@@ -302,32 +303,17 @@ const initialExpenses: Expense[] = [
   },
 ];
 
-function loadExpensesFromStorage(): Expense[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (e) {
-    console.error("Failed to load expenses from localStorage:", e);
-  }
-  return initialExpenses;
-}
-
-function saveExpensesToStorage(expenses: Expense[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-  } catch (e) {
-    console.error("Failed to save expenses to localStorage:", e);
-  }
-}
-
 export function useExpenses() {
-  const [expenses, setExpenses] = useState<Expense[]>(() => loadExpensesFromStorage());
-
-  useEffect(() => {
-    saveExpensesToStorage(expenses);
-  }, [expenses]);
+  // Expenses are stored in the backend; a new account starts from the sample
+  // set so the reporting views have something to show.
+  const [expenses, setExpenses] = useBackendCollection<Expense[]>({
+    endpoint: "expenses",
+    payloadKey: "expenses",
+    cacheKey: STORAGE_KEY,
+    initial: [],
+    seed: () => initialExpenses,
+    isEmpty: (rows) => !Array.isArray(rows) || rows.length === 0,
+  });
 
   const addExpense = useCallback((expenseData: Omit<Expense, "id">): Expense => {
     const newExpense: Expense = {

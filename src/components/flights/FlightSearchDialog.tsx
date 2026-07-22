@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -144,6 +144,9 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected, embed
             <Plane className="w-5 h-5 text-primary" />
             {showResults ? "Flight Results" : "Search Flights"}
           </DialogTitle>
+          <DialogDescription>
+            Search flights by route and date, then pick an option to add to this trip.
+          </DialogDescription>
         </DialogHeader>
       )}
 

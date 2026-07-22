@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,6 +60,9 @@ export function DisputeModal({
             <Flag className="w-5 h-5" />
             Dispute charge
           </DialogTitle>
+          <DialogDescription>
+            Tell us what's wrong with this charge and we'll open a dispute for review.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

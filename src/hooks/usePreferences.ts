@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { useBackendDocument } from "./useBackendCollection";
 
 export interface TravelPreferences {
   prefersEarlyFlights: boolean;
@@ -23,7 +24,6 @@ interface PreferenceLearningData {
 }
 
 const PREFS_STORAGE_KEY = "flyby_travel_preferences";
-const LEARNING_STORAGE_KEY = "flyby_learning_data";
 
 const defaultPreferences: TravelPreferences = {
   prefersEarlyFlights: false,
@@ -47,57 +47,53 @@ const defaultLearningData: PreferenceLearningData = {
   tripCount: 0,
 };
 
-function loadPreferences(): TravelPreferences {
-  try {
-    const stored = localStorage.getItem(PREFS_STORAGE_KEY);
-    if (stored) {
-      return { ...defaultPreferences, ...JSON.parse(stored) };
-    }
-  } catch (e) {
-    console.error("Failed to load preferences:", e);
-  }
-  return defaultPreferences;
-}
-
-function loadLearningData(): PreferenceLearningData {
-  try {
-    const stored = localStorage.getItem(LEARNING_STORAGE_KEY);
-    if (stored) {
-      return { ...defaultLearningData, ...JSON.parse(stored) };
-    }
-  } catch (e) {
-    console.error("Failed to load learning data:", e);
-  }
-  return defaultLearningData;
-}
-
-function savePreferences(prefs: TravelPreferences) {
-  try {
-    localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(prefs));
-  } catch (e) {
-    console.error("Failed to save preferences:", e);
-  }
-}
-
-function saveLearningData(data: PreferenceLearningData) {
-  try {
-    localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.error("Failed to save learning data:", e);
-  }
-}
+/**
+ * Stated preferences and the behavioural counters behind them are saved as one
+ * document, so a single write keeps them consistent with each other.
+ */
+type PreferencesDocument = TravelPreferences & { learning?: PreferenceLearningData };
 
 export function usePreferences() {
-  const [preferences, setPreferences] = useState<TravelPreferences>(() => loadPreferences());
-  const [learningData, setLearningData] = useState<PreferenceLearningData>(() => loadLearningData());
+  const [document, setDocument] = useBackendDocument<PreferencesDocument>({
+    endpoint: "preferences",
+    payloadKey: "preferences",
+    cacheKey: PREFS_STORAGE_KEY,
+    initial: { ...defaultPreferences, learning: defaultLearningData },
+  });
 
-  useEffect(() => {
-    savePreferences(preferences);
-  }, [preferences]);
+  const preferences = useMemo<TravelPreferences>(
+    () => ({ ...defaultPreferences, ...document }),
+    [document],
+  );
 
-  useEffect(() => {
-    saveLearningData(learningData);
-  }, [learningData]);
+  const learningData = useMemo<PreferenceLearningData>(
+    () => ({ ...defaultLearningData, ...(document.learning ?? {}) }),
+    [document],
+  );
+
+  // Both setters write into the same document, so `setPreferences` and
+  // `setLearningData` keep the `useState` contract the rest of this hook uses.
+  const setPreferences = useCallback(
+    (update: TravelPreferences | ((prev: TravelPreferences) => TravelPreferences)) => {
+      setDocument((prev) => {
+        const base = { ...defaultPreferences, ...prev };
+        const next = typeof update === "function" ? update(base) : update;
+        return { ...prev, ...next };
+      });
+    },
+    [setDocument],
+  );
+
+  const setLearningData = useCallback(
+    (update: PreferenceLearningData | ((prev: PreferenceLearningData) => PreferenceLearningData)) => {
+      setDocument((prev) => {
+        const base = { ...defaultLearningData, ...(prev.learning ?? {}) };
+        const next = typeof update === "function" ? update(base) : update;
+        return { ...prev, learning: next };
+      });
+    },
+    [setDocument],
+  );
 
   // Infer preferences from learning data
   const inferPreferences = useCallback(() => {
@@ -130,7 +126,7 @@ export function usePreferences() {
         lastUpdated: new Date().toISOString(),
       }));
     }
-  }, [learningData]);
+  }, [learningData, setPreferences]);
 
   // Record a booking choice for learning
   const recordBookingChoice = useCallback((choice: {
@@ -170,7 +166,7 @@ export function usePreferences() {
 
     // Re-infer preferences after recording
     setTimeout(inferPreferences, 100);
-  }, [inferPreferences]);
+  }, [inferPreferences, setLearningData]);
 
   // Get active preference labels for display
   const getActivePreferenceLabels = useCallback((): string[] => {
@@ -202,7 +198,7 @@ export function usePreferences() {
       [key]: value,
       lastUpdated: new Date().toISOString(),
     }));
-  }, []);
+  }, [setPreferences]);
 
   return {
     preferences,

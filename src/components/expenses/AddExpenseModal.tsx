@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -106,6 +106,9 @@ export function AddExpenseModal({ open, onOpenChange, onSave }: AddExpenseModalP
           <DialogTitle>
             {step === "form" ? "Add New Expense" : "Submit or Save?"}
           </DialogTitle>
+          <DialogDescription>
+            Enter the merchant, amount and category to record a new expense.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto pr-1">

@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { readCache, useBackendDocument } from "./useBackendCollection";
 import { 
   TripItinerary, 
   ItineraryBlock, 
@@ -34,24 +35,20 @@ interface UseItineraryOptions {
   };
 }
 
-function loadItinerariesFromStorage(): Record<string, TripItinerary> {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (e) {
-    console.error("Failed to load itineraries from localStorage:", e);
-  }
-  return {};
-}
-
-function saveItinerariesToStorage(itineraries: Record<string, TripItinerary>) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(itineraries));
-  } catch (e) {
-    console.error("Failed to save itineraries to localStorage:", e);
-  }
+/**
+ * Turn stored day dates back into `Date` objects.
+ *
+ * Itineraries travel as JSON, so every `date` arrives as a string and has to be
+ * revived before the editor can work with it.
+ */
+function rehydrateDates(itinerary: TripItinerary): TripItinerary {
+  return {
+    ...itinerary,
+    days: (itinerary.days ?? []).map((day) => ({
+      ...day,
+      date: new Date(day.date),
+    })),
+  };
 }
 
 // Generate initial itinerary based on trip data
@@ -181,21 +178,33 @@ function generateInitialItinerary(options: UseItineraryOptions): TripItinerary {
 export function useItinerary(options: UseItineraryOptions) {
   const { tripId, startDate, endDate, tripData } = options;
   
-  const [itinerary, setItinerary] = useState<TripItinerary>(() => {
-    const stored = loadItinerariesFromStorage();
-    if (stored[tripId]) {
-      // Rehydrate dates
-      const storedItinerary = stored[tripId];
-      return {
-        ...storedItinerary,
-        days: storedItinerary.days.map(day => ({
-          ...day,
-          date: new Date(day.date),
-        })),
-      };
-    }
-    return generateInitialItinerary(options);
+  // Every itinerary the user owns, kept in sync with the backend and keyed by
+  // trip. This hook edits one of them.
+  const [itineraries, setItineraries] = useBackendDocument<Record<string, TripItinerary>>({
+    endpoint: "itineraries",
+    payloadKey: "itineraries",
+    cacheKey: STORAGE_KEY,
+    initial: {},
   });
+
+  const [itinerary, setItinerary] = useState<TripItinerary>(() => {
+    // Start from the cached copy so the editor renders immediately; the server
+    // copy replaces it below once it arrives.
+    const cached = readCache<Record<string, TripItinerary>>(STORAGE_KEY, {});
+    return cached[tripId] ? rehydrateDates(cached[tripId]) : generateInitialItinerary(options);
+  });
+
+  // Adopt the server's copy once, so it doesn't overwrite edits made while the
+  // request was still in flight.
+  const adoptedFromServer = useRef(false);
+  useEffect(() => {
+    if (adoptedFromServer.current) return;
+    const stored = itineraries[tripId];
+    if (stored) {
+      setItinerary(rehydrateDates(stored));
+      adoptedFromServer.current = true;
+    }
+  }, [itineraries, tripId]);
   
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
@@ -251,12 +260,10 @@ export function useItinerary(options: UseItineraryOptions) {
     return result;
   }, [itinerary]);
   
-  // Persist to localStorage
+  // Write this trip's itinerary back into the synced map.
   useEffect(() => {
-    const stored = loadItinerariesFromStorage();
-    stored[tripId] = itinerary;
-    saveItinerariesToStorage(stored);
-  }, [itinerary, tripId]);
+    setItineraries((prev) => ({ ...prev, [tripId]: itinerary }));
+  }, [itinerary, tripId, setItineraries]);
   
   // Add a block to a specific day
   const addBlock = useCallback((dayIndex: number, block: Omit<ItineraryBlock, "id" | "order" | "dayIndex">) => {

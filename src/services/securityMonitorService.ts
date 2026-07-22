@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { logAuditEvent } from "./auditService";
 
 /**
@@ -22,12 +22,12 @@ interface SecurityAlert {
  */
 export async function createSecurityAlert(alert: SecurityAlert): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await backend.auth.getUser();
     const { data: profile } = user
-      ? await supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle()
+      ? await backend.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle()
       : { data: null };
 
-    await (supabase.from("security_alerts") as any).insert({
+    await (backend.from("security_alerts") as any).insert({
       tenant_id: profile?.company_id ?? null,
       user_id: alert.userId ?? user?.id ?? null,
       alert_type: alert.alertType,
@@ -52,7 +52,7 @@ export async function checkLoginAnomalies(userId: string, success: boolean): Pro
   try {
     // Count recent failures for this user
     const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-    const { count } = await (supabase.from("audit_logs") as any)
+    const { count } = await (backend.from("audit_logs") as any)
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("action", "login_failure")
@@ -95,7 +95,7 @@ export async function checkRapidActivity(
 ): Promise<boolean> {
   try {
     const cutoff = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
-    const { count } = await (supabase.from("audit_logs") as any)
+    const { count } = await (backend.from("audit_logs") as any)
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("action", action)
@@ -122,7 +122,7 @@ export async function checkRapidActivity(
  * Fetches open security alerts for the current tenant.
  */
 export async function getSecurityAlerts(options?: { status?: string; limit?: number }) {
-  let query = (supabase.from("security_alerts") as any)
+  let query = (backend.from("security_alerts") as any)
     .select("*")
     .order("created_at", { ascending: false })
     .limit(options?.limit ?? 50);
@@ -138,9 +138,9 @@ export async function getSecurityAlerts(options?: { status?: string; limit?: num
  * Resolves a security alert.
  */
 export async function resolveSecurityAlert(alertId: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await backend.auth.getUser();
   
-  await (supabase.from("security_alerts") as any)
+  await (backend.from("security_alerts") as any)
     .update({
       status: "resolved",
       resolved_at: new Date().toISOString(),

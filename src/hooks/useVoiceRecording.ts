@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { backendUrl, authHeaders } from '@/integrations/backend/client';
 import { toast } from 'sonner';
 
 export type RecordingState = 'idle' | 'recording' | 'processing' | 'ready';
@@ -49,17 +49,13 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe`,
-        {
-          method: 'POST',
-          headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: formData,
-        }
-      );
+      // Sent as multipart form data, so this posts directly rather than through
+      // the client's JSON helper.
+      const response = await fetch(backendUrl('/functions/v1/transcribe'), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

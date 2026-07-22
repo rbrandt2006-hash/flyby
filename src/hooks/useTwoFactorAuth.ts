@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const GUEST_USER_ID = "guest-user-id";
@@ -35,7 +35,7 @@ export function useTwoFactorAuth() {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke("twofa-status", {
+      const { data, error } = await backend.functions.invoke("twofa-status", {
         body: {},
       });
 

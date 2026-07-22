@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { useBackendCollection } from "./useBackendCollection";
 
 export interface ClientCompany {
   id: string;
@@ -22,35 +23,16 @@ function seedCompanies(): ClientCompany[] {
   ];
 }
 
-function load(): ClientCompany[] {
-  try {
-    if (!localStorage.getItem(SEED_KEY)) {
-      const seeded = seedCompanies();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
-      localStorage.setItem(SEED_KEY, "true");
-      return seeded;
-    }
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as ClientCompany[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function save(list: ClientCompany[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  } catch {
-    // ignore
-  }
-}
-
 export function useCompanies() {
-  const [companies, setCompanies] = useState<ClientCompany[]>(() => load());
-
-  useEffect(() => {
-    save(companies);
-  }, [companies]);
+  // The client companies a traveler visits, stored per user in the backend.
+  const [companies, setCompanies] = useBackendCollection<ClientCompany[]>({
+    endpoint: "client-companies",
+    payloadKey: "companies",
+    cacheKey: STORAGE_KEY,
+    initial: [],
+    seed: seedCompanies,
+    isEmpty: (rows) => !Array.isArray(rows) || rows.length === 0,
+  });
 
   const addCompany = useCallback((name: string, extra?: Partial<ClientCompany>): ClientCompany => {
     const trimmed = name.trim();

@@ -16,7 +16,7 @@ import { useTravelPreferences } from "@/hooks/useTravelPreferences";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { FunctionalToggle } from "@/components/settings/FunctionalToggle";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 import { toast } from "sonner";
 import { ChangePasswordModal } from "@/components/settings/ChangePasswordModal";
 import { TwoFactorSetupModal } from "@/components/settings/TwoFactorSetupModal";
@@ -254,7 +254,7 @@ export default function Settings() {
       const fullNameInput = document.getElementById("fullName") as HTMLInputElement;
       const phoneInput = document.getElementById("phone") as HTMLInputElement;
       if (user && fullNameInput) {
-        const { error } = await supabase
+        const { error } = await backend
           .from("profiles")
           .update({ 
             full_name: fullNameInput.value,

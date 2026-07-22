@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Loader2, ZoomIn, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { backend } from "@/integrations/backend/client";
 
 interface AvatarUploadModalProps {
   open: boolean;
@@ -140,7 +140,7 @@ export function AvatarUploadModal({
       // Upload to Supabase Storage
       const filePath = `${userId}/avatar.png`;
       
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await backend.storage
         .from("avatars")
         .upload(filePath, croppedBlob, {
           upsert: true,
@@ -152,7 +152,7 @@ export function AvatarUploadModal({
       }
 
       // Get public URL
-      const { data: urlData } = supabase.storage
+      const { data: urlData } = backend.storage
         .from("avatars")
         .getPublicUrl(filePath);
 
@@ -160,7 +160,7 @@ export function AvatarUploadModal({
       const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
       // Update profile in database
-      const { error: updateError } = await supabase
+      const { error: updateError } = await backend
         .from("profiles")
         .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
         .eq("user_id", userId);
@@ -189,10 +189,10 @@ export function AvatarUploadModal({
     try {
       // Delete from storage
       const filePath = `${userId}/avatar.png`;
-      await supabase.storage.from("avatars").remove([filePath]);
+      await backend.storage.from("avatars").remove([filePath]);
 
       // Update profile in database
-      const { error: updateError } = await supabase
+      const { error: updateError } = await backend
         .from("profiles")
         .update({ avatar_url: null, updated_at: new Date().toISOString() })
         .eq("user_id", userId);
