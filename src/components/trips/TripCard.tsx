@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Plane, Building2, MapPin, Calendar, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import type { TripAIReasoning } from "@/hooks/useTrips";
 import {
   Tooltip,
   TooltipContent,
@@ -30,6 +31,8 @@ export interface Trip {
     checkIn?: string;
     checkOut?: string;
   } | null;
+  /** Backend-scored reasoning (cost/time/policy/risk), when the trip has it. */
+  aiReasoning?: TripAIReasoning;
 }
 
 interface TripCardProps {

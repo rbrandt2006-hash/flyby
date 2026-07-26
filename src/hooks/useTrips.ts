@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { useBackendCollection } from "./useBackendCollection";
+import { useBackendCollection, backendAuthHeaders } from "./useBackendCollection";
+import { backend, backendUrl } from "@/integrations/backend/client";
 import { DEMO_TRIPS, demoDate } from "@/data/demoTrips";
 
 export interface TripTimelineEvent {
@@ -169,6 +170,43 @@ function generateAIReasoning(destination: string, cost: number): TripAIReasoning
   };
 }
 
+/**
+ * Ask the backend to score a trip with the real reasoning engine.
+ *
+ * The backend uses Gemini when a key is configured — grounding policy
+ * compliance in the traveler's actual company policy — and falls back to a
+ * deterministic local analysis otherwise, so this resolves to a valid
+ * ``TripAIReasoning`` or ``null`` (never throws). Trip creation stays instant;
+ * this refines the placeholder reasoning a moment later.
+ */
+async function fetchTripReasoning(trip: LocalTrip): Promise<TripAIReasoning | null> {
+  // Only signed-in users have a backend session (and a policy to score against).
+  if (!backend.getCurrentSession()) return null;
+  try {
+    const response = await fetch(backendUrl("/functions/v1/trip-reasoning"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...backendAuthHeaders() },
+      body: JSON.stringify({
+        destination: trip.destination,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        purpose: trip.purpose,
+        estimatedCost: trip.estimatedCost,
+        flight: trip.flight,
+        hotel: trip.hotel,
+        groundTransport: trip.groundTransport,
+        approvalStatus: trip.approvalStatus,
+      }),
+    });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return (body?.reasoning as TripAIReasoning) ?? null;
+  } catch {
+    // Network hiccup: keep the placeholder reasoning already on the trip.
+    return null;
+  }
+}
+
 export function useTrips() {
   // Trips live in the backend, cached locally so the first paint is instant.
   // On a brand-new account the server has nothing, so the demo set is seeded
@@ -262,8 +300,21 @@ export function useTrips() {
     };
 
     setTrips((prev) => [...prev, newTrip]);
+
+    // Refine the placeholder reasoning with the real engine in the background,
+    // so the card appears instantly and upgrades to a grounded assessment a
+    // moment later without blocking the user.
+    void fetchTripReasoning(newTrip).then((reasoning) => {
+      if (!reasoning) return;
+      setTrips((prev) =>
+        prev.map((trip) =>
+          trip.id === newTrip.id ? { ...trip, aiReasoning: reasoning } : trip,
+        ),
+      );
+    });
+
     return newTrip;
-  }, []);
+  }, [setTrips]);
 
   const updateTrip = useCallback((tripId: string, updates: Partial<LocalTrip>) => {
     setTrips((prev) =>
@@ -488,8 +539,21 @@ export function useTrips() {
     };
 
     setTrips((prev) => [...prev, newTrip]);
+
+    // Refine the placeholder reasoning with the real engine in the background,
+    // so the card appears instantly and upgrades to a grounded assessment a
+    // moment later without blocking the user.
+    void fetchTripReasoning(newTrip).then((reasoning) => {
+      if (!reasoning) return;
+      setTrips((prev) =>
+        prev.map((trip) =>
+          trip.id === newTrip.id ? { ...trip, aiReasoning: reasoning } : trip,
+        ),
+      );
+    });
+
     return newTrip;
-  }, []);
+  }, [setTrips]);
 
   // Find trip by destination (for rebook matching)
   const getTripByDestination = useCallback((destination: string) => {

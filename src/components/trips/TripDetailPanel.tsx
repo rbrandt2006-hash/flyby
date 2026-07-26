@@ -292,8 +292,8 @@ export function TripDetailPanel({
 
             <Separator />
 
-            {/* AI Reasoning Panel */}
-            <AIReasoningPanel destination={trip.destination} />
+            {/* AI Reasoning Panel — shows the trip's real backend-scored reasoning */}
+            <AIReasoningPanel destination={trip.destination} reasoning={trip.aiReasoning} />
 
             <Separator />
 

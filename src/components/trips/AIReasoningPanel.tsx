@@ -10,36 +10,26 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import type { TripAIReasoning } from "@/hooks/useTrips";
+
 interface AIReasoningPanelProps {
   destination: string;
+  /** The trip's real reasoning, produced by the backend engine (Gemini or the
+   *  local fallback). When absent, a sensible placeholder is shown. */
+  reasoning?: TripAIReasoning;
 }
 
-export function AIReasoningPanel({ destination }: AIReasoningPanelProps) {
+export function AIReasoningPanel({ destination, reasoning: provided }: AIReasoningPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Mock AI reasoning data based on destination
-  const reasoning = {
-    costEfficiency: {
-      score: 85,
-      label: "High",
-      detail: `This option saves ~$220 compared to alternatives`
-    },
-    timeEfficiency: {
-      score: 92,
-      label: "Excellent", 
-      detail: "Arrives before 9 AM, optimal for morning meetings"
-    },
-    policyCompliance: {
-      score: 100,
-      label: "Compliant",
-      detail: "Within daily budget threshold and preferred vendors"
-    },
-    riskLevel: {
-      score: 15,
-      label: "Low",
-      detail: "Weather risk is minimal, no travel advisories"
-    },
-    summary: `This plan was optimized for cost and convenience. The selected flight arrives early enough for a full business day, and the hotel is within walking distance of ${destination} business district. Total cost is 12% below typical bookings for this route.`
+  // Prefer the trip's real reasoning; fall back to a neutral placeholder only
+  // when a trip hasn't been scored yet (e.g. an older locally-cached trip).
+  const reasoning: TripAIReasoning = provided ?? {
+    costEfficiency: { score: 85, label: "High", detail: "A good-value option for this route." },
+    timeEfficiency: { score: 92, label: "Excellent", detail: "Timing works well for a business trip." },
+    policyCompliance: { score: 100, label: "Compliant", detail: "Within typical travel-policy limits." },
+    riskLevel: { score: 15, label: "Low", detail: "No notable travel advisories." },
+    summary: `An optimized plan for ${destination}, balancing cost, timing and policy fit.`,
   };
 
   const getScoreColor = (score: number, isRisk = false) => {
