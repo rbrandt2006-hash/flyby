@@ -16,7 +16,7 @@ import { useTravelPreferences } from "@/hooks/useTravelPreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { parsePurpose } from "@/services/tripTemplates";
-import { parseTravelRequest } from "@/services/travelSearchParser";
+import { parseTravelRequest, parseTravelRequestSmart, parseTravelRequestCached } from "@/services/travelSearchParser";
 import { generateMockFlights } from "@/services/mockFlightService";
 import { FlightResults, type Flight } from "@/components/flights/FlightResults";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
@@ -105,7 +105,9 @@ const clearBookingFlow = () => {
 const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true; flights?: never }> => {
   await new Promise(r => setTimeout(r, 850));
 
-  const parsed = parseTravelRequest(prompt);
+  // AI-first parse (Gemini) with the heuristic as an automatic fallback; the
+  // result is cached so the synchronous follow-up sites reuse it.
+  const parsed = await parseTravelRequestSmart(prompt);
   const destAirport = parsed.destination?.airports[0];
   if (!destAirport) return { needsDestination: true };
 
@@ -609,8 +611,9 @@ export default function Dashboard() {
   const handleSelectFlight = (flight: Flight) => {
     setSelectedFlightFromResults(flight);
     setFlightResults([]);
-    // Build partial plan, then show hotel step
-    const parsed = parseTravelRequest(tripInput);
+    // Build partial plan, then show hotel step. Reuse the AI parse from the
+    // initial search (cached by input) rather than re-parsing weaker.
+    const parsed = parseTravelRequestCached(tripInput);
     const destAirport = parsed.destination?.airports[0];
     const now = new Date();
     const startDate = parsed.dates?.departure || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -1033,7 +1036,7 @@ export default function Dashboard() {
             const cur = lastResults;
             const top = cur?.flights[0];
             if (!top) return;
-            const parsed = parseTravelRequest(tripInput || (messages.find(m => m.role === "user") as { text: string } | undefined)?.text || "");
+            const parsed = parseTravelRequestCached(tripInput || (messages.find(m => m.role === "user") as { text: string } | undefined)?.text || "");
             const destAirport = parsed.destination?.airports[0];
             const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
             const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);

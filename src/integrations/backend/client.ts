@@ -214,6 +214,37 @@ export function authHeaders(): Record<string, string> {
     : {};
 }
 
+/**
+ * A `fetch` that carries the session and keeps it alive — for the direct-fetch
+ * call sites (collection sync, file uploads, streamed endpoints) that don't go
+ * through the query builder.
+ *
+ * It does what the query builder already does: refresh the token before it's
+ * used if it's expired, and on a 401 refresh once and retry. If the refresh
+ * itself fails the session is cleared and `SIGNED_OUT` fires (handled inside
+ * `refreshSession`), so a dead session bounces the user to sign-in instead of
+ * looping 401s. Without this, an expired access token made these endpoints fail
+ * forever even though a valid refresh token was sitting right there.
+ */
+export async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  if (isExpired(currentSession)) {
+    await refreshSession();
+  }
+
+  const send = () =>
+    fetch(backendUrl(path), {
+      ...init,
+      headers: { ...(init.headers as Record<string, string> | undefined), ...authHeaders() },
+    });
+
+  let response = await send();
+  if (response.status === 401 && currentSession?.refresh_token) {
+    const refreshed = await refreshSession();
+    if (refreshed) response = await send();
+  }
+  return response;
+}
+
 // ---------------------------------------------------------------------------
 // Query builder
 // ---------------------------------------------------------------------------

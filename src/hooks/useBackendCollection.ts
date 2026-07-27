@@ -18,7 +18,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { backend, backendUrl } from "@/integrations/backend/client";
+import { backend, authedFetch } from "@/integrations/backend/client";
 
 const SAVE_DEBOUNCE_MS = 600;
 
@@ -105,14 +105,17 @@ export function useBackendCollection<T>({
 
     (async () => {
       try {
-        const response = await fetch(backendUrl(`/api/${endpoint}`), {
-          headers: authHeadersFor(),
-        });
+        // authedFetch refreshes an expired token before the request and again
+        // on a 401, so a stale-but-refreshable session loads instead of failing.
+        const response = await authedFetch(`/api/${endpoint}`);
 
         if (!response.ok) {
-          // Keep the cached copy and allow saving, so work isn't blocked when
-          // the backend is briefly unavailable.
-          console.warn(`[sync] Could not load ${endpoint} (${response.status}); using local copy.`);
+          // A 401 that survives a refresh means the session is genuinely gone;
+          // authedFetch has already cleared it and signed the user out, so this
+          // just keeps the local copy. Other statuses are transient.
+          if (response.status !== 401) {
+            console.warn(`[sync] Could not load ${endpoint} (${response.status}); using local copy.`);
+          }
           finish();
           return;
         }
@@ -158,9 +161,9 @@ export function useBackendCollection<T>({
 
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      void fetch(backendUrl(`/api/${endpoint}`), {
+      void authedFetch(`/api/${endpoint}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", ...authHeadersFor() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [payloadKey]: value }),
       }).catch((err) => {
         console.warn(`[sync] Could not save ${endpoint}:`, err);
@@ -193,7 +196,7 @@ export function useBackendDocument<T>(options: Options<T>) {
 /** Force-refresh a collection from the backend, bypassing the cache. */
 export async function fetchCollection<T>(endpoint: string, payloadKey: string): Promise<T | null> {
   try {
-    const response = await fetch(backendUrl(`/api/${endpoint}`), { headers: authHeadersFor() });
+    const response = await authedFetch(`/api/${endpoint}`);
     if (!response.ok) return null;
     const body = await response.json();
     return (body?.[payloadKey] ?? null) as T | null;

@@ -1,8 +1,13 @@
 // Natural Language Travel Search Parser
-// Interprets user travel requests and converts them to structured parameters
+// Interprets user travel requests and converts them to structured parameters.
+//
+// Two engines: the backend's Gemini parser (understands messy, real language)
+// with this file's built-in heuristic parser as an automatic fallback. The
+// heuristic always works offline and for guests, so search never breaks.
 
 import { findAirports, getMetroAreaAirports, resolveAmbiguousLocation, US_STATES, COUNTRY_ALIASES, type Airport } from "@/data/globalAirports";
 import { getAirlinesForRoute, type Airline } from "@/data/globalAirlines";
+import { backend, backendUrl, authHeaders } from "@/integrations/backend/client";
 
 export interface ParsedTravelRequest {
   origin?: {
@@ -31,6 +36,26 @@ export interface ParsedTravelRequest {
   clarificationsNeeded: ClarificationRequest[];
   confidence: number; // 0-100
   interpretation: string; // Human-readable summary
+  maxBudget?: number; // total USD budget cap, when the request gave one
+  preferNonstop?: boolean; // true when the request asked for nonstop/direct
+  source?: "ai" | "heuristic"; // which parser produced this result
+}
+
+/** The structured primitives the backend's Gemini parser returns. */
+interface SearchPrimitives {
+  destinationCity: string | null;
+  originCity: string | null;
+  departureDate: string | null; // ISO YYYY-MM-DD
+  returnDate: string | null;
+  durationDays: number | null;
+  flexibleDates: boolean;
+  passengers: number;
+  cabinClass: "economy" | "premium" | "business" | "first" | null;
+  tripType: "roundtrip" | "oneway" | "multicity" | "flexible";
+  purpose: "business" | "leisure" | "flexible";
+  maxBudget: number | null;
+  preferNonstop: boolean;
+  interpretation: string;
 }
 
 export interface ClarificationRequest {
@@ -607,6 +632,149 @@ export function applySmartDefaults(request: ParsedTravelRequest): ParsedTravelRe
   if (!request.cabinClass) {
     request.cabinClass = "economy";
   }
-  
+
   return request;
+}
+
+// ---------------------------------------------------------------------------
+// AI-powered parsing (backend Gemini) with the heuristic above as the fallback.
+// ---------------------------------------------------------------------------
+
+// Results are memoized by input so the synchronous call sites (e.g. building a
+// follow-up plan after a flight is picked) reuse the AI parse the async path
+// already computed, instead of re-parsing with the weaker heuristic.
+const parseCache = new Map<string, ParsedTravelRequest>();
+
+function parseISODate(iso: string | null): Date | undefined {
+  if (!iso) return undefined;
+  // Parse as local midnight (not UTC) so the calendar day never shifts.
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  const date = new Date(y, m - 1, d);
+  return isNaN(date.getTime()) ? undefined : date;
+}
+
+/**
+ * Build a ParsedTravelRequest from the backend's structured primitives.
+ *
+ * The heuristic parse is the base; each field the AI resolved confidently
+ * overrides it. City names are turned into airports by the same local airport
+ * database the heuristic uses, so downstream code sees an identical shape —
+ * only better filled in.
+ */
+function buildFromPrimitives(primitives: SearchPrimitives, input: string): ParsedTravelRequest {
+  const base = parseTravelRequest(input);
+
+  // Destination — the field that matters most.
+  const destAirports = primitives.destinationCity ? resolveLocation(primitives.destinationCity) : [];
+  const destination = destAirports.length
+    ? { airports: destAirports, raw: primitives.destinationCity!, inferred: false }
+    : base.destination;
+
+  // Origin.
+  const originAirports = primitives.originCity ? resolveLocation(primitives.originCity) : [];
+  const origin = originAirports.length
+    ? { airports: originAirports, raw: primitives.originCity!, inferred: false }
+    : base.origin;
+
+  // Dates.
+  const departure = parseISODate(primitives.departureDate);
+  const returnDate = parseISODate(primitives.returnDate);
+  let dates = base.dates;
+  if (departure) {
+    let duration = primitives.durationDays ?? undefined;
+    if (!duration && departure && returnDate) {
+      duration = Math.max(1, Math.round((returnDate.getTime() - departure.getTime()) / 86400000));
+    }
+    dates = {
+      departure,
+      return: returnDate,
+      flexible: primitives.flexibleDates,
+      raw: primitives.interpretation,
+      duration,
+    };
+  } else if (primitives.durationDays && !base.dates?.departure) {
+    dates = { flexible: primitives.flexibleDates, raw: "", duration: primitives.durationDays };
+  }
+
+  // Suggested airlines for the resolved route.
+  let suggestedAirlines = base.suggestedAirlines;
+  if (origin?.airports.length && destination?.airports.length) {
+    suggestedAirlines = getAirlinesForRoute(origin.airports[0].code, destination.airports[0].code).slice(0, 8);
+  }
+
+  // Only ask for a destination if neither engine found one.
+  const clarifications = destination?.airports.length
+    ? base.clarificationsNeeded.filter((c) => c.type !== "destination")
+    : base.clarificationsNeeded;
+
+  return {
+    origin,
+    destination,
+    dates,
+    locationAnchor: base.locationAnchor,
+    passengers: primitives.passengers || base.passengers,
+    tripType: primitives.tripType,
+    cabinClass: primitives.cabinClass ?? base.cabinClass,
+    purpose: primitives.purpose,
+    suggestedAirlines,
+    clarificationsNeeded: clarifications,
+    confidence: destination?.airports.length ? 96 : 55,
+    interpretation: primitives.interpretation || base.interpretation,
+    maxBudget: primitives.maxBudget ?? undefined,
+    preferNonstop: primitives.preferNonstop,
+    source: "ai",
+  };
+}
+
+/**
+ * Parse a travel request, preferring the backend AI parser.
+ *
+ * Falls back to the built-in heuristic when there's no session (guests), the
+ * backend is unreachable, or the AI couldn't confidently parse — so this always
+ * resolves to a usable result. The result is cached by input.
+ */
+export async function parseTravelRequestSmart(input: string): Promise<ParsedTravelRequest> {
+  const key = input.trim();
+  const cached = parseCache.get(key);
+  if (cached) return cached;
+
+  const heuristic = (): ParsedTravelRequest => {
+    const result = parseTravelRequest(input);
+    result.source = "heuristic";
+    parseCache.set(key, result);
+    return result;
+  };
+
+  // Guests have no backend session; go straight to the heuristic.
+  if (!backend.getCurrentSession()) return heuristic();
+
+  try {
+    const response = await fetch(backendUrl("/functions/v1/parse-search"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ text: input }),
+    });
+    if (!response.ok) return heuristic();
+
+    const body = await response.json();
+    const primitives = body?.parsed as SearchPrimitives | null;
+    if (!primitives) return heuristic();
+
+    const result = buildFromPrimitives(primitives, input);
+    parseCache.set(key, result);
+    return result;
+  } catch {
+    return heuristic();
+  }
+}
+
+/**
+ * Synchronous parse for call sites that can't await.
+ *
+ * Returns the cached AI parse when the async path already ran for this input
+ * (the common case — the initial search populates it), otherwise the heuristic.
+ */
+export function parseTravelRequestCached(input: string): ParsedTravelRequest {
+  return parseCache.get(input.trim()) ?? parseTravelRequest(input);
 }
