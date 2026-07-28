@@ -8,6 +8,7 @@ import { TeamMemberDetailPanel } from "@/components/team/TeamMemberDetailPanel";
 import { GlassPanel } from "@/components/team/GlassPanel";
 import { cn } from "@/lib/utils";
 import { useDemoMode } from "@/contexts/DemoModeContext";
+import { useTeam } from "@/hooks/useTeam";
 import { toast } from "sonner";
 
 // Build a date range relative to today and format as "Mon D". Also
@@ -103,7 +104,14 @@ export default function Team() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
-  const teamMembers = demoMode ? mockTeamMembers : [];
+
+  // Real workspace teammates from the backend. A real team needs more than one
+  // person, so a workspace with only you (or a personal account with none)
+  // falls back to the demo roster in demo mode rather than showing a lonely
+  // single card. When real teammates exist, they always win.
+  const { members: realMembers } = useTeam();
+  const hasRealTeam = realMembers.length >= 2;
+  const teamMembers = hasRealTeam ? realMembers : (demoMode ? mockTeamMembers : realMembers);
 
   const handleMemberClick = (member: TeamMember) => {
     setSelectedMember(member);

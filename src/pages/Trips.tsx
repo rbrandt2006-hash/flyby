@@ -36,6 +36,7 @@ import { useDemoMode } from "@/contexts/DemoModeContext";
 import { usePreferences } from "@/hooks/usePreferences";
 import { buildAutoDraftFromEvent } from "@/services/autoPlanService";
 import { useTravelPolicy } from "@/hooks/useTravelPolicy";
+import { evaluatePolicy } from "@/services/policyEvaluator";
 import { PolicyBadge } from "@/components/trips/PolicyBadge";
 
 export default function Trips() {
@@ -60,6 +61,17 @@ export default function Trips() {
     archiveTrip: archiveLocalTrip,
     unarchiveTrip: unarchiveLocalTrip
   } = useTrips();
+
+  // Decide whether a trip needs manager approval, against the real company
+  // policy. Out-of-policy or over-threshold trips are held for approval with
+  // the specific reasons; everything else is auto-approved on confirm.
+  const approvalDecisionFor = useCallback((trip: LocalTrip | undefined) => {
+    if (!trip) return { requiresApproval: true, reasons: [] as string[] };
+    const evaluation = evaluatePolicy(trip, travelPolicy);
+    const requiresApproval =
+      evaluation.status === "over-budget" || evaluation.status === "needs-approval";
+    return { requiresApproval, reasons: requiresApproval ? evaluation.reasons : [] };
+  }, [travelPolicy]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
@@ -226,8 +238,8 @@ export default function Trips() {
   };
 
   const handleConfirmDraftTrip = (tripId: string) => {
-    confirmLocalTrip(tripId);
     const trip = localTrips.find(t => t.id === tripId);
+    confirmLocalTrip(tripId, approvalDecisionFor(trip));
     setPendingUndoTripId(tripId);
     undoConfirmation.show(trip?.destination || "Trip");
   };
@@ -329,8 +341,8 @@ export default function Trips() {
       confidenceLevel: 92,
     });
 
-    // Immediately confirm the trip
-    confirmLocalTrip(newTrip.id);
+    // Immediately confirm the trip, auto-approving it if it's within policy.
+    confirmLocalTrip(newTrip.id, approvalDecisionFor(newTrip));
     toast.success("Trip confirmed!");
   };
 
@@ -410,9 +422,10 @@ export default function Trips() {
       clientCompanyName: clientCompany?.name ?? null,
     });
 
-    confirmLocalTrip(newTrip.id);
+    const decision = approvalDecisionFor(newTrip);
+    confirmLocalTrip(newTrip.id, decision);
     setSelectedDraft(newTrip);
-    toast.success("Trip created — pending approval");
+    toast.success(decision.requiresApproval ? "Trip created — pending approval" : "Trip created and auto-approved");
 
     // Auto-sync booked trip to connected calendar
     if (isCalendarConnected()) {
@@ -881,8 +894,8 @@ export default function Trips() {
         onClose={() => setCalendarViewOpen(false)}
         trips={allCalendarTrips}
         onConfirmTrip={(tripId) => {
-          confirmLocalTrip(tripId);
           const trip = localTrips.find(t => t.id === tripId);
+          confirmLocalTrip(tripId, approvalDecisionFor(trip));
           setPendingUndoTripId(tripId);
           undoConfirmation.show(trip?.destination || "Trip");
           toast.success("Flight confirmed!");

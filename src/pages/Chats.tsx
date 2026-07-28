@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChannelsContainer, SyncedConversation, SyncedMessage } from "@/components/chats/ChannelsContainer";
 import { ConversationCanvas, ExpenseMetadataForContext } from "@/components/chats/ConversationCanvas";
 import { SmartTripAssistant } from "@/components/chats/SmartTripAssistant";
+import { useTripDetection } from "@/hooks/useTripDetection";
 import { Platform } from "@/components/chats/PlatformSelector";
 import { ChatContextPanel } from "@/components/chats/ChatContextPanel";
 import { ExpenseApprovalQueue, mockApprovals } from "@/components/chats/ExpenseApprovalQueue";
@@ -125,7 +126,15 @@ export default function Chats() {
   }, [location.state, allConversations]);
 
   const selectedConversation = allConversations.find(c => c.id === selectedId) as SyncedConversation | undefined;
-  const detectedTrip = selectedId ? mockDetectedTrips[selectedId] : null;
+
+  // Detect a trip in the open conversation with the real AI (Gemini reads the
+  // messages). While it's thinking — or for guests / when it finds nothing —
+  // fall back to the pre-seeded demo detection so the panel isn't empty.
+  const { detectedTrip: aiDetectedTrip } = useTripDetection(
+    selectedId,
+    selectedConversation?.messages,
+  );
+  const detectedTrip = aiDetectedTrip ?? (selectedId ? mockDetectedTrips[selectedId] : null);
   const travelIntentCount = allConversations.filter(c => c.hasTravelIntent).length;
 
   const selectedExpenseMetadata = useMemo(() => {

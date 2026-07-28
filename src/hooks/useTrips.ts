@@ -71,6 +71,9 @@ export interface LocalTrip {
   archivedAt?: string;
   confirmedAt?: string;
   approvedAt?: string;
+  /** Why the trip needs manager approval (policy violations / threshold). Empty
+   *  when it was auto-approved within policy. */
+  approvalReasons?: string[];
   sourceCalendarEventId?: string | null;
   sourceCalendarEventTitle?: string | null;
   rationale?: string | null;
@@ -360,17 +363,42 @@ export function useTrips() {
     return trips.find((t) => t.chatId === chatId) || null;
   }, [trips]);
 
-  const confirmTrip = useCallback((tripId: string) => {
+  // Confirming a trip runs it against the company travel policy. In-policy
+  // trips are auto-approved and ready to book; trips that exceed a limit or the
+  // approval threshold are held as "pending" for a manager, with the reasons
+  // recorded so the approval panel can show why. Passing no decision defaults
+  // to requiring approval (the safe choice when policy is unknown).
+  const confirmTrip = useCallback((
+    tripId: string,
+    decision?: { requiresApproval: boolean; reasons?: string[] },
+  ) => {
     const now = new Date().toISOString();
-    updateTrip(tripId, { 
-      status: "confirmed",
-      approvalStatus: "pending",
-      confirmedAt: now,
-    });
-    addTimelineEvent(tripId, {
-      type: "confirmed",
-      description: "Trip confirmed by user — awaiting manager approval",
-    });
+    const requiresApproval = decision ? decision.requiresApproval : true;
+
+    if (requiresApproval) {
+      updateTrip(tripId, {
+        status: "confirmed",
+        approvalStatus: "pending",
+        approvalReasons: decision?.reasons ?? [],
+        confirmedAt: now,
+      });
+      addTimelineEvent(tripId, {
+        type: "confirmed",
+        description: "Trip confirmed — awaiting manager approval",
+      });
+    } else {
+      updateTrip(tripId, {
+        status: "confirmed",
+        approvalStatus: "approved",
+        approvalReasons: [],
+        confirmedAt: now,
+        approvedAt: now,
+      });
+      addTimelineEvent(tripId, {
+        type: "confirmed",
+        description: "Trip confirmed and auto-approved — within travel policy",
+      });
+    }
   }, [updateTrip, addTimelineEvent]);
 
   const revertToDraft = useCallback((tripId: string) => {

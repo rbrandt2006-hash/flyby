@@ -124,6 +124,21 @@ export function ManagerApprovalPanel({
         )}
       </div>
 
+      {/* Why this trip needs approval — the specific policy reasons. */}
+      {showActions && trip.approvalReasons && trip.approvalReasons.length > 0 && (
+        <div className="rounded-lg bg-warning/10 border border-warning/20 p-2.5 space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-warning">
+            Needs approval
+          </p>
+          {trip.approvalReasons.map((reason, i) => (
+            <p key={i} className="text-xs text-foreground/80 flex items-start gap-1.5">
+              <Shield className="w-3 h-3 mt-0.5 shrink-0 text-warning" />
+              {reason}
+            </p>
+          ))}
+        </div>
+      )}
+
       {/* Calendar sync error */}
       {trip.approvalStatus === "approved" && trip.calendarSyncError && (
         <div className="flex items-center justify-between p-2 rounded-lg bg-warning/10 text-warning text-sm">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { ImageLightbox } from "./ImageLightbox";
 import { toast } from "sonner";
+import { useExpenses, type Expense } from "@/hooks/useExpenses";
+import { useUserProfileContext } from "@/contexts/UserProfileContext";
 
 export interface ExpenseApproval {
   id: string;
@@ -389,30 +391,103 @@ function ApprovalDetail({
   );
 }
 
+// Map a real expense (one sent to a supervisor) into the approval-queue shape.
+const EXPENSE_TYPE_LABEL: Record<string, string> = {
+  hotel: "Hotel", flight: "Flight", meals: "Meals",
+  transportation: "Transportation", entertainment: "Entertainment", office: "Office",
+};
+
+function mapExpenseToApproval(e: Expense, employeeName: string, employeeAvatar: string): ExpenseApproval {
+  // The queue's three states collapse the expense's richer status set.
+  const status: ExpenseApproval["status"] =
+    e.status === "approved" ? "approved"
+    : e.status === "flagged" || e.status === "disputed" ? "rejected"
+    : "pending";
+
+  const when = e.supervisorSentAt || e.date;
+  const dateSubmitted = when
+    ? new Date(when).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : "";
+
+  return {
+    id: e.id,
+    employeeName,
+    employeeAvatar,
+    tripName: e.tripName || "General expenses",
+    expenseType: EXPENSE_TYPE_LABEL[e.category] || e.category,
+    merchant: e.merchant,
+    amount: e.amount,
+    dateSubmitted,
+    status,
+    description: e.description || e.notes || "",
+    // Real expenses don't carry a receipt image in this build, so the detail
+    // panel simply omits the receipt preview.
+    category: e.category,
+  };
+}
+
 // ─── Main Export ──────────────────────────────────
 interface ExpenseApprovalQueueProps {
   onApprovalCountChange?: (count: number) => void;
 }
 
+const DEFAULT_AVATAR =
+  "https://api.dicebear.com/7.x/initials/svg?seed=You&backgroundColor=a3c5e0";
+
 export function ExpenseApprovalQueue({ onApprovalCountChange }: ExpenseApprovalQueueProps) {
-  const [approvals, setApprovals] = useState<ExpenseApproval[]>(mockApprovals);
-  const [selectedId, setSelectedId] = useState<string>(approvals[0]?.id || "");
+  const { expenses, updateExpense } = useExpenses();
+  const { profile } = useUserProfileContext();
+
+  // Real approvals = expenses that were actually sent to a supervisor. They
+  // persist and sync, so approving here is a genuine state change. Until the
+  // user submits one, the queue shows the demo roster so it isn't empty.
+  const realApprovals = useMemo<ExpenseApproval[]>(() => {
+    const name = profile?.full_name || "You";
+    const avatar = profile?.avatar_url || DEFAULT_AVATAR;
+    return expenses
+      .filter((e) => Boolean(e.supervisorSentAt) || e.status === "submitted")
+      .map((e) => mapExpenseToApproval(e, name, avatar));
+  }, [expenses, profile]);
+
+  const usingReal = realApprovals.length > 0;
+
+  // Internal state only backs the demo fallback; real approvals live in the
+  // expenses store and are updated through it.
+  const [mockState, setMockState] = useState<ExpenseApproval[]>(mockApprovals);
+  const approvals = usingReal ? realApprovals : mockState;
+
+  const [selectedId, setSelectedId] = useState<string>("");
+  const effectiveSelectedId = approvals.find((a) => a.id === selectedId)?.id || approvals[0]?.id || "";
 
   const pendingCount = approvals.filter(a => a.status === "pending").length;
-  const selectedApproval = approvals.find(a => a.id === selectedId);
+  const selectedApproval = approvals.find(a => a.id === effectiveSelectedId);
+
+  // Keep the parent's badge count in step with the real pending total.
+  useEffect(() => {
+    onApprovalCountChange?.(pendingCount);
+  }, [pendingCount, onApprovalCountChange]);
 
   const handleApprove = (id: string) => {
-    setApprovals(prev => prev.map(a => a.id === id ? { ...a, status: "approved" as const } : a));
-    toast.success("Expense approved", { description: "The employee has been notified." });
+    if (usingReal) {
+      updateExpense(id, { status: "approved" });
+    } else {
+      setMockState(prev => prev.map(a => a.id === id ? { ...a, status: "approved" as const } : a));
+    }
+    toast.success("Expense approved", { description: "The expense will be processed for reimbursement." });
   };
 
   const handleReject = (id: string) => {
-    setApprovals(prev => prev.map(a => a.id === id ? { ...a, status: "rejected" as const } : a));
-    toast.error("Expense rejected", { description: "The employee has been notified with the reason." });
+    if (usingReal) {
+      // "flagged" is the expense store's rejected-by-approver state.
+      updateExpense(id, { status: "flagged" });
+    } else {
+      setMockState(prev => prev.map(a => a.id === id ? { ...a, status: "rejected" as const } : a));
+    }
+    toast.error("Expense rejected", { description: "The submitter has been notified with the reason." });
   };
 
-  const handleRequestInfo = (id: string) => {
-    toast.info("Information requested", { description: "A message has been sent to the employee." });
+  const handleRequestInfo = (_id: string) => {
+    toast.info("Information requested", { description: "A message has been sent to the submitter." });
   };
 
   return (
@@ -438,7 +513,7 @@ export function ExpenseApprovalQueue({ onApprovalCountChange }: ExpenseApprovalQ
               <ApprovalCard
                 key={approval.id}
                 approval={approval}
-                isSelected={approval.id === selectedId}
+                isSelected={approval.id === effectiveSelectedId}
                 onSelect={() => setSelectedId(approval.id)}
               />
             ))}
