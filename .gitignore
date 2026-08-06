@@ -25,6 +25,3 @@ dist-ssr
 
 # Local environment
 .env
-
-# GitHub Actions workflow — add via GitHub web UI (pushing it needs a token with "workflow" scope)
-.github/workflows/deploy-pages.yml
