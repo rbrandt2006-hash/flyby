@@ -134,7 +134,10 @@ const App = () => (
                 startTransition, and splat-relative route resolution. Both match
                 how this app already routes, so enabling them early keeps the
                 eventual React Router 7 upgrade a no-op. */}
+            {/* basename comes from Vite's base ("/flyby/" on GitHub Pages, "/"
+                in dev), so routes resolve correctly under a subpath deploy. */}
             <BrowserRouter
+              basename={import.meta.env.BASE_URL}
               future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
             >
               <AppRoutes />

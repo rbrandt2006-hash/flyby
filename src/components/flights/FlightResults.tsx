@@ -1,8 +1,13 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Plane, Clock, ArrowRight, Briefcase, Leaf } from "lucide-react";
 import { format } from "date-fns";
+import { FlightBookingModal } from "@/components/booking/FlightBookingModal";
+
+// Real Duffel offers have ids like "off_..."; sample/generated flights don't.
+const isBookable = (flight: Flight) => flight.id.startsWith("off_");
 
 export interface Flight {
   id: string;
@@ -45,6 +50,7 @@ export function FlightResults({
   onBack 
 }: FlightResultsProps) {
   const sortedFlights = [...flights].sort((a, b) => a.price - b.price);
+  const [bookingFlight, setBookingFlight] = useState<Flight | null>(null);
 
   return (
     <div className="space-y-4">
@@ -141,24 +147,44 @@ export function FlightResults({
                   <Briefcase className="w-3 h-3" />
                   {flight.cabinClass}
                 </div>
-                <Button
-                  size="sm"
-                  className="ml-auto"
-                  disabled={isSelecting}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (!isSelecting) {
-                      void onSelect(flight);
-                    }
-                  }}
-                >
-                  {isSelecting ? "Selecting..." : "Select Flight"}
-                </Button>
+                <div className="ml-auto flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={isBookable(flight) ? "outline" : "default"}
+                    disabled={isSelecting}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!isSelecting) {
+                        void onSelect(flight);
+                      }
+                    }}
+                  >
+                    {isSelecting ? "Selecting..." : "Select"}
+                  </Button>
+                  {/* Real Duffel offers can be booked directly; sample fares can't. */}
+                  {isBookable(flight) && (
+                    <Button
+                      size="sm"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setBookingFlight(flight);
+                      }}
+                    >
+                      Book
+                    </Button>
+                  )}
+                </div>
               </div>
             </Card>
           );
         })}
       </div>
+
+      <FlightBookingModal
+        open={bookingFlight !== null}
+        onOpenChange={(open) => { if (!open) setBookingFlight(null); }}
+        flight={bookingFlight}
+      />
     </div>
   );
 }

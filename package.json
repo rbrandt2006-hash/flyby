@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@duffel/components": "^3.17.0",
     "@hookform/resolvers": "^3.10.0",
     "@lovable.dev/mcp-js": "^0.22.2",
     "@radix-ui/react-accordion": "^1.2.11",

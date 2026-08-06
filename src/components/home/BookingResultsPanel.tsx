@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Flight } from "@/components/flights/FlightResults";
 import type { HotelOption } from "@/components/chats/booking/types";
+import { FlightBookingModal } from "@/components/booking/FlightBookingModal";
 import type { GroundTransportOption } from "@/services/mockGroundTransportService";
 
 export interface ParsedChips {
@@ -74,6 +75,7 @@ export function BookingResultsPanel({
   const topFlight = flights[0];
   const topHotel = hotels[0];
   const topGround = ground[0];
+  const [bookingFlight, setBookingFlight] = useState<Flight | null>(null);
 
   return (
     <motion.div
@@ -140,7 +142,13 @@ export function BookingResultsPanel({
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-bold">${f.price}</p>
-                  <Button size="sm" variant="default" className="mt-1" onClick={() => onSelectFlight(f)}>Select</Button>
+                  <div className="flex items-center gap-1.5 mt-1 justify-end">
+                    <Button size="sm" variant={f.id.startsWith("off_") ? "outline" : "default"} onClick={() => onSelectFlight(f)}>Select</Button>
+                    {/* Real Duffel offers can be booked directly. */}
+                    {f.id.startsWith("off_") && (
+                      <Button size="sm" onClick={() => setBookingFlight(f)}>Book</Button>
+                    )}
+                  </div>
                 </div>
               </div>
               {i === 0 && reasons.flight && <WhyPicked text={reasons.flight} />}
@@ -234,6 +242,12 @@ export function BookingResultsPanel({
           )}
         </CardContent>
       </Card>
+
+      <FlightBookingModal
+        open={bookingFlight !== null}
+        onOpenChange={(open) => { if (!open) setBookingFlight(null); }}
+        flight={bookingFlight}
+      />
     </motion.div>
   );
 }

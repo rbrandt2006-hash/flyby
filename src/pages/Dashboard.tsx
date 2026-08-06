@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { parsePurpose } from "@/services/tripTemplates";
 import { parseTravelRequest, parseTravelRequestSmart, parseTravelRequestCached } from "@/services/travelSearchParser";
+import { searchRealFlights } from "@/services/duffelFlights";
 import { generateMockFlights } from "@/services/mockFlightService";
 import { FlightResults, type Flight } from "@/components/flights/FlightResults";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
@@ -135,8 +136,17 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   const hotelLocation = `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destAirport.city}`;
   const estimatedCostBase = destAirport.country === "United States" || destAirport.country === "USA" ? 1450 : 2850;
 
-  // Generate flight results
-  const flights = generateMockFlights(originCode, destCode, cabinClass, passengers);
+  // Real flights from Duffel when available (carrying the offer id needed to
+  // book), falling back to the local generator so search always returns results.
+  const toISODate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const realFlights = await searchRealFlights({
+    origin: originCode,
+    destination: destCode,
+    departureDate: toISODate(startDate),
+    passengers,
+    cabinClass,
+  });
+  const flights = realFlights ?? generateMockFlights(originCode, destCode, cabinClass, passengers);
 
   return {
     destination: destLabel,
