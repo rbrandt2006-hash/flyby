@@ -160,88 +160,11 @@ export function BookingResultsPanel({
         </CardContent>
       </Card>
 
-      {/* Hotels */}
-      <Card className="overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center gap-2">
-          <HotelIcon className="w-4 h-4 text-primary" />
-          <h3 className="font-semibold">Hotels</h3>
-          <Badge variant="secondary" className="text-xs">{hotels.length}</Badge>
-          {chips.anchor && (
-            <span className="text-xs text-muted-foreground ml-auto">Sorted by distance to {chips.anchor}</span>
-          )}
-        </div>
-        <CardContent className="p-0 divide-y divide-border">
-          {hotels.slice(0, 3).map((h, i) => (
-            <div key={h.id} className="p-4 hover:bg-secondary/40 transition-colors">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">{h.name}</span>
-                    {i === 0 && <Badge variant="secondary" className="text-xs">Top pick</Badge>}
-                    {h.tags.slice(0, 2).map(t => (
-                      <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
-                    ))}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
-                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{h.area}</span>
-                    <span>·</span>
-                    <span>{h.distanceToVenue} away</span>
-                    <span>·</span>
-                    <span className="flex items-center gap-1"><Star className="w-3 h-3 fill-warning text-warning" />{h.rating}</span>
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-bold">${h.pricePerNight}<span className="text-xs font-normal text-muted-foreground">/night</span></p>
-                  <Button size="sm" variant="outline" className="mt-1" onClick={() => onSelectHotel(h)}>Select</Button>
-                </div>
-              </div>
-              {i === 0 && reasons.hotel && <WhyPicked text={reasons.hotel} />}
-            </div>
-          ))}
-          {hotels.length === 0 && (
-            <div className="p-6 text-sm text-muted-foreground text-center">No hotels found.</div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Ground transport */}
-      <Card className="overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center gap-2">
-          <Car className="w-4 h-4 text-primary" />
-          <h3 className="font-semibold">Ground transport</h3>
-          <span className="text-xs text-muted-foreground ml-auto">
-            {chips.toCode} airport → hotel
-          </span>
-        </div>
-        <CardContent className="p-0 divide-y divide-border">
-          {ground.slice(0, 3).map((g, i) => (
-            <div key={g.id} className="p-4 hover:bg-secondary/40 transition-colors">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">{g.provider} {g.rideType}</span>
-                    {i === 0 && <Badge variant="secondary" className="text-xs">Top pick</Badge>}
-                    {g.tags.slice(0, 1).map(t => (
-                      <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
-                    ))}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {g.description} · ETA {g.eta} · {g.seats} seats
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-bold">${g.priceMin}–${g.priceMax}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">estimate</p>
-                </div>
-              </div>
-              {i === 0 && reasons.ground && <WhyPicked text={reasons.ground} />}
-            </div>
-          ))}
-          {ground.length === 0 && (
-            <div className="p-6 text-sm text-muted-foreground text-center">No ground options.</div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Hotels and ground transport are intentionally NOT shown in this initial
+          panel. The trip flow is flight-first: selecting a flight opens the
+          dedicated hotel step (HotelSelectionPage), then the confirm/refine step.
+          Listing hotels here let people pick one before a flight and skip that
+          step, which was confusing. Flights only here keeps the flow clear. */}
 
       <FlightBookingModal
         open={bookingFlight !== null}
