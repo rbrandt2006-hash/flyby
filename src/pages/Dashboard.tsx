@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { parsePurpose } from "@/services/tripTemplates";
 import { parseTravelRequest, parseTravelRequestSmart, parseTravelRequestCached } from "@/services/travelSearchParser";
 import { searchRealFlights } from "@/services/duffelFlights";
+import { FlightBookingModal } from "@/components/booking/FlightBookingModal";
 import { generateMockFlights } from "@/services/mockFlightService";
 import { FlightResults, type Flight } from "@/components/flights/FlightResults";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
@@ -196,7 +197,44 @@ function deriveThreadTitle(messages: ChatMsg[]): string {
   return "New trip";
 }
 
-// Apply a follow-up intent to last results
+// Parse a "2h 45m" style duration into minutes (0 when unparseable).
+function parseDurationMins(d: string): number {
+  const h = /(\d+)\s*h/.exec(d || "");
+  const m = /(\d+)\s*m/.exec(d || "");
+  return (h ? parseInt(h[1], 10) : 0) * 60 + (m ? parseInt(m[1], 10) : 0);
+}
+
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+
+// Follow-up phrases that are sort/filter intents, NOT an airline request.
+// Anything that doesn't match here is treated as a possible carrier name so a
+// live airline search can be attempted for ANY airline (not a fixed list).
+const FOLLOWUP_INTENT_RE =
+  /\b(nonstop|non-stop|direct|fastest|shortest|quickest|less time|shorter|fewer stops|fewest stops|less stops|reduce stops|cheap|cheaper|less expensive|lower price|budget|day after|next day|tomorrow|push .*day|shift .*day|different hotel|other hotel|another hotel|new hotel|swap hotel)\b/i;
+
+// Strip filler words so "show me any Lufthansa flights please" -> "lufthansa".
+// The remaining phrase is used as a carrier filter (matched against airline
+// name or IATA code by the backend / on-screen results), so it works for any
+// airline without maintaining a hardcoded list.
+const AIRLINE_FILLER_RE =
+  /\b(show|me|please|can|could|i|see|find|get|give|any|only|just|the|a|an|with|on|for|of|flight|flights|airline|airlines|airways|carrier|option|options|book|search|want|need|from|to|no|not)\b/gi;
+
+function cleanAirlineQuery(text: string): string {
+  return text
+    .replace(AIRLINE_FILLER_RE, " ")
+    .replace(/[^a-z\s]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+// True when the follow-up is a sort/filter intent rather than an airline name.
+function isFollowUpIntent(text: string): boolean {
+  return FOLLOWUP_INTENT_RE.test(text);
+}
+
+// Apply a follow-up intent to last results (client-side; used when a live
+// airline search isn't available or returned nothing).
 function applyFollowUp(text: string, prev: BookingResults): { results: BookingResults; note: string } {
   const t = text.toLowerCase();
   let results = { ...prev, flights: [...prev.flights], hotels: [...prev.hotels], ground: [...prev.ground] };
@@ -208,6 +246,12 @@ function applyFollowUp(text: string, prev: BookingResults): { results: BookingRe
     note = nonstop.length > 0
       ? "Filtered to nonstop options only."
       : "No nonstop options on this route — keeping the best alternatives.";
+  } else if (/fastest|shortest|quickest|less time|shorter/.test(t)) {
+    results.flights = [...prev.flights].sort((a, b) => parseDurationMins(a.duration) - parseDurationMins(b.duration));
+    note = "Sorted by shortest travel time.";
+  } else if (/fewer stops|fewest stops|less stops|reduce stops/.test(t)) {
+    results.flights = [...prev.flights].sort((a, b) => a.stops - b.stops || a.price - b.price);
+    note = "Sorted by fewest stops.";
   } else if (/cheap|cheaper|less expensive|lower price|budget/.test(t)) {
     results.flights = [...prev.flights].sort((a, b) => a.price - b.price);
     results.hotels = [...prev.hotels].sort((a, b) => a.pricePerNight - b.pricePerNight);
@@ -221,6 +265,27 @@ function applyFollowUp(text: string, prev: BookingResults): { results: BookingRe
   } else if (/different hotel|other hotel|another hotel|new hotel|swap hotel/.test(t)) {
     results.hotels = [...prev.hotels.slice(1), prev.hotels[0]].filter(Boolean);
     note = "Here are different hotel options near your destination.";
+  } else {
+    // Treat as an airline request. Match generically against whatever carriers
+    // are in the current results (works for any airline).
+    const q = cleanAirlineQuery(text);
+    const carriers = Array.from(new Set(prev.flights.map(f => f.airline)));
+    const match = q
+      ? carriers.find((a) => {
+          const al = a.toLowerCase();
+          return al.includes(q) || q.split(" ").some((w) => w.length >= 4 && al.includes(w));
+        })
+      : undefined;
+    if (match) {
+      const isMatch = (f: BookingResults["flights"][number]) => f.airline === match;
+      const matched = prev.flights.filter(isMatch);
+      results.flights = [...matched, ...prev.flights.filter((f) => !isMatch(f))];
+      note = `Moved ${match} to the top — ${matched.length} option${matched.length > 1 ? "s" : ""} on this route.`;
+    } else if (q) {
+      note = `${titleCase(q)} isn't available on this route through our booking provider — showing the closest options instead.`;
+    } else {
+      note = "Try “nonstop”, “fastest”, “cheaper”, an airline name, or “different hotel”.";
+    }
   }
   return { results, note };
 }
@@ -282,6 +347,12 @@ export default function Dashboard() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const [lastResults, setLastResults] = useState<BookingResults | null>(null);
+  // The resolved parameters of the current search, so a follow-up like
+  // "show me Emirates" can re-query live Duffel inventory for that carrier.
+  const searchContextRef = useRef<{
+    origin: string; destination: string; departureDate: string;
+    passengers: number; cabinClass: string;
+  } | null>(null);
 
   // Persist active thread back to storedThreads list
   useEffect(() => {
@@ -386,16 +457,42 @@ export default function Dashboard() {
     const costSensitivity = savedTravelPrefs.costSensitivity; // "low" | "medium" | "high"
     const priceWeight = costSensitivity === "high" ? 1.6 : costSensitivity === "low" ? 0.3 : 1;
     const minPrice = rawFlights.reduce((m, f) => Math.min(m, f.price), Infinity);
+    const minDuration = rawFlights.reduce(
+      (m, f) => Math.min(m, parseDurationMins(f.duration) || Infinity),
+      Infinity,
+    );
     const scoreFlight = (f: typeof rawFlights[number]) => {
-      let score = 0;
-      if (avoidLayovers) score += f.stops === 0 ? 0 : 1000 + f.stops * 500;
-      else score += f.stops * 80;
+      // Price above the cheapest option, weighted by cost sensitivity.
       const priceDampForLayovers = avoidLayovers ? 0.4 : 1;
-      score += Math.max(0, f.price - minPrice) * priceWeight * priceDampForLayovers;
-      if (preferredAirlines.includes(f.airline)) score -= 60;
+      let score = Math.max(0, f.price - minPrice) * priceWeight * priceDampForLayovers;
+      // Stop penalty. Business travelers generally prefer fewer stops, so each
+      // stop costs a meaningful amount ($ equivalent) even when the traveler
+      // hasn't set a preference — this keeps a cheap 2-stop from burying a
+      // reasonable nonstop. "Avoid layovers" makes stops near-disqualifying.
+      const stopPenalty = avoidLayovers ? 1500 : 320;
+      score += f.stops * stopPenalty;
+      // Prefer shorter itineraries: penalize each hour over the fastest option.
+      const extraMins = Math.max(0, parseDurationMins(f.duration) - (minDuration === Infinity ? 0 : minDuration));
+      score += (extraMins / 60) * 25;
+      if (preferredAirlines.includes(f.airline)) score -= 150;
       return score;
     };
-    const flights = [...rawFlights].sort((a, b) => scoreFlight(a) - scoreFlight(b));
+    const ranked = [...rawFlights].sort((a, b) => scoreFlight(a) - scoreFlight(b));
+    // Surface variety: lead with the best-scoring option from each airline (so
+    // the top picks aren't three fares from the same carrier), then append the
+    // remaining options. The overall best flight still comes first.
+    const bestPerAirline: typeof ranked = [];
+    const moreOptions: typeof ranked = [];
+    const seenAirlines = new Set<string>();
+    for (const f of ranked) {
+      if (seenAirlines.has(f.airline)) {
+        moreOptions.push(f);
+      } else {
+        seenAirlines.add(f.airline);
+        bestPerAirline.push(f);
+      }
+    }
+    const flights = [...bestPerAirline, ...moreOptions];
 
     const anchor = parsed?.locationAnchor;
     // Always show the full formatted date range (e.g. "Jul 10 – Jul 14") instead
@@ -550,6 +647,21 @@ export default function Dashboard() {
         pushAssistantText("I couldn't find a destination in that request — can you try again with a city or airport?");
         return;
       }
+      // Remember the resolved search params so an airline follow-up can re-query.
+      const ctx = result as TripPlan & {
+        _originCode?: string; _destCode?: string;
+        _parsed?: { passengers?: number; cabinClass?: string };
+      };
+      const toISODate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (ctx._originCode && ctx._destCode) {
+        searchContextRef.current = {
+          origin: ctx._originCode,
+          destination: ctx._destCode,
+          departureDate: toISODate(result.startDate),
+          passengers: ctx._parsed?.passengers || 1,
+          cabinClass: ctx._parsed?.cabinClass || "economy",
+        };
+      }
       const built = buildResultsFromPlan(result);
       if (built) pushAssistantResults(built);
     } catch {
@@ -567,9 +679,29 @@ export default function Dashboard() {
       { id: newMsgId(), role: "assistant", kind: "loading" },
     ]);
     setIsThinking(true);
-    await new Promise(r => setTimeout(r, 450));
     try {
+      // Airline follow-up ("show me Lufthansa", "any Turkish flights"): anything
+      // that isn't a sort/filter intent is treated as a carrier name and sent to
+      // a live Duffel search filtered to that airline — works for ANY airline,
+      // and surfaces flights that weren't in the original on-screen results.
+      if (!isFollowUpIntent(text) && lastResults && searchContextRef.current) {
+        const airlineQuery = cleanAirlineQuery(text);
+        if (airlineQuery.length >= 3) {
+          const fetched = await searchRealFlights({ ...searchContextRef.current, airline: airlineQuery });
+          if (fetched && fetched.length > 0) {
+            pushAssistantResults(
+              { ...lastResults, flights: fetched },
+              `Found ${fetched.length} ${titleCase(fetched[0].airline)} option${fetched.length > 1 ? "s" : ""} on this route (live search).`,
+            );
+            return;
+          }
+          // Live search returned nothing for that carrier — fall through to the
+          // client-side handler, which honestly says it's not available.
+        }
+      }
+
       if (lastResults) {
+        await new Promise(r => setTimeout(r, 300));
         const { results, note } = applyFollowUp(text, lastResults);
         pushAssistantResults(results, note);
       } else {
@@ -631,7 +763,15 @@ export default function Dashboard() {
     const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : flight.destination;
     const nights = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
 
-    const partialPlan: TripPlan = {
+    // Real, destination-specific hotels for this trip — used both for the guided
+    // hotel step and carried onto the plan so the Refine modal shows the same
+    // real hotels instead of a generic mock list.
+    const hotels = getHotelsForDestination({ destination: destLabel, nights });
+
+    // Carry the real flight + hotel lists (the same ones shown in results) onto
+    // the plan so the Refine modal can show the actual options, not mock ones.
+    const allFlights = lastResults?.flights ?? [flight];
+    const partialPlan: TripPlan & { _flights?: Flight[]; _hotels?: HotelOption[]; _ground?: GroundTransportOption[] } = {
       destination: destLabel,
       dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
       startDate, endDate,
@@ -645,11 +785,12 @@ export default function Dashboard() {
       estimatedCost: flight.price,
       confidenceLevel: 96,
       originalPrompt: tripInput,
+      _flights: allFlights,
+      _hotels: hotels,
+      _ground: lastResults?.ground,
     };
 
     setPendingPlanResult(partialPlan);
-    // Generate hotel options for the destination
-    const hotels = getHotelsForDestination({ destination: destLabel, nights });
     setHotelOptions(hotels);
     setShowHotelStep(true);
   };
@@ -705,6 +846,8 @@ export default function Dashboard() {
   };
 
   const [isBooking, setIsBooking] = useState(false);
+  // The real Duffel offer being paid for, when the payment modal is open.
+  const [bookingFlight, setBookingFlight] = useState<Flight | null>(null);
 
   // Idempotency: persist in-flight + recently completed booking keys across reloads
   const BOOKING_IDEMPOTENCY_KEY = "flyby.bookingIdempotency.v1";
@@ -814,6 +957,29 @@ export default function Dashboard() {
       });
     } finally {
       setIsBooking(false);
+    }
+  };
+
+  // "Confirm & Book": when the chosen flight is a real Duffel offer, open the
+  // payment system (card + 3-D Secure) and only record the trip after payment
+  // succeeds. For a non-bookable (mock/fallback) flight, save the itinerary
+  // directly as before.
+  const handleConfirmBook = () => {
+    if (!planResult || isBooking) return;
+    const planFlights = (planResult as TripPlan & { _flights?: Flight[] })._flights;
+    const offer =
+      selectedFlightFromResults && selectedFlightFromResults.id.startsWith("off_")
+        ? selectedFlightFromResults
+        : planFlights?.find(
+            (f) =>
+              f.id.startsWith("off_") &&
+              f.airline === planResult.flight.airline &&
+              f.departureTime === planResult.flight.departTime,
+          );
+    if (offer) {
+      setBookingFlight(offer); // open the Duffel payment modal
+    } else {
+      handleSaveDraft(); // no real offer to pay for — save locally
     }
   };
 
@@ -1051,7 +1217,7 @@ export default function Dashboard() {
             const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
             const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);
             const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : top.destination;
-            const finalPlan: TripPlan = {
+            const finalPlan: TripPlan & { _flights?: Flight[]; _hotels?: HotelOption[]; _ground?: GroundTransportOption[] } = {
               destination: destLabel,
               dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
               startDate, endDate,
@@ -1065,6 +1231,9 @@ export default function Dashboard() {
               estimatedCost: top.price + h.totalPrice,
               confidenceLevel: 96,
               originalPrompt: tripInput,
+              _flights: cur?.flights ?? [top],
+              _hotels: cur?.hotels ?? [h],
+              _ground: cur?.ground,
             };
             setPlanResult(finalPlan);
           }}
@@ -1144,7 +1313,7 @@ export default function Dashboard() {
                   <span className="text-2xl font-bold text-primary">${planResult.estimatedCost.toLocaleString()}</span>
                 </div>
                 <div className="flex gap-3 pt-1">
-                  <Button variant="default" className="flex-1" onClick={handleSaveDraft} disabled={isBooking}>{isBooking ? "Booking…" : "Confirm & Book"}</Button>
+                  <Button variant="default" className="flex-1" onClick={handleConfirmBook} disabled={isBooking}>{isBooking ? "Booking…" : "Confirm & Book"}</Button>
                   <Button variant="outline" className="flex-1" onClick={handleRefine}>Refine</Button>
                 </div>
               </CardContent>
@@ -1397,7 +1566,23 @@ export default function Dashboard() {
       />
 
       {/* ─── Refine Modal ─── */}
-      {planResult && <RefineModal open={isRefineOpen} onOpenChange={setIsRefineOpen} destination={planResult.destination} dates={planResult.dates} currentFlight={planResult.flight} currentHotel={planResult.hotel} currentGroundTransport={planResult.groundTransport} currentCost={planResult.estimatedCost} onSave={handleRefineSave} />}
+      {planResult && <RefineModal open={isRefineOpen} onOpenChange={setIsRefineOpen} destination={planResult.destination} dates={planResult.dates} flights={(planResult as TripPlan & { _flights?: Flight[] })._flights} hotels={(planResult as TripPlan & { _hotels?: HotelOption[] })._hotels} ground={(planResult as TripPlan & { _ground?: GroundTransportOption[] })._ground} currentFlight={planResult.flight} currentHotel={planResult.hotel} currentGroundTransport={planResult.groundTransport} currentCost={planResult.estimatedCost} onSave={handleRefineSave} />}
+
+      {/* ─── Payment / booking (Duffel card + 3-D Secure) ─── */}
+      <FlightBookingModal
+        open={bookingFlight !== null}
+        onOpenChange={(open) => { if (!open) setBookingFlight(null); }}
+        flight={bookingFlight}
+        onBooked={(result) => {
+          // Once payment succeeds, close the modal and record the trip locally
+          // (calendar entry). handleSaveDraft creates the trip; it does not
+          // charge — the charge already happened via Duffel.
+          if (result.ok) {
+            setBookingFlight(null);
+            handleSaveDraft();
+          }
+        }}
+      />
     </motion.div>
   );
 }

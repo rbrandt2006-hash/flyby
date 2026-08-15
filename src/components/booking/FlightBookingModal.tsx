@@ -311,7 +311,10 @@ export function FlightBookingModal({ open, onOpenChange, flight, onBooked }: Fli
                 </div>
               ) : (
                 <>
-                  <div className="rounded-xl border border-border/60 p-1">
+                  {/* Duffel's card form renders dark text for a light surface,
+                      so give it a light background of its own — otherwise the
+                      inputs are black-on-dark and unreadable in our dark modal. */}
+                  <div className="rounded-xl border border-border/60 bg-white text-neutral-900 p-4 [color-scheme:light]">
                     <DuffelCardForm
                       ref={cardForm.ref}
                       clientKey={clientKey}

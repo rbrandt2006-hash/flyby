@@ -9,6 +9,9 @@ import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { SearchTabContent } from "./SearchTabContent";
 import type { SearchFlightResult, SearchHotelResult, SearchGroundResult } from "@/hooks/useTravelSearch";
+import type { Flight } from "@/components/flights/FlightResults";
+import type { HotelOption as TripHotelOption } from "@/components/chats/booking/types";
+import type { GroundTransportOption } from "@/services/mockGroundTransportService";
 
 interface FlightOption {
   id: string;
@@ -45,6 +48,18 @@ interface RefineModalProps {
   onOpenChange: (open: boolean) => void;
   destination: string;
   dates: string;
+  // The real flights fetched for this trip (Duffel offers, or the local
+  // fallback) — the same list shown when the trip was first planned. When
+  // provided, the Flights tab shows these instead of a generic mock list so
+  // Refine stays consistent with what the user actually searched.
+  flights?: Flight[];
+  // The real, destination-specific hotels for this trip (same list used
+  // elsewhere in the app). When provided, the Hotels tab shows these instead
+  // of a generic mock list.
+  hotels?: TripHotelOption[];
+  // The real ground-transport options for this trip (same list shown at search
+  // time). When provided, the Ground tab shows these instead of a generic mock.
+  ground?: GroundTransportOption[];
   currentFlight: { airline: string; departTime: string; returnTime: string };
   currentHotel: { name: string; location: string };
   currentGroundTransport: string;
@@ -159,11 +174,59 @@ function generateGroundOptions(): GroundOption[] {
   ];
 }
 
+// Map a real Flight (Duffel offer or local fallback) into the modal's
+// FlightOption shape. Real flights are one-way departure→arrival, so the
+// "return" slot displays the arrival time.
+function realToFlightOption(f: Flight): FlightOption {
+  const tags: string[] = [];
+  if (f.isFastest) tags.push("Shortest travel time");
+  if (f.isLowest) tags.push("Best value");
+  if (f.stops === 0) tags.push("Nonstop");
+  return {
+    id: f.id,
+    airline: f.airline,
+    departTime: f.departureTime,
+    returnTime: f.arrivalTime,
+    price: f.price,
+    duration: f.duration,
+    stops: f.stops,
+    tags,
+  };
+}
+
+// Map a real ground-transport option into the modal's GroundOption shape.
+function realToGroundOption(g: GroundTransportOption): GroundOption {
+  return {
+    id: g.id,
+    type: g.rideType || g.type,
+    provider: g.provider,
+    price: g.price,
+    description: g.description,
+    tags: g.tags,
+  };
+}
+
+// Map a real trip hotel into the modal's HotelOption shape.
+function realToHotelOption(h: TripHotelOption): HotelOption {
+  return {
+    id: h.id,
+    name: h.name,
+    location: h.area,
+    pricePerNight: h.pricePerNight,
+    rating: h.rating,
+    distance: h.distanceToVenue,
+    tags: h.tags,
+  };
+}
+
 export function RefineModal({
   open,
   onOpenChange,
   destination,
   dates,
+  flights,
+  hotels,
+  ground,
   currentFlight,
   currentHotel,
   currentGroundTransport,
@@ -172,11 +235,31 @@ export function RefineModal({
 }: RefineModalProps) {
   const [activeTab, setActiveTab] = useState("flights");
   const [sortBy, setSortBy] = useState("recommended");
-  
-  // Generate options
-  const flightOptions = useMemo(() => generateFlightOptions(destination), [destination]);
-  const hotelOptions = useMemo(() => generateHotelOptions(destination), [destination]);
-  const groundOptions = useMemo(() => generateGroundOptions(), []);
+
+  // Prefer the real flights this trip was planned with (so Refine matches what
+  // the user actually searched); fall back to the local generator only when no
+  // real flights were passed in (e.g. offline).
+  const flightOptions = useMemo(
+    () =>
+      flights && flights.length > 0
+        ? flights.map(realToFlightOption)
+        : generateFlightOptions(destination),
+    [flights, destination],
+  );
+  const hotelOptions = useMemo(
+    () =>
+      hotels && hotels.length > 0
+        ? hotels.map(realToHotelOption)
+        : generateHotelOptions(destination),
+    [hotels, destination],
+  );
+  const groundOptions = useMemo(
+    () =>
+      ground && ground.length > 0
+        ? ground.map(realToGroundOption)
+        : generateGroundOptions(),
+    [ground],
+  );
   
   // Track selections
   const [selectedFlight, setSelectedFlight] = useState<FlightOption | null>(

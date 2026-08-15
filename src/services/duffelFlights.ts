@@ -49,6 +49,9 @@ export interface SearchFlightParams {
   returnDate?: string;
   passengers?: number;
   cabinClass?: string;
+  // Optional carrier filter (name or IATA code, e.g. "emirates" / "EK"). When
+  // set, the backend re-queries live inventory and returns only that airline.
+  airline?: string;
 }
 
 function mapToFlight(o: DuffelOffer): Flight {
