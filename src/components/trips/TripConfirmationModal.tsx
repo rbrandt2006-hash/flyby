@@ -317,17 +317,6 @@ export function TripConfirmationModal({
                   </div>
                 )}
 
-                {/* Approval Notice */}
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-info/10 text-info border border-info/20">
-                  <Clock className="w-4 h-4 mt-0.5 shrink-0" />
-                  <div className="text-sm">
-                    <p className="font-medium">Pending manager approval</p>
-                    <p className="text-info/80">
-                      Your trip will be confirmed but won't be added to your
-                      calendar until approved by your manager.
-                    </p>
-                  </div>
-                </div>
               </div>
 
               {/* Footer */}

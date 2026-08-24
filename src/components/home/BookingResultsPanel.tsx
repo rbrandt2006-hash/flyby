@@ -77,6 +77,11 @@ export function BookingResultsPanel({
   const topGround = ground[0];
   const [bookingFlight, setBookingFlight] = useState<Flight | null>(null);
 
+  // Real Duffel offers have ids starting with "off_" and can be booked. If none
+  // do, these are estimated fares from the local fallback (live search couldn't
+  // be reached) — say so rather than passing them off as bookable live prices.
+  const flightsAreEstimates = flights.length > 0 && !flights.some((f) => f.id.startsWith("off_"));
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -125,7 +130,15 @@ export function BookingResultsPanel({
           <Plane className="w-4 h-4 text-primary" />
           <h3 className="font-semibold">Flights</h3>
           <Badge variant="secondary" className="text-xs">{flights.length}</Badge>
+          {flightsAreEstimates && (
+            <Badge variant="outline" className="text-xs border-warning/40 text-warning ml-auto">Estimated fares</Badge>
+          )}
         </div>
+        {flightsAreEstimates && (
+          <div className="px-4 py-2 text-xs text-muted-foreground bg-warning/5 border-b border-border">
+            Couldn't reach live flight search, so these are approximate fares — times and prices may differ, and they can't be booked. Try again when you're back online.
+          </div>
+        )}
         <CardContent className="p-0 divide-y divide-border">
           {flights.slice(0, 3).map((f, i) => (
             <div key={f.id} className="p-4 hover:bg-secondary/40 transition-colors">

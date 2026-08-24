@@ -62,16 +62,11 @@ export default function Trips() {
     unarchiveTrip: unarchiveLocalTrip
   } = useTrips();
 
-  // Decide whether a trip needs manager approval, against the real company
-  // policy. Out-of-policy or over-threshold trips are held for approval with
-  // the specific reasons; everything else is auto-approved on confirm.
-  const approvalDecisionFor = useCallback((trip: LocalTrip | undefined) => {
-    if (!trip) return { requiresApproval: true, reasons: [] as string[] };
-    const evaluation = evaluatePolicy(trip, travelPolicy);
-    const requiresApproval =
-      evaluation.status === "over-budget" || evaluation.status === "needs-approval";
-    return { requiresApproval, reasons: requiresApproval ? evaluation.reasons : [] };
-  }, [travelPolicy]);
+  // Manager approval has been removed — every trip is auto-approved on confirm
+  // so bookings go straight through without waiting on anyone.
+  const approvalDecisionFor = useCallback((_trip: LocalTrip | undefined) => {
+    return { requiresApproval: false, reasons: [] as string[] };
+  }, []);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
@@ -615,7 +610,9 @@ export default function Trips() {
     };
     
     const status = statusConfig[trip.status] || statusConfig.draft;
-    const approval = trip.approvalStatus !== "none" ? approvalConfig[trip.approvalStatus] : null;
+    // Manager approval removed: never show an approval badge (trips auto-approve,
+    // so "Confirmed" alone tells the whole story).
+    const approval = null as { label: string; className: string; icon: typeof Clock } | null;
     const isDraft = trip.status === "draft";
     const isCancelled = trip.status === "cancelled";
     const isArchived = trip.status === "archived";
@@ -900,14 +897,6 @@ export default function Trips() {
           undoConfirmation.show(trip?.destination || "Trip");
           toast.success("Flight confirmed!");
         }}
-      />
-
-      {/* Manager Approval Panel (for demo) */}
-      <ManagerApprovalPanel
-        trips={localTrips}
-        onApprove={handleApproveTrip}
-        onReject={handleRejectTrip}
-        onCalendarSync={handleCalendarSync}
       />
 
       {/* Calendar Events */}
