@@ -51,7 +51,7 @@ jobs:
           # variable (Settings -> Secrets and variables -> Actions -> Variables).
           # NOTE: this origin must also be listed in index.html's CSP
           # connect-src, or the browser will block every API call.
-          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://autonomous.opencodingsociety.com' }}
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://hungerheros.opencodingsociety.com' }}
         run: npm run build
 
       - name: Add SPA fallback
