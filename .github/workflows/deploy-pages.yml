@@ -46,9 +46,12 @@ jobs:
 
       - name: Build
         env:
-          # Backend the deployed site talks to. Falls back to localhost until you
-          # set the VITE_API_URL repository variable to a hosted backend URL.
-          VITE_API_URL: ${{ vars.VITE_API_URL || 'http://localhost:8659' }}
+          # Backend the deployed site talks to: the AWS EC2 deployment behind
+          # nginx + Certbot. Override by setting a VITE_API_URL repository
+          # variable (Settings -> Secrets and variables -> Actions -> Variables).
+          # NOTE: this origin must also be listed in index.html's CSP
+          # connect-src, or the browser will block every API call.
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://autonomous.opencodingsociety.com' }}
         run: npm run build
 
       - name: Add SPA fallback

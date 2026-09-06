@@ -1,21 +1,25 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lightbulb, ChevronDown, ChevronUp, TrendingUp, AlertTriangle, Zap } from "lucide-react";
-import { DEMO_TRIPS, getDemoSpendByTripName } from "@/data/demoTrips";
-import { demoExpenses } from "./demoExpenseData";
+import type { DemoExpense } from "./demoExpenseData";
 
-// Insights are derived from the shared demo seed so referenced trip names
-// always exist in the rest of the app (Dashboard, Trips, Admin Dashboard).
-function buildInsights() {
-  // Top-spend trip across demo expenses
-  const tripTotals = DEMO_TRIPS
-    .map((t) => ({ name: t.name, total: getDemoSpendByTripName(t.name) }))
+// Insights are computed from the traveler's REAL expenses. With no expenses
+// recorded yet there is nothing truthful to say, so the panel renders nothing
+// rather than inventing a trend.
+function buildInsights(rows: DemoExpense[]) {
+  // Top-spend trip across real expenses
+  const totalsByTrip = new Map<string, number>();
+  rows.forEach((e) => {
+    if (!e.tripName) return;
+    totalsByTrip.set(e.tripName, (totalsByTrip.get(e.tripName) || 0) + e.amount);
+  });
+  const tripTotals = Array.from(totalsByTrip, ([name, total]) => ({ name, total }))
     .filter((t) => t.total > 0)
     .sort((a, b) => b.total - a.total);
   const topTrip = tripTotals[0];
 
   // Highest single ground-transport line item (Uber/Lyft)
-  const transportRows = demoExpenses.filter(
+  const transportRows = rows.filter(
     (e) => e.category === "transportation" && /uber|lyft/i.test(e.vendor),
   );
   const transportAvg = transportRows.length
@@ -24,7 +28,7 @@ function buildInsights() {
   const topTransport = [...transportRows].sort((a, b) => b.amount - a.amount)[0];
 
   // Hotel spend snapshot
-  const hotelRows = demoExpenses.filter((e) => e.category === "hotel");
+  const hotelRows = rows.filter((e) => e.category === "hotel");
   const hotelTotal = hotelRows.reduce((s, e) => s + e.amount, 0);
 
   return [
@@ -32,14 +36,14 @@ function buildInsights() {
       icon: TrendingUp,
       iconColor: "text-warning",
       bgColor: "bg-warning/10",
-      text: `Travel spending up 18% vs last month, primarily driven by ${topTrip.name} ($${topTrip.total.toLocaleString()} across recent activity).`,
+      text: `${topTrip.name} is your highest-spend trip so far at $${topTrip.total.toLocaleString()}.`,
       tag: "Trend",
     },
-    {
+    hotelRows.length > 0 && {
       icon: AlertTriangle,
       iconColor: "text-destructive",
       bgColor: "bg-destructive/10",
-      text: `Hotel spend totaling $${hotelTotal.toLocaleString()} across ${hotelRows.length} bookings — review against the $350/night policy limit.`,
+      text: `Hotel spend totaling $${hotelTotal.toLocaleString()} across ${hotelRows.length} booking${hotelRows.length > 1 ? "s" : ""} — review against the $350/night policy limit.`,
       tag: "Policy",
     },
     topTransport && {
@@ -58,9 +62,12 @@ function buildInsights() {
   }>;
 }
 
-export function AIExpenseInsights() {
+export function AIExpenseInsights({ expenses = [] }: { expenses?: DemoExpense[] }) {
   const [expanded, setExpanded] = useState(true);
-  const insights = useMemo(() => buildInsights(), []);
+  const insights = useMemo(() => buildInsights(expenses), [expenses]);
+
+  // Nothing to analyse yet — better to show nothing than a fabricated insight.
+  if (insights.length === 0) return null;
 
   return (
     <motion.div

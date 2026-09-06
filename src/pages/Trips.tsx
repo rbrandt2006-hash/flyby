@@ -15,6 +15,7 @@ import { NewTripWizard, type NewTripWizardResult } from "@/components/trips/NewT
 import { TripCard, type Trip } from "@/components/trips/TripCard";
 import { TripEditDrawer } from "@/components/trips/TripEditDrawer";
 import { TripConfirmationModal } from "@/components/trips/TripConfirmationModal";
+import { RebookTripModal } from "@/components/trips/RebookTripModal";
 import { UndoConfirmationToast, useUndoConfirmation } from "@/components/trips/UndoConfirmationToast";
 import { ManagerApprovalPanel } from "@/components/trips/ManagerApprovalPanel";
 import { toast } from "sonner";
@@ -56,11 +57,21 @@ export default function Trips() {
     rejectTrip,
     setCalendarEventId,
     setCalendarSyncError,
-    cancelTrip: cancelLocalTrip, 
+    cancelTrip: cancelLocalTrip,
     deleteTrip: deleteLocalTrip,
     archiveTrip: archiveLocalTrip,
-    unarchiveTrip: unarchiveLocalTrip
+    unarchiveTrip: unarchiveLocalTrip,
+    rebookTrip
   } = useTrips();
+
+  // Rebooking an already-planned trip: reuses the trip's own route + dates.
+  const [rebookOpen, setRebookOpen] = useState(false);
+  const [tripToRebook, setTripToRebook] = useState<LocalTrip | null>(null);
+  const handleRebookClick = (trip: LocalTrip, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setTripToRebook(trip);
+    setRebookOpen(true);
+  };
 
   // Manager approval has been removed — every trip is auto-approved on confirm
   // so bookings go straight through without waiting on anyone.
@@ -727,8 +738,22 @@ export default function Trips() {
                   Confirm
                 </Button>
               )}
+              {/* Rebook: re-runs a live flight search for this trip's own route
+                  and dates, so changing flights takes one click. */}
+              {!isCancelled && !isArchived && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  onClick={(e) => handleRebookClick(trip, e)}
+                  title="Find a different flight for this trip"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Rebook
+                </Button>
+              )}
               {showArchiveAction && (
-                <Button 
+                <Button
                   variant="ghost"
                   size="icon"
                   className="text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
@@ -883,6 +908,14 @@ export default function Trips() {
         open={confirmModalOpen}
         onOpenChange={setConfirmModalOpen}
         onConfirm={handleConfirmDraftTrip}
+      />
+
+      {/* Rebook an already-planned trip — live search for its own route/dates */}
+      <RebookTripModal
+        trip={tripToRebook}
+        open={rebookOpen}
+        onOpenChange={setRebookOpen}
+        onRebook={(tripId, flight) => rebookTrip(tripId, flight)}
       />
 
       {/* Trip Calendar View - merge local + backend trips */}

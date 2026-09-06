@@ -31,56 +31,7 @@ function relRange(startOffsetDays: number, durationDays: number) {
 }
 
 // Mock team data — dates generated relative to today so the demo stays current.
-const mockTeamMembers: TeamMember[] = [
-  {
-    id: "1",
-    name: "Sarah Chen",
-    role: "Product Manager",
-    team: "Product",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-    // Currently on the road
-    upcomingTrip: { ...relRange(-1, 3), destination: "New York, NY" },
-  },
-  {
-    id: "2",
-    name: "Marcus Johnson",
-    role: "Sales Director",
-    team: "Sales",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-    upcomingTrip: { ...relRange(0, 2), destination: "Chicago, IL" },
-  },
-  {
-    id: "3",
-    name: "Emily Watson",
-    role: "Engineering Lead",
-    team: "Engineering",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-    upcomingTrip: { ...relRange(8, 3), destination: "San Francisco, CA" },
-  },
-  {
-    id: "4",
-    name: "David Kim",
-    role: "UX Designer",
-    team: "Design",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop",
-  },
-  {
-    id: "5",
-    name: "Lisa Martinez",
-    role: "Account Executive",
-    team: "Sales",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
-    upcomingTrip: { ...relRange(18, 2), destination: "Austin, TX" },
-  },
-  {
-    id: "6",
-    name: "James Wilson",
-    role: "CFO",
-    team: "Finance",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-    upcomingTrip: { ...relRange(35, 4), destination: "London, UK" },
-  },
-];
+const mockTeamMembers: TeamMember[] = [];
 
 // Determine a member's current travel status based on today's date.
 // "traveling" = today is within the trip range (inclusive),

@@ -42,32 +42,7 @@ interface TripDetailPanelProps {
 }
 
 // Mock meetings data
-const mockMeetings = [
-  {
-    id: "1",
-    title: "Q4 Strategy Review",
-    time: "10:00 AM",
-    duration: "2 hours",
-    attendees: 5,
-    type: "in-person",
-  },
-  {
-    id: "2",
-    title: "Client Presentation",
-    time: "2:00 PM",
-    duration: "1.5 hours",
-    attendees: 8,
-    type: "in-person",
-  },
-  {
-    id: "3",
-    title: "Team Sync",
-    time: "4:30 PM",
-    duration: "30 min",
-    attendees: 3,
-    type: "video",
-  },
-];
+const mockMeetings = [];
 
 const getStatusConfig = (status: string) => {
   switch (status) {

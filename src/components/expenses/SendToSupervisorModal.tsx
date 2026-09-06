@@ -15,12 +15,8 @@ interface SendToSupervisorModalProps {
   onSend: (supervisorName: string, note: string) => void;
 }
 
-const supervisors = [
-  { id: "1", name: "James Wilson" },
-  { id: "2", name: "Sarah Chen" },
-  { id: "3", name: "Marcus Johnson" },
-  { id: "4", name: "Emily Watson" },
-];
+// Populated from real workspace members; no invented supervisors.
+const supervisors: { id: string; name: string }[] = [];
 
 export function SendToSupervisorModal({
   open,

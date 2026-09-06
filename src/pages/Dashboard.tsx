@@ -10,6 +10,7 @@ import ScrollReveal from "@/components/home/ScrollReveal";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
 import { useTrips } from "@/hooks/useTrips";
+import { useExpenses } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useTravelPreferences } from "@/hooks/useTravelPreferences";
@@ -297,18 +298,15 @@ const travelJourneyStatuses = [
   "Flight delayed", "Boarding soon", "Taxi to hotel", "Working remotely",
 ];
 
-const teamTraveling = [
-  { name: "Julia Chen", destination: "Seattle, WA", status: "Boarded plane", journeyStep: 2, totalSteps: 5, statusType: "info" as const, initials: "JC", tripId: "demo_trip_seattle_2025" },
-  { name: "Mark Thompson", destination: "Chicago, IL", status: "Checked into hotel", journeyStep: 4, totalSteps: 5, statusType: "success" as const, initials: "MT", tripId: "demo_trip_chi_2025" },
-  { name: "Priya Patel", destination: "New York, NY", status: "Heading to airport", journeyStep: 5, totalSteps: 5, statusType: "warning" as const, initials: "PP", tripId: "demo_trip_nyc_2025" },
-  { name: "Alex Rivera", destination: "San Francisco, CA", status: "In meeting", journeyStep: 4, totalSteps: 6, statusType: "success" as const, initials: "AR", tripId: "demo_trip_sf_2025" },
-];
+// No fabricated colleagues. Populated from real team travel data when available.
+const teamTraveling = [];
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { demoMode } = useDemoMode();
   const { createTrip, deleteTrip } = useTrips();
+  const { addExpense } = useExpenses();
   const { createChat } = useChats();
   const { preferences, getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
   const { preferences: savedTravelPrefs } = useTravelPreferences();
@@ -885,7 +883,14 @@ export default function Dashboard() {
     return parts.join("|");
   };
 
-  const handleSaveDraft = async () => {
+  /**
+   * Records the booked trip and files its expenses.
+   *
+   * `paidAmount` is the amount Duffel actually charged (from the created order).
+   * It's passed in after a real payment so the flight expense reflects what was
+   * charged rather than the quoted fare — those can differ by taxes/fees.
+   */
+  const handleSaveDraft = async (paidAmount?: number) => {
     if (!planResult || isBooking) return;
     const idempotencyKey = buildIdempotencyKey(planResult);
     const existing = readIdempotencyMap()[idempotencyKey];
@@ -914,9 +919,27 @@ export default function Dashboard() {
     try {
       const startDate = planResult.startDate.toISOString();
       const endDate = planResult.endDate.toISOString();
+      // Carry the actual route + flight details onto the saved trip. This is what
+      // lets "Rebook" later search live flights for the same route and dates
+      // without the traveler re-entering anything.
+      const bookedFlight = selectedFlightFromResults;
       const created = createTrip({
         destination: planResult.destination, startDate, endDate,
-        purpose: planResult.purpose, flight: planResult.flight,
+        purpose: planResult.purpose,
+        flight: {
+          ...planResult.flight,
+          ...(bookedFlight
+            ? {
+                flightNumber: bookedFlight.flightNumber,
+                departureAirport: bookedFlight.origin,
+                arrivalAirport: bookedFlight.destination,
+                arrivalTime: bookedFlight.arrivalTime,
+                duration: bookedFlight.duration,
+                stops: bookedFlight.stops,
+                price: bookedFlight.price,
+              }
+            : {}),
+        },
         hotel: planResult.hotel, groundTransport: null,
         estimatedCost: planResult.estimatedCost, confidenceLevel: planResult.confidenceLevel,
       });
@@ -924,6 +947,52 @@ export default function Dashboard() {
         throw new Error("Trip could not be saved. Please try again.");
       }
       writeIdempotency(idempotencyKey, { status: "completed", tripId: created.id, ts: Date.now() });
+
+      // Booking a trip files its real expenses automatically, so the Expenses
+      // page reflects what was actually booked without anyone re-typing it.
+      // Guarded by the same idempotency key as the booking, so a retry can't
+      // duplicate them. Non-fatal: a failure here must not undo the booking.
+      try {
+        const tripDates = `${format(planResult.startDate, "MMM d")} – ${format(planResult.endDate, "MMM d, yyyy")}`;
+        // Prefer what was actually charged; fall back to the quoted fare.
+        const flightCost = paidAmount ?? bookedFlight?.price ?? 0;
+        if (flightCost > 0) {
+          addExpense({
+            merchant: bookedFlight?.airline || planResult.flight.airline || "Airline",
+            description: `Flight${bookedFlight?.flightNumber ? ` ${bookedFlight.flightNumber}` : ""} to ${planResult.destination}`,
+            date: startDate,
+            amount: flightCost,
+            category: "flight",
+            status: "pending",
+            location: planResult.destination,
+            paymentMethod: "Booked in Flyby",
+            reimbursable: true,
+            tripId: created.id,
+            tripName: planResult.destination,
+            tripDates,
+          });
+        }
+        const hotelCost = planResult.hotel?.totalPrice ?? 0;
+        if (planResult.hotel?.name && hotelCost > 0) {
+          addExpense({
+            merchant: planResult.hotel.name,
+            description: `${planResult.hotel.nights ?? 1} night${(planResult.hotel.nights ?? 1) > 1 ? "s" : ""} in ${planResult.destination}`,
+            date: startDate,
+            amount: hotelCost,
+            category: "hotel",
+            status: "pending",
+            location: planResult.hotel.location || planResult.destination,
+            paymentMethod: "Booked in Flyby",
+            reimbursable: true,
+            tripId: created.id,
+            tripName: planResult.destination,
+            tripDates,
+          });
+        }
+      } catch (expenseErr) {
+        console.warn("Expense import failed (non-fatal):", expenseErr);
+      }
+
       try {
         createChat(`${planResult.destination} Trip`, []);
       } catch (chatErr) {
@@ -1026,21 +1095,10 @@ export default function Dashboard() {
     return demoMode ? getDemoTrips().filter(t => !removedIds.has(t.id)) : [];
   }, [localTrips, formatTripDates, removedIds, demoMode]);
 
-  function getDemoTrips() {
-    const today = new Date();
-    const addDays = (n: number) => new Date(today.getTime() + n * 24 * 60 * 60 * 1000);
-    const fmtRange = (start: Date, end: Date) => {
-      const sameMonth = start.getMonth() === end.getMonth();
-      return sameMonth
-        ? `${format(start, "MMM d")}-${format(end, "d, yyyy")}`
-        : `${format(start, "MMM d")}-${format(end, "MMM d, yyyy")}`;
-    };
-    const sfStart = addDays(9);  const sfEnd = addDays(11);
-    const seaStart = addDays(23); const seaEnd = addDays(25);
-    return [
-      { id: "demo_trip_sf_2025", destination: "San Francisco, CA", dates: fmtRange(sfStart, sfEnd), status: "approved" as const, purpose: "Client meeting", estimatedCost: 1850 },
-      { id: "demo_trip_seattle_2025", destination: "Seattle, WA", dates: fmtRange(seaStart, seaEnd), status: "pending" as const, purpose: "Team offsite", estimatedCost: 2100 },
-    ];
+  // No sample trips. The only seeded trip in Flyby is the single booked one used
+  // to exercise the rebooking flow, and it lives in src/data/demoTrips.ts.
+  function getDemoTrips(): { id: string; destination: string; dates: string; status: "approved" | "pending" | "draft"; purpose: string; estimatedCost: number }[] {
+    return [];
   }
 
   const exampleQueries = [
@@ -1405,50 +1463,16 @@ export default function Dashboard() {
               </div>
             </div>
             <CardContent className="pt-0 space-y-5">
-              {demoMode ? (
-                <>
-                  <div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold tracking-tight text-foreground">$10,840</span>
-                      <span className="flex items-center gap-0.5 text-sm font-medium text-success">
-                        <TrendingDown className="w-3.5 h-3.5" /> 12%
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Monthly spend · vs last month</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Upcoming high-cost trips</p>
-                    <div className="space-y-1.5">
-                      {getTopHighCostDemoTrips(2).map((t) => (
-                        <div
-                          key={t.id}
-                          className="group/row flex items-center justify-between p-2.5 rounded-lg bg-secondary/50 hover:bg-secondary/80 cursor-pointer transition-colors"
-                          onClick={() => setSelectedSpendTrip(getTripSpendData(t.id))}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Plane className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="text-sm">{t.route} ({t.purpose})</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">${t.estimatedCost.toLocaleString()}</span>
-                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/0 group-hover/row:text-muted-foreground transition-colors" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold tracking-tight text-foreground">$0</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Connect a card to start tracking.</p>
-                  <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate("/expenses")}>
-                    <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Connect a card
-                  </Button>
+              {/* Real spend only — no sample figures. */}
+              <div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold tracking-tight text-foreground">$0</span>
                 </div>
-              )}
+                <p className="text-xs text-muted-foreground mt-1">Connect a card to start tracking.</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate("/expenses")}>
+                  <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Connect a card
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -1579,7 +1603,10 @@ export default function Dashboard() {
           // charge — the charge already happened via Duffel.
           if (result.ok) {
             setBookingFlight(null);
-            handleSaveDraft();
+            // Pass the amount Duffel actually charged so the auto-filed flight
+            // expense matches the real charge, not just the quoted fare.
+            const charged = Number(result.order?.totalAmount);
+            handleSaveDraft(Number.isFinite(charged) && charged > 0 ? charged : undefined);
           }
         }}
       />

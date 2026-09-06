@@ -41,52 +41,13 @@ export interface Chat {
 }
 
 // Team members data (shared with Team page)
-export const teamMembers: ChatUser[] = [
-  {
-    id: "1",
-    name: "Sarah Chen",
-    role: "Product Manager",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-  },
-  {
-    id: "2",
-    name: "Marcus Johnson",
-    role: "Sales Director",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-  },
-  {
-    id: "3",
-    name: "Emily Watson",
-    role: "Engineering Lead",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-  },
-  {
-    id: "4",
-    name: "David Kim",
-    role: "UX Designer",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop",
-  },
-  {
-    id: "5",
-    name: "Lisa Martinez",
-    role: "Account Executive",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
-  },
-  {
-    id: "6",
-    name: "James Wilson",
-    role: "CFO",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-  },
-];
+// No fabricated teammates. Real workspace members come from the backend
+// (see useTeam); this stays empty so nothing invented appears in chats
+// or global search.
+export const teamMembers: ChatUser[] = [];
 
 // Supervisor lookup by name
-export const supervisorMap: Record<string, ChatUser> = {
-  "James Wilson": teamMembers[5],
-  "Sarah Chen": teamMembers[0],
-  "Marcus Johnson": teamMembers[1],
-  "Emily Watson": teamMembers[2],
-};
+export const supervisorMap: Record<string, ChatUser> = {};
 
 // AI Assistant (virtual team member)
 export const aiAssistant: ChatUser = {

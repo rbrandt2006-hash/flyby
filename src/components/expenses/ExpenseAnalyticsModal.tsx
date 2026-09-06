@@ -6,7 +6,7 @@ import {
   LineChart, Line, CartesianGrid, Legend,
 } from "recharts";
 import { TrendingUp, DollarSign, Plane, CheckCircle2 } from "lucide-react";
-import { demoExpenses, type DemoExpense } from "./demoExpenseData";
+import { type DemoExpense } from "./demoExpenseData";
 
 const CATEGORY_COLORS: Record<string, string> = {
   flight: "hsl(217 91% 60%)",
@@ -51,7 +51,7 @@ interface Props {
   expenses?: DemoExpense[];
 }
 
-export function ExpenseAnalyticsModal({ open, onOpenChange, expenses = demoExpenses }: Props) {
+export function ExpenseAnalyticsModal({ open, onOpenChange, expenses = [] }: Props) {
   const {
     categoryData,
     employeeData,

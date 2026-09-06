@@ -33,12 +33,7 @@ interface CalendarShareModalProps {
 }
 
 // Mock channels for demo
-const mockChannels = [
-  { id: "ch-1", name: "general", platform: "Slack" },
-  { id: "ch-2", name: "travel-requests", platform: "Slack" },
-  { id: "ch-3", name: "manager-approvals", platform: "Slack" },
-  { id: "ch-4", name: "team-updates", platform: "Teams" },
-];
+const mockChannels = [];
 
 export function CalendarShareModal({ 
   open, 

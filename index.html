@@ -29,10 +29,12 @@
 
     <!-- Content Security Policy -->
     <!-- Allows: self, inline styles/scripts (for Vite HMR), images from https, fonts.
-         The Flyby backend is reached same-origin — the dev server proxies /api,
-         /auth, /rest, /functions and /storage to it — so 'self' covers every API
-         call. If you point VITE_API_URL at a backend on another host, add that
-         origin to connect-src.
+         In development the backend is reached same-origin — the dev server
+         proxies /api, /auth, /rest, /functions and /storage to it — so 'self'
+         covers every API call. In production the site is served from GitHub
+         Pages and the backend lives on its own host, so that origin
+         (https://autonomous.opencodingsociety.com) is allowed in connect-src.
+         If you move the backend, update that origin here and VITE_API_URL.
          Duffel's card form loads Evervault (PCI card fields) and Stripe (card
          processing + 3-D Secure) under the hood, so those domains are allowed
          for the secure card + payment flow. -->
@@ -42,7 +44,7 @@
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       img-src 'self' data: blob: https: http://localhost:*;
       font-src 'self' https://fonts.gstatic.com;
-      connect-src 'self' http://localhost:* http://127.0.0.1:* https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://*.stripe.network;
+      connect-src 'self' https://autonomous.opencodingsociety.com http://localhost:* http://127.0.0.1:* https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://*.stripe.network;
       frame-src 'self' https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://*.stripe.network;
       child-src 'self' https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://*.stripe.network;
       form-action 'self';

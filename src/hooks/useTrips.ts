@@ -111,6 +111,8 @@ function getDemoTrips(): LocalTrip[] {
         flightNumber: seed.flightNumber,
         departureAirport: seed.originAirport,
         arrivalAirport: seed.destinationAirport,
+        // What was "paid" for the flight — Rebook compares new fares against it.
+        price: seed.expenses.airfare,
       },
       hotel: { name: seed.hotelName, location: seed.hotelLocation },
       groundTransport: null,

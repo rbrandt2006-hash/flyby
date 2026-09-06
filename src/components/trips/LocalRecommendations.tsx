@@ -12,40 +12,7 @@ interface Recommendation {
   rating?: number;
 }
 
-const mockRecommendations: Recommendation[] = [
-  {
-    id: "1",
-    name: "The Capital Grille",
-    type: "restaurant",
-    distance: "0.2 mi",
-    tag: "Business-friendly",
-    rating: 4.5,
-  },
-  {
-    id: "2",
-    name: "Blue Bottle Coffee",
-    type: "cafe",
-    distance: "0.1 mi",
-    tag: "Quick meetings",
-    rating: 4.3,
-  },
-  {
-    id: "3",
-    name: "Nobu",
-    type: "restaurant",
-    distance: "0.4 mi",
-    tag: "Client dinners",
-    rating: 4.7,
-  },
-  {
-    id: "4",
-    name: "Sweetgreen",
-    type: "restaurant",
-    distance: "0.15 mi",
-    tag: "Walkable",
-    rating: 4.2,
-  },
-];
+const mockRecommendations: Recommendation[] = [];
 
 export function LocalRecommendations() {
   return (

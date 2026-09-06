@@ -19,24 +19,11 @@ import SecurityAdminPanel from "@/components/admin/SecurityAdminPanel";
 import { DEMO_TRIPS, demoDate, getDemoTopDestinations } from "@/data/demoTrips";
 
 // Mock org data for MVP
-const mockOrgMembers = [
-  { id: "u1", name: "Julia Chen", email: "julia@company.com", role: "user", avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&h=100&fit=crop", trips: 3, spend: 4200 },
-  { id: "u2", name: "Marcus Johnson", email: "marcus@company.com", role: "user", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop", trips: 5, spend: 7800 },
-  { id: "u3", name: "Sarah Chen", email: "sarah@company.com", role: "user", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop", trips: 2, spend: 3100 },
-  { id: "u4", name: "David Kim", email: "david@company.com", role: "moderator", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop", trips: 1, spend: 1500 },
-  { id: "u5", name: "Emily Watson", email: "emily@company.com", role: "user", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop", trips: 4, spend: 6200 },
-];
+const mockOrgMembers = [];
 
 // Pending approvals derived from the shared demo seed so traveler/destination/
 // dates/cost stay consistent with Dashboard, Trips, and AI Expense Insights.
-const mockPendingApprovals = DEMO_TRIPS.slice(0, 3).map((t) => ({
-  id: `approval_${t.id}`,
-  traveler: t.traveler,
-  destination: t.destination,
-  dates: demoDate.range(t.startOffsetDays, t.endOffsetDays),
-  cost: t.estimatedCost,
-  status: "pending" as const,
-}));
+const mockPendingApprovals: { id: string; destination: string; traveler: string; cost: number; dates: string }[] = [];
 
 const mockTopDestinations = getDemoTopDestinations();
 

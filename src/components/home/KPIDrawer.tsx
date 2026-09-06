@@ -16,116 +16,16 @@ interface KPIDrawerProps {
 }
 
 // Mock data for each KPI type
-const mockUpcomingTrips = [
-  {
-    id: "1",
-    destination: "San Francisco, CA",
-    dates: "Jan 8-10, 2025",
-    status: "approved",
-    purpose: "Client meeting",
-    flight: { airline: "Delta", departure: "7:45 AM", arrival: "11:30 AM" },
-    hotel: { name: "The Ritz-Carlton", area: "Financial District" },
-    ground: "Uber estimate: $35-45",
-    alerts: [],
-  },
-  {
-    id: "2",
-    destination: "Seattle, WA",
-    dates: "Jan 15-17, 2025",
-    status: "pending",
-    purpose: "Team offsite",
-    flight: { airline: "Alaska Airlines", departure: "6:30 AM", arrival: "9:15 AM" },
-    hotel: { name: "The Westin", area: "Downtown" },
-    ground: "Rental car: $65/day",
-    alerts: ["Weather advisory"],
-  },
-];
+// No sample trips — the drawer reflects real trips only.
+const mockUpcomingTrips = [];
 
-const mockHoursSaved = {
-  total: 48,
-  breakdown: [
-    { type: "Auto-booking vs manual", hours: 12, icon: Plane },
-    { type: "Auto-rebooking during disruption", hours: 9, icon: AlertCircle },
-    { type: "Receipt auto-import & categorization", hours: 6, icon: Receipt },
-    { type: "Trip preparation (hotel/flight shortlist)", hours: 8, icon: FileText },
-    { type: "Calendar-to-trip detection", hours: 3, icon: Calendar },
-    { type: "Expense report generation", hours: 10, icon: DollarSign },
-  ],
-  byTrip: [
-    { trip: "Seattle trip", hours: 14, detail: "Rebook + hotel selection" },
-    { trip: "SF trip", hours: 9, detail: "Auto-expense matching" },
-    { trip: "Chicago trip", hours: 12, detail: "Full trip automation" },
-    { trip: "NYC trip", hours: 8, detail: "Receipt processing" },
-  ],
-};
+const mockHoursSaved = { total: 0, breakdown: [] as { type: string; hours: number; icon: typeof Plane }[], byTrip: [] as { trip: string; hours: number; detail: string }[] };
 
-const mockActivityLog = [
-  {
-    id: "1",
-    date: "Today",
-    events: [
-      { id: "e1", title: "Generated flight + hotel shortlist", trip: "Seattle trip", minutesSaved: 32, type: "shortlist", source: "AI shortlist", timestamp: "10:45 AM" },
-      { id: "e2", title: "Auto-matched 3 receipts to expenses", trip: "Seattle trip", minutesSaved: 18, type: "expense_match", source: "Expense import", timestamp: "9:30 AM" },
-    ],
-  },
-  {
-    id: "2",
-    date: "Yesterday",
-    events: [
-      { id: "e3", title: "Created expense report PDF", trip: "SF trip", minutesSaved: 40, type: "report_generation", source: "Report engine", timestamp: "4:15 PM" },
-      { id: "e4", title: "Auto-rebooked due to weather disruption", trip: "Seattle trip", minutesSaved: 130, type: "auto_rebook", source: "Rebook engine", timestamp: "2:00 PM" },
-    ],
-  },
-  {
-    id: "3",
-    date: "Dec 31",
-    events: [
-      { id: "e5", title: "Detected calendar event requiring travel", trip: "Chicago trip", minutesSaved: 25, type: "calendar_detection", source: "Calendar sync", timestamp: "11:00 AM" },
-      { id: "e6", title: "Auto-imported 8 receipts from email", trip: "NYC trip", minutesSaved: 55, type: "expense_import", source: "Email scan", timestamp: "9:00 AM" },
-    ],
-  },
-];
+const mockActivityLog = [];
 
-const mockPendingExpenses = {
-  total: 1240,
-  count: 5,
-  byTrip: [
-    {
-      trip: "Seattle Jan 15-17",
-      expenses: [
-        { merchant: "Uber", amount: 42.50, status: "needs_receipt", category: "Ground Transport" },
-        { merchant: "Marriott", amount: 524.80, status: "submitted", category: "Lodging" },
-      ],
-    },
-    {
-      trip: "NYC Dec 18",
-      expenses: [
-        { merchant: "Delta", amount: 487.00, status: "pending_approval", category: "Flights" },
-        { merchant: "Shake Shack", amount: 24.50, status: "needs_receipt", category: "Meals" },
-        { merchant: "Yellow Cab", amount: 161.20, status: "submitted", category: "Ground Transport" },
-      ],
-    },
-  ],
-};
+const mockPendingExpenses = { total: 0, count: 0, byTrip: [] as { trip: string; expenses: { merchant: string; amount: number; status: string; category: string }[] }[] };
 
-const mockMiles = {
-  total: 12450,
-  co2Estimate: "2.1 tons",
-  avgPerTrip: 2075,
-  byMonth: [
-    { month: "Jan", miles: 4200 },
-    { month: "Feb", miles: 3100 },
-    { month: "Mar", miles: 2800 },
-    { month: "Apr", miles: 2350 },
-  ],
-  byTrip: [
-    { trip: "NYC roundtrip", miles: 3200 },
-    { trip: "Seattle roundtrip", miles: 2800 },
-    { trip: "SF roundtrip", miles: 2400 },
-    { trip: "Chicago roundtrip", miles: 2100 },
-    { trip: "Austin roundtrip", miles: 1950 },
-  ],
-};
+const mockMiles = { total: 0, co2Estimate: "0 tons", avgPerTrip: 0, byMonth: [] as { month: string; miles: number }[], byTrip: [] as { trip: string; miles: number }[] };
 
 const drawerConfig: Record<KPIType, { title: string; icon: typeof Plane; color: string }> = {
   upcomingTrips: { title: "Upcoming Trips", icon: Plane, color: "text-primary" },

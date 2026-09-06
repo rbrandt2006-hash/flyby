@@ -19,10 +19,11 @@ import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
 import { ExpenseHistoryTable } from "@/components/expenses/ExpenseHistoryTable";
 import { EditExpenseDrawer } from "@/components/expenses/EditExpenseDrawer";
 import { ExpenseViewDrawer } from "@/components/expenses/ExpenseViewDrawer";
-import { demoExpenses, demoStats, type DemoExpense } from "@/components/expenses/demoExpenseData";
+import { type DemoExpense } from "@/components/expenses/demoExpenseData";
 import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
 import { useDemoMode } from "@/contexts/DemoModeContext";
+import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import { toast } from "sonner";
 import { 
   Plane, Building2, Utensils, Car, CreditCard, Receipt, AlertCircle,
@@ -59,11 +60,13 @@ const itemVariants = {
 
 export default function Expenses() {
   const { demoMode } = useDemoMode();
+  const { profile } = useUserProfileContext();
   const { 
     expenses, 
     expensesByTrip,
-    addExpense, 
-    updateExpense, 
+    addExpense,
+    updateExpense,
+    deleteExpense,
     sendToSupervisor, 
     toggleReimbursable, 
     fileDispute, 
@@ -83,8 +86,38 @@ export default function Expenses() {
 
   // Demo drawer + analytics state
   const [demoDrawerStatus, setDemoDrawerStatus] = useState<DemoExpense["status"] | null>(null);
-  const [demoExpenseList, setDemoExpenseList] = useState<DemoExpense[]>(demoMode ? demoExpenses : []);
-  useEffect(() => { setDemoExpenseList(demoMode ? demoExpenses : []); }, [demoMode]);
+  // Every expense on this page is REAL: created when a trip is booked through
+  // Flyby, imported from a connected card, or added by hand. There is no sample
+  // data here — an empty list means you genuinely have no expenses yet.
+  const realAsDemo = useMemo<DemoExpense[]>(() => {
+    const name = profile?.full_name?.trim() || "You";
+    const initials =
+      name.split(/\s+/).map(p => p[0]).join("").slice(0, 2).toUpperCase() || "YO";
+    // The demo rows carry a couple of categories/statuses the stored expense
+    // doesn't, so collapse to the nearest equivalent for display.
+    const toCategory = (c: Expense["category"]): DemoExpense["category"] =>
+      c === "entertainment" || c === "office" ? "other" : c;
+    const toStatus = (s: Expense["status"]): DemoExpense["status"] =>
+      s === "approved" ? "approved"
+        : s === "disputed" || s === "flagged" ? "disputed"
+        : "pending";
+    return expenses.map((e) => ({
+      id: e.id,
+      employee: name,
+      employeeInitials: initials,
+      tripName: e.tripName || "Unassigned",
+      vendor: e.merchant || e.description || "Expense",
+      amount: e.amount,
+      date: e.date,
+      category: toCategory(e.category),
+      status: toStatus(e.status),
+      hasReceipt: false,
+      notes: e.notes,
+    }));
+  }, [expenses, profile]);
+
+  // What the page displays — real expenses only.
+  const allExpenses = realAsDemo;
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<DemoExpense | null>(null);
   const [viewingExpense, setViewingExpense] = useState<DemoExpense | null>(null);
@@ -96,30 +129,43 @@ export default function Expenses() {
   }, [demoDrawerStatus]);
 
   const drawerExpenses = useMemo(() =>
-    demoDrawerStatus ? demoExpenseList.filter(e => e.status === demoDrawerStatus) : demoExpenseList,
-    [demoExpenseList, demoDrawerStatus]
+    demoDrawerStatus ? allExpenses.filter(e => e.status === demoDrawerStatus) : allExpenses,
+    [allExpenses, demoDrawerStatus]
   );
 
+  // Approving / disputing — persisted to the backend, so it survives a refresh.
   const handleUpdateDemoExpense = (id: string, status: DemoExpense["status"]) => {
-    setDemoExpenseList(prev => prev.map(e => e.id === id ? { ...e, status } : e));
+    updateExpense(id, { status });
   };
 
   const handleEditDemoExpense = (id: string, updates: Partial<DemoExpense>) => {
-    setDemoExpenseList(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+    // Map the display shape back onto the stored expense.
+    const toExpenseCategory = (c: DemoExpense["category"]): Expense["category"] =>
+      c === "other" || c === "conference" ? "office" : c;
+    updateExpense(id, {
+      ...(updates.vendor !== undefined ? { merchant: updates.vendor } : {}),
+      ...(updates.amount !== undefined ? { amount: updates.amount } : {}),
+      ...(updates.date !== undefined ? { date: updates.date } : {}),
+      ...(updates.notes !== undefined ? { notes: updates.notes } : {}),
+      ...(updates.status !== undefined ? { status: updates.status } : {}),
+      ...(updates.category !== undefined
+        ? { category: toExpenseCategory(updates.category) }
+        : {}),
+    });
     toast.success("Expense updated successfully");
   };
 
   const uniqueTripNames = useMemo(() => {
     const trips = new Set<string>();
-    demoExpenseList.forEach(e => { if (e.tripName) trips.add(e.tripName); });
+    allExpenses.forEach(e => { if (e.tripName) trips.add(e.tripName); });
     return Array.from(trips);
-  }, [demoExpenseList]);
+  }, [allExpenses]);
 
-  // Live totals from demo data
-  const livePending = useMemo(() => demoExpenseList.filter(e => e.status === "pending").reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
-  const liveApproved = useMemo(() => demoExpenseList.filter(e => e.status === "approved").reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
-  const liveDisputed = useMemo(() => demoExpenseList.filter(e => e.status === "disputed").reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
-  const liveTotal = useMemo(() => demoExpenseList.reduce((s, e) => s + e.amount, 0), [demoExpenseList]);
+  // Live totals across real + demo expenses
+  const livePending = useMemo(() => allExpenses.filter(e => e.status === "pending").reduce((s, e) => s + e.amount, 0), [allExpenses]);
+  const liveApproved = useMemo(() => allExpenses.filter(e => e.status === "approved").reduce((s, e) => s + e.amount, 0), [allExpenses]);
+  const liveDisputed = useMemo(() => allExpenses.filter(e => e.status === "disputed").reduce((s, e) => s + e.amount, 0), [allExpenses]);
+  const liveTotal = useMemo(() => allExpenses.reduce((s, e) => s + e.amount, 0), [allExpenses]);
 
   // Expand/Collapse state
   const [expandedTrips, setExpandedTrips] = useState<Set<string>>(() => {
@@ -181,26 +227,8 @@ export default function Expenses() {
   };
 
   const handleAddExpense = (expenseData: Omit<Expense, "id">, submitNow: boolean) => {
-    const saved = addExpense(expenseData);
-
-    // Also add to the demo expense list so it appears in the Recent Expenses table
-    const newDemo: DemoExpense = {
-      id: saved.id,
-      employee: "You",
-      employeeInitials: "YO",
-      tripName: expenseData.tripName || "Unassigned",
-      vendor: expenseData.merchant,
-      amount: expenseData.amount,
-      date: expenseData.date,
-      category: (["flight","hotel","meals","transportation","conference","other"].includes(expenseData.category)
-        ? expenseData.category
-        : "other") as DemoExpense["category"],
-      status: submitNow ? "pending" : "pending",
-      hasReceipt: false,
-      notes: expenseData.description,
-    };
-    setDemoExpenseList(prev => [...prev, newDemo]);
-
+    // Saved to the backend; the list re-renders from that single source.
+    addExpense(expenseData);
     toast.success(submitNow ? "Expense submitted for approval" : "Expense added successfully");
     setIsAddExpenseOpen(false);
   };
@@ -308,7 +336,7 @@ export default function Expenses() {
 
       {/* AI Insights */}
       <motion.div variants={itemVariants}>
-        <AIExpenseInsights />
+        <AIExpenseInsights expenses={allExpenses} />
       </motion.div>
 
       {/* Stats Cards — interactive */}
@@ -330,7 +358,7 @@ export default function Expenses() {
                           <p className="text-2xl font-bold">${livePending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">{demoExpenseList.filter(e => e.status === "pending").length} awaiting review · Click to review</p>
+                      <p className="text-xs text-muted-foreground mt-2">{allExpenses.filter(e => e.status === "pending").length} awaiting review · Click to review</p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -360,7 +388,7 @@ export default function Expenses() {
                           <p className="text-2xl font-bold">${liveApproved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">{demoExpenseList.filter(e => e.status === "approved").length} expenses approved · Click to view</p>
+                      <p className="text-xs text-muted-foreground mt-2">{allExpenses.filter(e => e.status === "approved").length} expenses approved · Click to view</p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -389,7 +417,7 @@ export default function Expenses() {
                           <p className="text-2xl font-bold">${liveDisputed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">{demoExpenseList.filter(e => e.status === "disputed").length} under review · Click to manage</p>
+                      <p className="text-xs text-muted-foreground mt-2">{allExpenses.filter(e => e.status === "disputed").length} under review · Click to manage</p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -549,11 +577,11 @@ export default function Expenses() {
       <motion.div variants={itemVariants} className="space-y-4">
         <h2 className="text-lg font-semibold">Recent Expenses</h2>
         <ExpenseHistoryTable
-          expenses={demoExpenseList}
+          expenses={allExpenses}
           onViewReceipt={(expense) => setViewingExpense(expense)}
           onEdit={(expense) => setEditingExpense(expense)}
           onDelete={(expense) => {
-            setDemoExpenseList(prev => prev.filter(e => e.id !== expense.id));
+            deleteExpense(expense.id);
             toast.success(`${expense.vendor} expense deleted`);
           }}
           onTripClick={(tripName) => toast.info(`Viewing expenses for ${tripName}`)}
@@ -593,7 +621,7 @@ export default function Expenses() {
       />
 
       {/* Analytics modal */}
-      <ExpenseAnalyticsModal open={analyticsOpen} onOpenChange={setAnalyticsOpen} />
+      <ExpenseAnalyticsModal open={analyticsOpen} onOpenChange={setAnalyticsOpen} expenses={allExpenses} />
 
       {/* View Expense Drawer */}
       <ExpenseViewDrawer
@@ -603,7 +631,7 @@ export default function Expenses() {
         onEdit={(expense) => { setViewingExpense(null); setEditingExpense(expense); }}
         onDelete={(expense) => {
           setViewingExpense(null);
-          setDemoExpenseList(prev => prev.filter(e => e.id !== expense.id));
+          deleteExpense(expense.id);
           toast.success(`${expense.vendor} expense deleted`);
         }}
       />
