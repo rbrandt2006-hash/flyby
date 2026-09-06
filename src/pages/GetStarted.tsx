@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2, Briefcase, User } from "lucide-react";
 import { toast } from "sonner";
-import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
+import flybyLogo from "@/assets/flybyLogo";
 
 type Mode = "signup" | "signin";
 type EmailMode = "work" | "personal";

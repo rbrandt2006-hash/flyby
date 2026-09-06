@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, ArrowLeft, Plane, Heart, Armchair, Calendar, Check } from "lucide-react";
-import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
+import flybyLogo from "@/assets/flybyLogo";
 import { toast } from "sonner";
 
 const STEPS = [

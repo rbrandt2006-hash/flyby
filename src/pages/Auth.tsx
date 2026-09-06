@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
+import flybyLogo from "@/assets/flybyLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import IntroAnimation, { hasIntroPlayed, prefersReducedMotion } from "@/components/home/IntroAnimation";
-import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
+import flybyLogo from "@/assets/flybyLogo";
 import { GlobalSearchDropdown } from "./GlobalSearchDropdown";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { useUserRole } from "@/hooks/useUserRole";

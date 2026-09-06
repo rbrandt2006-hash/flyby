@@ -5,7 +5,7 @@ import { X, MessageSquare, MapPin, Plane, Building2, Calendar, Users, Navigation
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
+import flybyLogo from "@/assets/flybyLogo";
 import { TravelerMessageComposer } from "@/components/home/TravelerMessageComposer";
 import { useChats } from "@/hooks/useChats";
 

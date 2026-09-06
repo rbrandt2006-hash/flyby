@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { backend } from "@/integrations/backend/client";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck } from "lucide-react";
-import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
+import flybyLogo from "@/assets/flybyLogo";
 
 // Authorizing a third-party app is an optional capability: the Flyby backend
 // only exposes it when an OAuth authorization server is configured. It is typed

@@ -20,7 +20,7 @@ import {
   getConnectedEmail,
 } from "@/services/mockCalendarService";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
-import flybyLogo from "@/assets/flyby-ai-logo.png.asset.json";
+import flybyLogo from "@/assets/flybyLogo";
 import { toast } from "sonner";
 
 type StubId = "outlook" | "slack" | "teams" | "salesforce" | "workday";
