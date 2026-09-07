@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Calendar, Check, Loader2, Mail } from 'lucide-react';
-import { connectGoogleCalendar, disconnectCalendar, isCalendarConnected, getConnectedEmail } from '@/services/mockCalendarService';
+import { disconnectCalendar, isCalendarConnected, getConnectedEmail } from '@/services/mockCalendarService';
+import { getGoogleStatus, getGoogleAuthUrl } from '@/services/googleCalendar';
 import { toast } from 'sonner';
 
 interface CalendarSyncDialogProps {
@@ -14,17 +15,37 @@ interface CalendarSyncDialogProps {
 export function CalendarSyncDialog({ open, onOpenChange, onConnected }: CalendarSyncDialogProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  // Whether Google credentials are configured on the backend. Until they are,
+  // connecting is genuinely unavailable — previously this simulated a
+  // successful connection, which made the whole app act as though a real
+  // calendar was attached.
+  const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
   const connected = isCalendarConnected();
   const email = getConnectedEmail();
 
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    getGoogleStatus().then((s) => { if (active) setGoogleAvailable(s.configured); });
+    return () => { active = false; };
+  }, [open]);
+
   const handleGoogleConnect = async () => {
+    if (!googleAvailable) {
+      toast.info('Google Calendar sync is coming soon.');
+      return;
+    }
     setIsConnecting(true);
     try {
-      const result = await connectGoogleCalendar();
-      toast.success(`Connected to ${result.email}`);
-      onConnected();
-      onOpenChange(false);
-    } catch (error) {
+      // Real OAuth: Google's consent screen, then back to the app. The client
+      // secret never leaves the backend.
+      const { authUrl } = await getGoogleAuthUrl();
+      if (!authUrl) {
+        toast.error('Could not start Google sign-in. Please try again.');
+        return;
+      }
+      window.location.href = authUrl;
+    } catch {
       toast.error('Failed to connect calendar');
     } finally {
       setIsConnecting(false);
@@ -93,7 +114,7 @@ export function CalendarSyncDialog({ open, onOpenChange, onConnected }: Calendar
           ) : (
             <Button
               variant="outline"
-              className="w-full justify-start h-auto py-4 px-4"
+              className={`w-full justify-start h-auto py-4 px-4 ${googleAvailable === false ? 'opacity-60' : ''}`}
               onClick={handleGoogleConnect}
               disabled={isConnecting}
             >
@@ -107,8 +128,19 @@ export function CalendarSyncDialog({ open, onOpenChange, onConnected }: Calendar
                   </svg>
                 </div>
                 <div className="text-left">
-                  <p className="font-medium">Connect Google Calendar</p>
-                  <p className="text-xs text-muted-foreground">Sync meetings from your Google account</p>
+                  <p className="font-medium">
+                    Connect Google Calendar
+                    {googleAvailable === false && (
+                      <span className="ml-2 text-[10px] uppercase tracking-wide rounded-full border border-border px-1.5 py-0.5 text-muted-foreground align-middle">
+                        Coming soon
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {googleAvailable === false
+                      ? 'Not available yet — we’re finishing Google approval.'
+                      : 'Sync meetings from your Google account'}
+                  </p>
                 </div>
               </div>
               {isConnecting && <Loader2 className="w-4 h-4 ml-auto animate-spin" />}

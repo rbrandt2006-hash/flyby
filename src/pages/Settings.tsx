@@ -28,6 +28,7 @@ import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
 import { ProductTourModal } from "@/components/settings/ProductTourModal";
 import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
 import { LoyaltySection } from "@/components/settings/LoyaltySection";
+import { useBookingMode, type BookingMode } from "@/hooks/useAutoPlan";
 import { PolicySection } from "@/components/settings/PolicySection";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import {
@@ -215,6 +216,7 @@ export default function Settings() {
     updateAvoidLayovers,
     updateCostSensitivity,
   } = useTravelPreferences();
+  const { mode: bookingMode, setMode: setBookingMode } = useBookingMode();
 
   // Notification settings
   const {
@@ -613,6 +615,54 @@ export default function Settings() {
               </div>
             </div>
             
+            <Separator />
+
+            {/* How much Flyby handles on its own */}
+            <div className="space-y-3 rounded-xl border border-border/60 p-4">
+              <div className="space-y-0.5">
+                <Label>How Flyby books your trips</Label>
+                <p className="text-xs text-muted-foreground">
+                  Choices are made from the preferences below — cost sensitivity,
+                  preferred airlines and hotel brands, layover tolerance — and your
+                  company travel policy. You can refine or rebook any trip afterwards.
+                </p>
+              </div>
+              <div className="grid gap-2">
+                {([
+                  {
+                    id: "manual" as const,
+                    title: "I choose everything",
+                    detail: "Flyby shows options; you pick the flight, then the hotel.",
+                  },
+                  {
+                    id: "autonomous" as const,
+                    title: "Book it for me",
+                    detail: "Flyby picks the flight and hotel and takes you straight to payment — nothing to choose. Bookings are reversible with one click.",
+                  },
+                ]).map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setBookingMode(option.id as BookingMode)}
+                    className={cn(
+                      "text-left rounded-lg border p-3 transition-colors",
+                      bookingMode === option.id
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/30",
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{option.title}</span>
+                      {bookingMode === option.id && (
+                        <Check className="w-3.5 h-3.5 text-primary" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{option.detail}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <Separator />
 
             {/* Ranking Preferences */}

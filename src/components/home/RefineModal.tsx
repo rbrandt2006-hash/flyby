@@ -1,17 +1,16 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plane, Hotel, Car, Check, ChevronDown, Star, Clock, DollarSign, MapPin, Fuel, Search } from "lucide-react";
+import { X, Plane, Hotel, Car, Check, ChevronDown, Star, Clock, DollarSign, MapPin, Fuel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
-import { SearchTabContent } from "./SearchTabContent";
-import type { SearchFlightResult, SearchHotelResult, SearchGroundResult } from "@/hooks/useTravelSearch";
 import type { Flight } from "@/components/flights/FlightResults";
 import type { HotelOption as TripHotelOption } from "@/components/chats/booking/types";
 import type { GroundTransportOption } from "@/services/mockGroundTransportService";
+import { getHotelsForDestination } from "@/services/mockHotelService";
 
 interface FlightOption {
   id: string;
@@ -109,31 +108,15 @@ function generateFlightOptions(destination: string): FlightOption[] {
   });
 }
 
-// Generate mock hotel options
+// Fallback hotels for the destination.
+//
+// This used to return a hardcoded Washington-DC list ("The Willard
+// InterContinental", "Capitol Hill"...) regardless of where the trip actually
+// went, so refining a London trip could show DC hotels. It now uses the same
+// destination-aware hotel source the rest of the app uses, so the fallback is
+// at least for the right city.
 function generateHotelOptions(destination: string): HotelOption[] {
-  const hotels = [
-    { name: "The Willard InterContinental", location: "Near White House", basePrice: 289, rating: 4.8, distance: "0.2 mi" },
-    { name: "Marriott Marquis", location: "Downtown", basePrice: 219, rating: 4.5, distance: "0.5 mi" },
-    { name: "Hyatt Regency", location: "Capitol Hill", basePrice: 189, rating: 4.4, distance: "0.8 mi" },
-    { name: "Hilton Garden Inn", location: "Penn Quarter", basePrice: 159, rating: 4.2, distance: "0.4 mi" },
-    { name: "Kimpton Hotel Monaco", location: "Downtown DC", basePrice: 249, rating: 4.6, distance: "0.3 mi" },
-    { name: "Holiday Inn Express", location: "Near Metro", basePrice: 129, rating: 4.0, distance: "1.2 mi" },
-  ];
-  
-  return hotels.map((hotel, i) => {
-    const tags: string[] = [];
-    if (i === 0) tags.push("Recommended");
-    if (i === 2 || i === 5) tags.push("Budget");
-    if (hotel.distance === "0.2 mi" || hotel.distance === "0.3 mi") tags.push("Closest");
-    if (hotel.rating >= 4.6) tags.push("Premium");
-    
-    return {
-      id: `hotel-${i}`,
-      ...hotel,
-      pricePerNight: hotel.basePrice + Math.floor(Math.random() * 30) - 15,
-      tags,
-    };
-  });
+  return getHotelsForDestination({ destination, nights: 3 }).map(realToHotelOption);
 }
 
 // Generate mock ground transport options
@@ -369,11 +352,7 @@ export function RefineModal({
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
               {/* Controls row - Sticky */}
               <div className="shrink-0 px-6 py-4 flex items-center justify-between border-b border-border/50 bg-background">
-                <TabsList className="grid grid-cols-4 w-auto">
-                  <TabsTrigger value="search" className="gap-2">
-                    <Search className="w-4 h-4" />
-                    Search
-                  </TabsTrigger>
+                <TabsList className="grid grid-cols-3 w-auto">
                   <TabsTrigger value="flights" className="gap-2">
                     <Plane className="w-4 h-4" />
                     Flights
@@ -388,7 +367,7 @@ export function RefineModal({
                   </TabsTrigger>
                 </TabsList>
                 
-                {activeTab !== "search" && (
+                {(
                   <Select value={sortBy} onValueChange={setSortBy}>
                     <SelectTrigger className="w-[140px]">
                       <SelectValue />
@@ -406,59 +385,6 @@ export function RefineModal({
               {/* Scrollable content area - THIS is the scroll container */}
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
                 <div className="mx-auto w-full max-w-[760px] px-6 py-5">
-                {/* Search Tab Content */}
-                <TabsContent value="search" className="mt-0">
-                  <SearchTabContent
-                    activeCategory="search"
-                    destination={destination}
-                    onSelectFlight={(flight) => {
-                      // Convert SearchFlightResult to FlightOption
-                      const converted: FlightOption = {
-                        id: flight.id,
-                        airline: flight.airline,
-                        departTime: flight.departTime,
-                        returnTime: flight.arriveTime,
-                        price: flight.price,
-                        duration: flight.duration,
-                        stops: flight.stops,
-                        tags: flight.tags,
-                      };
-                      setSelectedFlight(converted);
-                      setActiveTab("flights");
-                    }}
-                    onSelectHotel={(hotel) => {
-                      // Convert SearchHotelResult to HotelOption
-                      const converted: HotelOption = {
-                        id: hotel.id,
-                        name: hotel.name,
-                        location: hotel.area,
-                        pricePerNight: hotel.pricePerNight,
-                        rating: hotel.rating,
-                        distance: hotel.distanceToVenue,
-                        tags: hotel.tags,
-                      };
-                      setSelectedHotel(converted);
-                      setActiveTab("hotels");
-                    }}
-                    onSelectGround={(ground) => {
-                      // Convert SearchGroundResult to GroundOption
-                      const converted: GroundOption = {
-                        id: ground.id,
-                        type: ground.type,
-                        provider: ground.provider,
-                        price: ground.price,
-                        description: ground.description,
-                        tags: ground.tags,
-                      };
-                      setSelectedGround(converted);
-                      setActiveTab("ground");
-                    }}
-                    selectedFlightId={selectedFlight?.id}
-                    selectedHotelId={selectedHotel?.id}
-                    selectedGroundId={selectedGround?.id}
-                  />
-                </TabsContent>
-
                 <TabsContent value="flights" className="mt-0 space-y-3">
                   {sortedFlights.map((flight) => (
                     <motion.div

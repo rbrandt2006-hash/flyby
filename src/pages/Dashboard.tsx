@@ -11,6 +11,7 @@ import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
 import { useTrips } from "@/hooks/useTrips";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useBookingMode } from "@/hooks/useAutoPlan";
 import { useChats } from "@/hooks/useChats";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useTravelPreferences } from "@/hooks/useTravelPreferences";
@@ -18,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { parsePurpose } from "@/services/tripTemplates";
 import { parseTravelRequest, parseTravelRequestSmart, parseTravelRequestCached } from "@/services/travelSearchParser";
-import { searchRealFlights } from "@/services/duffelFlights";
+import { searchRealFlights, searchRealFlightsDetailed } from "@/services/duffelFlights";
 import { FlightBookingModal } from "@/components/booking/FlightBookingModal";
 import { generateMockFlights } from "@/services/mockFlightService";
 import { FlightResults, type Flight } from "@/components/flights/FlightResults";
@@ -141,13 +142,30 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   // Real flights from Duffel when available (carrying the offer id needed to
   // book), falling back to the local generator so search always returns results.
   const toISODate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const realFlights = await searchRealFlights({
-    origin: originCode,
-    destination: destCode,
-    departureDate: toISODate(startDate),
-    passengers,
-    cabinClass,
-  });
+
+  // A departure date in the past is rejected outright by the flight provider
+  // ("must be after <today>"), which used to surface as a misleading "couldn't
+  // reach live flight search". Detect it here so the traveler is told the real
+  // reason — and skip a request we know will fail.
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  const departureIsPast = startDate < todayMidnight;
+
+  let flightNote: "past_date" | "no_results" | "unreachable" | undefined;
+  let realFlights: Flight[] | null = null;
+  if (departureIsPast) {
+    flightNote = "past_date";
+  } else {
+    const outcome = await searchRealFlightsDetailed({
+      origin: originCode,
+      destination: destCode,
+      departureDate: toISODate(startDate),
+      passengers,
+      cabinClass,
+    });
+    realFlights = outcome.flights;
+    if (!realFlights) flightNote = outcome.reason ?? "unreachable";
+  }
   const flights = realFlights ?? generateMockFlights(originCode, destCode, cabinClass, passengers);
 
   return {
@@ -175,12 +193,13 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
     confidenceLevel: Math.min(98, 92 + Math.floor(Math.random() * 4)),
     originalPrompt: prompt,
     _flights: flights,
+    _flightNote: flightNote,
     _parsed: parsed,
     _originCode: originCode,
     _originCity: originAirport.city,
     _destCode: destCode,
     _destCity: destAirport.city,
-  } as TripPlan & { _flights: Flight[]; _parsed: ReturnType<typeof parseTravelRequest>; _originCode: string; _originCity: string; _destCode: string; _destCity: string };
+  } as TripPlan & { _flights: Flight[]; _flightNote?: "past_date" | "no_results" | "unreachable"; _parsed: ReturnType<typeof parseTravelRequest>; _originCode: string; _originCity: string; _destCode: string; _destCity: string };
 };
 
 // Derive a short conversation title from the first user message + destination chip
@@ -307,6 +326,11 @@ export default function Dashboard() {
   const { demoMode } = useDemoMode();
   const { createTrip, deleteTrip } = useTrips();
   const { addExpense } = useExpenses();
+  const { autoPlan, autoBook } = useBookingMode();
+  // Set when autonomous mode has assembled a trip that should now be booked.
+  // Booking reads the finished plan from state, so it is triggered from an
+  // effect once that state has actually landed rather than in the same tick.
+  const [pendingAutoBook, setPendingAutoBook] = useState(false);
   const { createChat } = useChats();
   const { preferences, getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
   const { preferences: savedTravelPrefs } = useTravelPreferences();
@@ -425,6 +449,7 @@ export default function Dashboard() {
     if ("needsDestination" in result) return null;
     const anyResult = result as TripPlan & {
       _flights?: Flight[];
+      _flightNote?: "past_date" | "no_results" | "unreachable";
       _parsed?: ReturnType<typeof parseTravelRequest>;
       _originCode?: string; _originCity?: string;
       _destCode?: string; _destCity?: string;
@@ -548,6 +573,7 @@ export default function Dashboard() {
       ground,
       reasons,
       nights,
+      flightNote: anyResult._flightNote,
     };
   };
 
@@ -661,7 +687,22 @@ export default function Dashboard() {
         };
       }
       const built = buildResultsFromPlan(result);
-      if (built) pushAssistantResults(built);
+      if (built) {
+        // Automatic planning: accept the top-ranked flight, hotel and ground
+        // instead of stopping for two manual picks. The options still render
+        // above the itinerary, so the traveler can Refine or Rebook if they
+        // disagree with any choice.
+        const planned = autoPlan && applyAutoSelection(result, built);
+        if (planned && autoBook) setPendingAutoBook(true);
+        pushAssistantResults(
+          built,
+          planned
+            ? autoBook
+              ? "Picked your flight and hotel from your travel preferences and policy — just confirm payment to book."
+              : "Planned this automatically from your travel preferences — review the itinerary below, or refine any part of it."
+            : undefined,
+        );
+      }
     } catch {
       setError("Failed to generate trip plan. Please try again.");
       pushAssistantText("Something went wrong searching for that trip. Please try again.");
@@ -791,6 +832,75 @@ export default function Dashboard() {
     setPendingPlanResult(partialPlan);
     setHotelOptions(hotels);
     setShowHotelStep(true);
+  };
+
+  /**
+   * Automatic planning — assemble the whole itinerary instead of asking the
+   * traveler to pick each piece.
+   *
+   * `buildResultsFromPlan` has already ranked flights, hotels and ground
+   * transport against the traveler's saved preferences (cost sensitivity,
+   * preferred airlines and hotel brands, layover tolerance), so the top of each
+   * list *is* the recommended choice. This accepts those picks and produces the
+   * same finished plan the manual flight -> hotel flow would have produced, so
+   * everything downstream (Refine, Rebook, Confirm & Book, expense capture)
+   * behaves identically.
+   */
+  const applyAutoSelection = (result: TripPlan, built: BookingResults): boolean => {
+    const flight = built.flights[0];
+    if (!flight) return false;
+    const hotel = built.hotels[0];
+    const ground = built.ground[0];
+    const nights = built.nights;
+
+    const plan: TripPlan & {
+      _flights?: Flight[];
+      _hotels?: HotelOption[];
+      _ground?: GroundTransportOption[];
+    } = {
+      destination: result.destination,
+      dates: result.dates,
+      startDate: result.startDate,
+      endDate: result.endDate,
+      datesAssumed: result.datesAssumed,
+      datesConfirmed: result.datesConfirmed,
+      needsDateClarification: false,
+      purpose: result.purpose,
+      flight: {
+        airline: flight.airline,
+        departTime: flight.departureTime,
+        returnTime: flight.arrivalTime,
+      },
+      hotel: hotel
+        ? {
+            name: hotel.name,
+            location: hotel.area,
+            pricePerNight: hotel.pricePerNight,
+            totalPrice: hotel.totalPrice,
+            nights,
+          }
+        : { name: "", location: "" },
+      groundTransport: ground
+        ? `${ground.provider} ${ground.rideType} · about $${ground.price}`
+        : `Airport transfer from ${flight.destination}`,
+      estimatedCost: flight.price + (hotel?.totalPrice ?? 0) + (ground?.price ?? 0),
+      confidenceLevel: result.confidenceLevel,
+      originalPrompt: result.originalPrompt,
+      // Carried so Refine and Rebook have the full option lists, exactly as the
+      // manual path provides them.
+      _flights: built.flights,
+      _hotels: built.hotels,
+      _ground: built.ground,
+    };
+
+    // The selected flight carries the route/price used when the trip is booked
+    // and when its expenses are filed.
+    setSelectedFlightFromResults(flight);
+    setPendingPlanResult(null);
+    setShowHotelStep(false);
+    setHotelOptions([]);
+    setPlanResult(plan);
+    return true;
   };
 
   const handleSelectHotelFromStep = (hotel: HotelOption) => {
@@ -1051,6 +1161,33 @@ export default function Dashboard() {
       handleSaveDraft(); // no real offer to pay for — save locally
     }
   };
+
+  // Autonomous mode: once the assembled itinerary is in state, take the traveler
+  // straight to payment with the flight and hotel already chosen — the same
+  // screen the manual flow ends on, minus the picking.
+  //
+  // Deliberately does NOT save the trip and navigate away: that skipped past the
+  // booking entirely. And when only estimated fares came back there is nothing
+  // real to pay for, so the itinerary is left on screen to review rather than
+  // being quietly filed.
+  useEffect(() => {
+    if (!pendingAutoBook || !planResult) return;
+    setPendingAutoBook(false);
+
+    const planFlights = (planResult as TripPlan & { _flights?: Flight[] })._flights;
+    const offer =
+      selectedFlightFromResults && selectedFlightFromResults.id.startsWith("off_")
+        ? selectedFlightFromResults
+        : planFlights?.find((f) => f.id.startsWith("off_"));
+
+    if (offer) {
+      setBookingFlight(offer); // opens the payment modal, pre-filled
+    } else {
+      toast.info("Itinerary ready to review", {
+        description: "Live fares weren't available, so this can't be paid for yet.",
+      });
+    }
+  }, [pendingAutoBook, planResult, selectedFlightFromResults]);
 
   const handleDeleteClick = (trip: { id: string; destination: string }, e: React.MouseEvent) => {
     e.stopPropagation();

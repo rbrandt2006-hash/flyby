@@ -195,11 +195,19 @@ function resolveLocation(locationStr: string): Airport[] {
 // City keyword fallback (expanded). Used only when verb patterns don't match.
 const CITY_KEYWORDS_RE = /\b(new york|nyc|los angeles|chicago|san francisco|sf|london|paris|tokyo|singapore|dubai|sydney|melbourne|hong kong|bangkok|amsterdam|barcelona|rome|berlin|munich|madrid|lisbon|prague|vienna|budapest|miami|vegas|las vegas|seattle|boston|denver|atlanta|dallas|houston|phoenix|orlando|honolulu|maui|cancun|cabo|toronto|vancouver|montreal|austin|nashville|portland|san diego|washington|washington dc|philadelphia|minneapolis|detroit|charlotte|tampa|salt lake city|kansas city|st louis|raleigh|pittsburgh|baltimore|cleveland|cincinnati|indianapolis|columbus|milwaukee|sacramento|new orleans|memphis|jacksonville)\b/i;
 
+/** The segment after the last "to" — "san diego to new york" -> "new york". */
+function lastLeg(text: string): string {
+  const parts = text.split(/\s+to\s+/i);
+  return (parts[parts.length - 1] || text).trim();
+}
+
 function extractDestination(lowered: string, original: string): { airports: Airport[]; raw: string; inferred: boolean } {
   // Pattern A — "X to Y" form. Capture Y as destination. Stops at date tokens / connector words.
   const xToY = lowered.match(/\bto\s+([a-z][a-z\s'.-]*?)(?=\s+(?:from|on|in|for|next|this|around|sometime|near|tomorrow|tonight|by|via|\d|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|mon|tue|wed|thu|fri|sat|sun)\b|[,.!?]|$)/i);
   if (xToY && xToY[1]) {
-    const locationStr = xToY[1].trim().replace(/[.,!?]+$/, "");
+    // "to san diego to new york" captures the whole tail; the destination is
+    // whatever follows the LAST "to", not the first city in the string.
+    const locationStr = lastLeg(xToY[1].trim().replace(/[.,!?]+$/, ""));
     const airports = resolveLocation(locationStr);
     if (airports.length) return { airports, raw: locationStr, inferred: false };
   }
@@ -215,7 +223,7 @@ function extractDestination(lowered: string, original: string): { airports: Airp
   for (const pattern of patterns) {
     const match = original.match(pattern);
     if (match && match[1]) {
-      const locationStr = match[1].trim().replace(/[.,!?]$/, "");
+      const locationStr = lastLeg(match[1].trim().replace(/[.,!?]$/, ""));
       const airports = resolveLocation(locationStr);
       if (airports.length) return { airports, raw: locationStr, inferred: false };
     }
@@ -232,10 +240,13 @@ function extractDestination(lowered: string, original: string): { airports: Airp
   // origin city ("New York to London") isn't mistaken for the destination.
   const toIdx = lowered.search(/\bto\b/);
   const searchText = toIdx >= 0 ? lowered.slice(toIdx + 2) : lowered;
-  const cityMatch = searchText.match(CITY_KEYWORDS_RE);
-  if (cityMatch) {
-    const airports = findAirports(cityMatch[1]);
-    if (airports.length) return { airports, raw: cityMatch[1], inferred: true };
+  // Use the LAST city mentioned: in "to san diego to new york" the final one is
+  // where you're actually going.
+  const citiesAfterTo = citiesInOrder(searchText);
+  const cityName = citiesAfterTo[citiesAfterTo.length - 1];
+  if (cityName) {
+    const airports = findAirports(cityName);
+    if (airports.length) return { airports, raw: cityName, inferred: true };
   }
 
   return { airports: [], raw: "", inferred: false };
@@ -268,7 +279,47 @@ function extractOrigin(lowered: string, original: string): { airports: Airport[]
     }
   }
 
+  // Last resort: two or more known cities mentioned in order, e.g.
+  // "book me a trip to san diego to new york". The patterns above are anchored
+  // or need an explicit "from", so wording like "book me a ..." defeated them
+  // and the origin silently fell back to the default home airport — turning a
+  // San Diego departure into a Seattle one. Reading the cities in the order
+  // they appear recovers the intent: the first is where you leave from.
+  // When an explicit "from" is present the origin follows it ("trip to tokyo
+  // from los angeles"); otherwise the first city mentioned is where you start
+  // ("book me a trip to san diego to new york"). Note "from" is also used for
+  // dates ("from 9/20/26"), so fall back to the first city when nothing
+  // city-like follows it.
+  const fromIdx = lowered.search(/\bfrom\b/);
+  if (fromIdx >= 0) {
+    const afterFrom = citiesInOrder(lowered.slice(fromIdx + 4));
+    if (afterFrom.length) {
+      const airports = resolveLocation(afterFrom[0]);
+      if (airports.length) return { airports, raw: afterFrom[0], inferred: true };
+    }
+  }
+  const orderedCities = citiesInOrder(lowered);
+  if (orderedCities.length >= 2) {
+    const airports = resolveLocation(orderedCities[0]);
+    if (airports.length) return { airports, raw: orderedCities[0], inferred: true };
+  }
+
   return { airports: [], raw: "", inferred: false };
+}
+
+/** Known city names in the order they appear, de-duplicated. */
+function citiesInOrder(lowered: string): string[] {
+  const global = new RegExp(CITY_KEYWORDS_RE.source, "gi");
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const match of lowered.matchAll(global)) {
+    const city = match[1].toLowerCase();
+    if (!seen.has(city)) {
+      seen.add(city);
+      out.push(city);
+    }
+  }
+  return out;
 }
 
 function extractDates(lowered: string, original: string): { departure?: Date; return?: Date; flexible: boolean; raw: string; duration?: number } {

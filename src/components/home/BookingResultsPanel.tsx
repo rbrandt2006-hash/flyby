@@ -28,6 +28,8 @@ interface BookingResultsPanelProps {
   onSelectFlight: (f: Flight) => void;
   onSelectHotel: (h: HotelOption) => void;
   onEditChip: () => void;
+  /** Why live fares are missing, so the banner can say what actually happened. */
+  flightNote?: "past_date" | "no_results" | "unreachable";
   onClose: () => void;
   reasons: { flight?: string; hotel?: string; ground?: string };
 }
@@ -69,6 +71,7 @@ export function BookingResultsPanel({
   onSelectFlight,
   onSelectHotel,
   onEditChip,
+  flightNote,
   onClose,
   reasons,
 }: BookingResultsPanelProps) {
@@ -136,7 +139,11 @@ export function BookingResultsPanel({
         </div>
         {flightsAreEstimates && (
           <div className="px-4 py-2 text-xs text-muted-foreground bg-warning/5 border-b border-border">
-            Couldn't reach live flight search, so these are approximate fares — times and prices may differ, and they can't be booked. Try again when you're back online.
+            {flightNote === "past_date"
+              ? "That departure date has already passed, so live fares can't be searched. Pick a future date to see real, bookable flights — the fares below are estimates."
+              : flightNote === "no_results"
+                ? "No live fares came back for this route on these dates, so the fares below are estimates — they can't be booked. Try nearby dates or a different airport."
+                : "Couldn't reach live flight search, so these are approximate fares — times and prices may differ, and they can't be booked. Try again when you're back online."}
           </div>
         )}
         <CardContent className="p-0 divide-y divide-border">

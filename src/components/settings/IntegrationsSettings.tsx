@@ -14,11 +14,11 @@ import {
 import { cn } from "@/lib/utils";
 import { Check, Loader2, Calendar, Mail, MessageSquare, Users, ShieldCheck, Eye, Clock, Cloud, Briefcase } from "lucide-react";
 import {
-  connectGoogleCalendar,
   disconnectCalendar,
   isCalendarConnected,
   getConnectedEmail,
 } from "@/services/mockCalendarService";
+import { getGoogleStatus, getGoogleAuthUrl } from "@/services/googleCalendar";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import flybyLogo from "@/assets/flybyLogo";
 import { toast } from "sonner";
@@ -91,22 +91,34 @@ export function IntegrationsSettings() {
     return () => clearInterval(id);
   }, [gcalConnected]);
 
-  const handleAllow = useCallback(async () => {
-    setSyncing(true);
-    try {
-      const result = await connectGoogleCalendar(profile?.email);
-      setGcalConnected(true);
-      setGcalEmail(result.email);
-      setOauthOpen(false);
-      toast.success("Google Calendar connected");
-      // Navigate to /trips so the user sees the detected events
-      navigate("/trips");
-    } catch {
-      toast.error("Failed to connect calendar");
-    } finally {
-      setSyncing(false);
+  // Whether Google credentials are configured on the backend. Until they are,
+  // this integration is genuinely unavailable and is shown as "Coming soon"
+  // rather than opening a consent screen that can't lead anywhere.
+  const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
+  useEffect(() => {
+    let active = true;
+    getGoogleStatus().then((st) => { if (active) setGoogleAvailable(st.configured); });
+    return () => { active = false; };
+  }, []);
+
+  const handleConnectGoogle = useCallback(async () => {
+    // Real OAuth — Google's own consent screen. The client secret stays on the
+    // backend and Flyby never handles the traveler's Google password.
+    const { authUrl } = await getGoogleAuthUrl();
+    if (!authUrl) {
+      toast.error("Could not start Google sign-in. Please try again.");
+      return;
     }
-  }, [profile?.email, navigate]);
+    window.location.href = authUrl;
+  }, []);
+
+  // Kept so the older consent dialog still has a handler, but it now hands off
+  // to Google's real consent screen instead of simulating a connection locally.
+  // Flyby should never imitate a provider's sign-in UI.
+  const handleAllow = useCallback(async () => {
+    setOauthOpen(false);
+    await handleConnectGoogle();
+  }, [handleConnectGoogle]);
 
   const handleConfirmDisconnect = useCallback(async () => {
     await disconnectCalendar();
@@ -130,7 +142,11 @@ export function IntegrationsSettings() {
           <div>
             <p className="font-medium">Google Calendar</p>
             <p className="text-sm text-muted-foreground">
-              {gcalConnected ? gcalEmail : "Sync travel events with your calendar"}
+              {gcalConnected
+                ? gcalEmail
+                : googleAvailable === false
+                  ? "Not available yet — we're finishing Google approval."
+                  : "Sync travel events with your calendar"}
             </p>
           </div>
         </div>
@@ -154,12 +170,18 @@ export function IntegrationsSettings() {
                 Disconnect
               </Button>
             </>
+          ) : googleAvailable === false ? (
+            <Badge variant="secondary" className="gap-1">
+              <Clock className="w-3 h-3" />
+              Coming soon
+            </Badge>
           ) : (
             <Button
               variant="outline"
               size="sm"
               className="rounded-xl min-w-[110px]"
-              onClick={() => setOauthOpen(true)}
+              onClick={handleConnectGoogle}
+              disabled={googleAvailable === null}
             >
               Connect
             </Button>

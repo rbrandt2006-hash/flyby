@@ -94,57 +94,22 @@ function relDate(offsetDays: number): string {
 }
 
 function getMockEvents(): CalendarEvent[] {
-  const year = new Date().getFullYear();
-  return [
-    {
-      id: 'evt-001',
-      title: 'Sales Kickoff - NYC Office',
-      location: 'New York, NY',
-      startDate: relDate(6),
-      endDate: relDate(8),
-      description: 'Sales team meeting at headquarters',
-    },
-    {
-      id: 'evt-002',
-      title: 'Client Meeting - Acme Corp',
-      location: 'Chicago, IL',
-      startDate: relDate(20),
-      endDate: relDate(21),
-      description: 'Contract renewal discussion',
-    },
-    {
-      id: 'evt-003',
-      title: `Tech Conference ${year}`,
-      location: 'San Francisco, CA',
-      startDate: relDate(45),
-      endDate: relDate(47),
-      description: 'Annual technology conference and networking event',
-    },
-    {
-      id: 'evt-004',
-      title: 'Partner Summit',
-      location: 'Austin, TX',
-      startDate: relDate(75),
-      endDate: relDate(77),
-      description: 'Strategic partner alignment meeting',
-    },
-  ];
+  // No fabricated meetings. Events come from the traveler's real Google
+  // Calendar once it's connected; inventing them here produced phantom
+  // "detected trips" that had no basis in anyone's actual schedule.
+  return [];
 }
 
 
-export async function connectGoogleCalendar(email?: string): Promise<{ success: boolean; email: string }> {
-  // Simulate OAuth flow delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
-
-  const finalEmail = email || 'user@company.com';
-  MOCK_CREDENTIALS.connected = true;
-  MOCK_CREDENTIALS.email = finalEmail;
-  MOCK_CREDENTIALS.accessToken = 'mock_access_token_xyz123';
-
-  // Persist the connection
-  persistState(true, finalEmail);
-
-  return { success: true, email: finalEmail };
+export async function connectGoogleCalendar(_email?: string): Promise<{ success: boolean; email: string }> {
+  // Calendar sync is not available yet. It used to simulate a successful
+  // connection and hand back a fake token, which made the rest of the app
+  // behave as though a real calendar was attached. Refuse instead, so the UI
+  // can show "Coming soon" truthfully.
+  //
+  // Once GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are configured, the real flow
+  // lives in services/googleCalendar.ts (OAuth via the backend).
+  throw new Error("Google Calendar sync isn't available yet.");
 }
 
 export async function disconnectCalendar(): Promise<void> {

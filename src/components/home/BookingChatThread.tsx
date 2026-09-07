@@ -18,6 +18,14 @@ export interface BookingResults {
   ground: GroundTransportOption[];
   reasons: { flight?: string; hotel?: string; ground?: string };
   nights: number;
+  /**
+   * Why live fares are missing, when they are. Lets the UI say what actually
+   * happened instead of always blaming the network:
+   *   "past_date"   — the departure date has already passed
+   *   "no_results"  — the route/date genuinely has no flights
+   *   "unreachable" — we couldn't reach the flight provider
+   */
+  flightNote?: "past_date" | "no_results" | "unreachable";
 }
 
 export type ChatMsg =
@@ -176,6 +184,7 @@ export function BookingChatThread({
                     chips={m.results.chips}
                     flights={m.results.flights}
                     hotels={m.results.hotels}
+                    flightNote={m.results.flightNote}
                     ground={m.results.ground}
                     reasons={m.results.reasons}
                     onSelectFlight={onSelectFlight}

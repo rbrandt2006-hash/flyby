@@ -73,10 +73,30 @@ function mapToFlight(o: DuffelOffer): Flight {
   };
 }
 
-/** Search real flights; returns null to signal "fall back to the generator". */
-export async function searchRealFlights(params: SearchFlightParams): Promise<Flight[] | null> {
-  if (!backend.getCurrentSession()) return null;
-  if (!params.origin || !params.destination || !params.departureDate) return null;
+/** Why a live flight search produced nothing, so the UI can say what happened. */
+export type FlightSearchFailure = "no_results" | "unreachable";
+
+export interface FlightSearchOutcome {
+  /** Live flights, or null when none could be returned. */
+  flights: Flight[] | null;
+  /** Set only when `flights` is null. */
+  reason?: FlightSearchFailure;
+}
+
+/**
+ * Search real flights and report WHY when nothing comes back.
+ *
+ * "no_results" means the provider answered but has no flights for this route or
+ * date; "unreachable" means we couldn't get an answer at all. Conflating the two
+ * made a genuinely empty route look like a network outage.
+ */
+export async function searchRealFlightsDetailed(
+  params: SearchFlightParams,
+): Promise<FlightSearchOutcome> {
+  if (!backend.getCurrentSession()) return { flights: null, reason: "unreachable" };
+  if (!params.origin || !params.destination || !params.departureDate) {
+    return { flights: null, reason: "unreachable" };
+  }
 
   try {
     const response = await authedFetch("/api/duffel/search", {
@@ -84,16 +104,25 @@ export async function searchRealFlights(params: SearchFlightParams): Promise<Fli
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
     });
-    if (!response.ok) return null;
+    if (!response.ok) return { flights: null, reason: "unreachable" };
 
     const body = await response.json();
-    if (body?.source !== "duffel" || !Array.isArray(body.offers) || body.offers.length === 0) {
-      return null;
+    // The backend reports source "unavailable" when it couldn't reach the
+    // provider, and "duffel" with an empty list when the route/date is simply
+    // empty — two different things worth telling the traveler apart.
+    if (body?.source !== "duffel") return { flights: null, reason: "unreachable" };
+    if (!Array.isArray(body.offers) || body.offers.length === 0) {
+      return { flights: null, reason: "no_results" };
     }
-    return (body.offers as DuffelOffer[]).map(mapToFlight);
+    return { flights: (body.offers as DuffelOffer[]).map(mapToFlight) };
   } catch {
-    return null;
+    return { flights: null, reason: "unreachable" };
   }
+}
+
+/** Search real flights; returns null to signal "fall back to the generator". */
+export async function searchRealFlights(params: SearchFlightParams): Promise<Flight[] | null> {
+  return (await searchRealFlightsDetailed(params)).flights;
 }
 
 /** Re-fetch a single offer to confirm its live price + traveler count before booking. */
