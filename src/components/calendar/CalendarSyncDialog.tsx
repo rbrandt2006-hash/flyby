@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Check, Loader2, Mail } from 'lucide-react';
 import { disconnectCalendar, isCalendarConnected, getConnectedEmail } from '@/services/mockCalendarService';
 import { getGoogleStatus, getGoogleAuthUrl } from '@/services/googleCalendar';
+import { getOutlookStatus, getOutlookAuthUrl, isOutlookConnected, getOutlookEmail, clearOutlookTokens } from '@/services/outlookCalendar';
 import { toast } from 'sonner';
 
 interface CalendarSyncDialogProps {
@@ -20,6 +21,8 @@ export function CalendarSyncDialog({ open, onOpenChange, onConnected }: Calendar
   // successful connection, which made the whole app act as though a real
   // calendar was attached.
   const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
+  const [outlookAvailable, setOutlookAvailable] = useState<boolean | null>(null);
+  const [outlookConnected, setOutlookConnected] = useState<boolean>(isOutlookConnected());
   const connected = isCalendarConnected();
   const email = getConnectedEmail();
 
@@ -27,6 +30,8 @@ export function CalendarSyncDialog({ open, onOpenChange, onConnected }: Calendar
     if (!open) return;
     let active = true;
     getGoogleStatus().then((s) => { if (active) setGoogleAvailable(s.configured); });
+    getOutlookStatus().then((s) => { if (active) setOutlookAvailable(s.configured); });
+    setOutlookConnected(isOutlookConnected());
     return () => { active = false; };
   }, [open]);
 
@@ -64,8 +69,25 @@ export function CalendarSyncDialog({ open, onOpenChange, onConnected }: Calendar
     }
   };
 
-  const handleOutlookConnect = () => {
-    toast.info('Microsoft Outlook integration coming soon!');
+  const handleOutlookConnect = async () => {
+    if (!outlookAvailable) {
+      toast.info('Outlook sync is coming soon.');
+      return;
+    }
+    // Real OAuth — Microsoft's own sign-in. The client secret stays on the
+    // backend and Flyby never handles the traveler's Microsoft password.
+    const { authUrl } = await getOutlookAuthUrl();
+    if (!authUrl) {
+      toast.error('Could not start Microsoft sign-in. Please try again.');
+      return;
+    }
+    window.location.href = authUrl;
+  };
+
+  const handleOutlookDisconnect = () => {
+    clearOutlookTokens();
+    setOutlookConnected(false);
+    toast.success('Outlook disconnected');
   };
 
   return (
@@ -149,7 +171,7 @@ export function CalendarSyncDialog({ open, onOpenChange, onConnected }: Calendar
 
           <Button
             variant="outline"
-            className="w-full justify-start h-auto py-4 px-4 opacity-60"
+            className={`w-full justify-start h-auto py-4 px-4 ${outlookAvailable === false ? "opacity-60" : ""}`}
             onClick={handleOutlookConnect}
           >
             <div className="flex items-center gap-3">
@@ -161,11 +183,31 @@ export function CalendarSyncDialog({ open, onOpenChange, onConnected }: Calendar
                 </svg>
               </div>
               <div className="text-left">
-                <p className="font-medium">Connect Microsoft Outlook</p>
-                <p className="text-xs text-muted-foreground">Coming soon</p>
+                <p className="font-medium">
+                  {outlookConnected ? 'Microsoft Outlook connected' : 'Connect Microsoft Outlook'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {outlookConnected
+                    ? (getOutlookEmail() ?? 'Signed in')
+                    : outlookAvailable === false
+                      ? 'Not available yet'
+                      : 'Sync meetings from your Outlook calendar'}
+                </p>
               </div>
             </div>
-            <span className="ml-auto text-xs bg-muted px-2 py-1 rounded">Soon</span>
+            {outlookConnected ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); handleOutlookDisconnect(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleOutlookDisconnect(); } }}
+                className="ml-auto text-xs text-destructive hover:underline"
+              >
+                Disconnect
+              </span>
+            ) : outlookAvailable === false ? (
+              <span className="ml-auto text-xs bg-muted px-2 py-1 rounded">Soon</span>
+            ) : null}
           </Button>
         </div>
       </DialogContent>

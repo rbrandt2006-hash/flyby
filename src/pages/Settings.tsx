@@ -29,6 +29,8 @@ import { ProductTourModal } from "@/components/settings/ProductTourModal";
 import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
 import { LoyaltySection } from "@/components/settings/LoyaltySection";
 import { useBookingMode, type BookingMode } from "@/hooks/useAutoPlan";
+import { completeOutlookConnect } from "@/services/outlookCalendar";
+import { completeGoogleConnect } from "@/services/googleCalendar";
 import { PolicySection } from "@/components/settings/PolicySection";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import {
@@ -217,6 +219,46 @@ export default function Settings() {
     updateCostSensitivity,
   } = useTravelPreferences();
   const { mode: bookingMode, setMode: setBookingMode } = useBookingMode();
+
+  // Finish a calendar connection. The provider redirects to the backend, which
+  // hands the one-time code back here; we exchange it using the signed-in
+  // session, then strip it from the URL so a refresh can't replay it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const outlookCode = params.get("outlook_code");
+    const googleCode = params.get("google_code");
+    const failed = params.get("outlook_error") || params.get("google_error");
+
+    const clean = () => {
+      const url = new URL(window.location.href);
+      ["outlook_code", "google_code", "outlook_error", "google_error"].forEach((k) =>
+        url.searchParams.delete(k),
+      );
+      window.history.replaceState({}, "", url.toString());
+    };
+
+    if (failed) {
+      toast.error("Calendar connection was cancelled or denied.");
+      clean();
+      return;
+    }
+    if (outlookCode) {
+      completeOutlookConnect(outlookCode).then(({ ok, email }) => {
+        toast[ok ? "success" : "error"](
+          ok ? `Outlook connected${email ? ` — ${email}` : ""}` : "Couldn't finish connecting Outlook.",
+        );
+        clean();
+      });
+    } else if (googleCode) {
+      completeGoogleConnect(googleCode).then(({ ok, email }) => {
+        toast[ok ? "success" : "error"](
+          ok ? `Google Calendar connected${email ? ` — ${email}` : ""}` : "Couldn't finish connecting Google Calendar.",
+        );
+        clean();
+      });
+    }
+  }, []);
+
 
   // Notification settings
   const {

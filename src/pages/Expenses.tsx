@@ -24,6 +24,8 @@ import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
+import { syncCardExpenses, getStoredLink, type TripWindow } from "@/services/plaidCards";
+import { useTrips } from "@/hooks/useTrips";
 import { toast } from "sonner";
 import { 
   Plane, Building2, Utensils, Car, CreditCard, Receipt, AlertCircle,
@@ -77,6 +79,41 @@ export default function Expenses() {
   } = useExpenses();
   const { getOrCreateExpenseChat, sendMessage, sendExpenseSystemMessage, postExpenseUpdate, supervisorMap, findChatByExpenseId } = useChats();
   
+  // Pull charges from the linked card and file them as expenses, each matched to
+  // the trip that was running when it happened. Plaid's cursor means repeat
+  // calls only return new activity, so this can't import the same charge twice.
+  const { trips: allTrips } = useTrips();
+  const importCardExpenses = useCallback(async () => {
+    if (!getStoredLink()?.accessToken) return;
+    const windows: TripWindow[] = allTrips
+      .filter((t) => t.status !== "cancelled" && t.status !== "archived")
+      .map((t) => ({ id: t.id, name: t.destination, start: t.startDate, end: t.endDate }));
+    const captured = await syncCardExpenses(windows);
+    if (captured.length === 0) return;
+    captured.forEach((c) => {
+      addExpense({
+        merchant: c.merchant,
+        description: c.description,
+        date: c.date,
+        amount: c.amount,
+        category: (c.category as Expense["category"]) ?? "office",
+        status: "pending",
+        location: c.location,
+        paymentMethod: c.paymentMethod,
+        reimbursable: c.reimbursable,
+        tripId: c.tripId ?? undefined,
+        tripName: c.tripName ?? undefined,
+        currency: c.currency,
+      });
+    });
+    toast.success(`Imported ${captured.length} card charge${captured.length > 1 ? "s" : ""}`, {
+      description: "Matched to the trips they happened on.",
+    });
+  }, [allTrips, addExpense]);
+
+  // Catch up on anything charged since the last visit.
+  useEffect(() => { importCardExpenses(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isCardConnected, setIsCardConnected] = useState(false);
@@ -601,7 +638,7 @@ export default function Expenses() {
       />
 
       {/* Modals */}
-      <ConnectCardModal open={isCardModalOpen} onOpenChange={setIsCardModalOpen} onSuccess={() => setIsCardConnected(true)} />
+      <ConnectCardModal open={isCardModalOpen} onOpenChange={setIsCardModalOpen} onSuccess={() => { setIsCardConnected(true); importCardExpenses(); }} />
       <AddExpenseModal open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen} onSave={handleAddExpense} />
       {selectedExpense && (
         <>

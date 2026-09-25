@@ -16,6 +16,9 @@ import { TripCard, type Trip } from "@/components/trips/TripCard";
 import { TripEditDrawer } from "@/components/trips/TripEditDrawer";
 import { TripConfirmationModal } from "@/components/trips/TripConfirmationModal";
 import { RebookTripModal } from "@/components/trips/RebookTripModal";
+import { TripAgentPanel } from "@/components/trips/TripAgentPanel";
+import { useTripAgent } from "@/hooks/useTripAgent";
+import { useExpenses } from "@/hooks/useExpenses";
 import { UndoConfirmationToast, useUndoConfirmation } from "@/components/trips/UndoConfirmationToast";
 import { ManagerApprovalPanel } from "@/components/trips/ManagerApprovalPanel";
 import { toast } from "sonner";
@@ -63,6 +66,11 @@ export default function Trips() {
     unarchiveTrip: unarchiveLocalTrip,
     rebookTrip
   } = useTrips();
+
+  // The calendar-watching agent. It only reports; acting on a finding reuses the
+  // exact same booking and rebooking flows a person would use by hand.
+  const { expenses: agentExpenses } = useExpenses();
+  const agent = useTripAgent(localTrips, agentExpenses);
 
   // Rebooking an already-planned trip: reuses the trip's own route + dates.
   const [rebookOpen, setRebookOpen] = useState(false);
@@ -951,6 +959,19 @@ export default function Trips() {
         />
 
       )}
+
+      {/* What the calendar agent noticed — hidden entirely when all is in order */}
+      <TripAgentPanel
+        agent={agent}
+        trips={visibleLocalTrips}
+        onBookMeeting={(query) => {
+          // Reuse the normal planning flow rather than a second booking path.
+          try { sessionStorage.setItem("flyby_prefill_query", query); } catch { /* ignore */ }
+          navigate("/");
+        }}
+        onRebookTrip={(trip) => handleRebookClick(trip)}
+        onOpenExpenses={() => navigate("/expenses")}
+      />
 
       {/* Confirmed/Upcoming Trips Section - excludes cancelled and archived */}
       {(upcomingBackendTrips.length > 0 || confirmedTrips.length > 0) && (
