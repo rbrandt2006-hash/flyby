@@ -7,10 +7,12 @@
  */
 
 import {
-  fetchOutlookEvents, isOutlookConnected, getOutlookEmail,
+  fetchOutlookEvents, isOutlookConnected, getOutlookEmail, getOutlookSyncError,
   type OutlookCalendarEvent,
 } from "@/services/outlookCalendar";
-import { fetchGoogleEvents, getStoredGoogleTokens } from "@/services/googleCalendar";
+import { fetchGoogleEvents, getStoredGoogleTokens, clearGoogleTokens } from "@/services/googleCalendar";
+import { clearOutlookTokens } from "@/services/outlookCalendar";
+import { disconnectCalendar as clearLegacyCalendarState } from "@/services/mockCalendarService";
 
 export type CalendarProvider = "outlook" | "google" | null;
 
@@ -27,11 +29,58 @@ export interface UnifiedCalendarEvent {
   cancelled?: boolean;
 }
 
-/** Which calendar the traveler has connected, if any. */
+/**
+ * Which calendar the traveler has connected, if any.
+ *
+ * Exactly one at a time — see `connectCalendar`. Outlook is checked first only
+ * to break a tie left over from an older build that could store both; the slot
+ * is exclusive from here on.
+ */
 export function connectedProvider(): CalendarProvider {
   if (isOutlookConnected()) return "outlook";
   if (getStoredGoogleTokens()?.accessToken) return "google";
   return null;
+}
+
+/**
+ * Claim the calendar slot for `provider`, releasing whatever held it.
+ *
+ * Call this immediately before sending the traveler to a provider's consent
+ * screen. Flyby syncs one calendar, not two: two calendars means the same
+ * meeting arrives twice under different ids, which reads as two trips to book
+ * and two itineraries to keep in step. Holding tokens for both also left the
+ * UI contradicting itself — Outlook connected, yet still asking for Google.
+ */
+export function connectCalendar(provider: Exclude<CalendarProvider, null>) {
+  if (provider === "outlook") clearGoogleTokens();
+  if (provider === "google") clearOutlookTokens();
+  // The pre-OAuth build tracked a Google connection separately; clear it too so
+  // it can't keep claiming a slot that now belongs to the other provider.
+  void clearLegacyCalendarState();
+}
+
+/**
+ * One-time cleanup for anyone who connected both before the slot was exclusive.
+ *
+ * Outlook wins the tie, matching connectedProvider(). Without this an existing
+ * install keeps both tokens until the traveler happens to reconnect, and the UI
+ * keeps contradicting itself in the meantime.
+ */
+(function releaseStaleSecondCalendar() {
+  try {
+    if (isOutlookConnected() && getStoredGoogleTokens()?.accessToken) {
+      clearGoogleTokens();
+    }
+  } catch {
+    /* storage unavailable — nothing stored, so nothing to reconcile */
+  }
+})();
+
+/** Release the calendar slot entirely, whichever provider held it. */
+export function disconnectCalendar() {
+  clearGoogleTokens();
+  clearOutlookTokens();
+  void clearLegacyCalendarState();
 }
 
 export function isCalendarLinked(): boolean {
@@ -73,6 +122,14 @@ export async function fetchUpcomingEvents(): Promise<UnifiedCalendarEvent[]> {
     }));
   }
   return [];
+}
+
+/**
+ * Why the last calendar read failed, if it did — so an empty calendar can be
+ * explained rather than silently looking like "no meetings".
+ */
+export function calendarSyncError(): string | null {
+  return connectedProvider() === "outlook" ? getOutlookSyncError() : null;
 }
 
 function normalizeOutlook(e: OutlookCalendarEvent): UnifiedCalendarEvent {

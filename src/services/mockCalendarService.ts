@@ -73,15 +73,25 @@ function saveCreatedEvents(events: Record<string, CalendarEvent>): void {
   }
 }
 
-// Initialize from persisted state
+// Initialize from persisted state.
+//
+// A persisted "connected" flag can only have come from the pre-OAuth build that
+// simulated a connection, because connectGoogleCalendar now refuses. Honouring
+// it would leave a third source of truth for "is a calendar connected" — on top
+// of the real Google and Outlook token stores — which is what let the app show
+// Outlook as connected while still prompting for Google. Drop it on load; the
+// real connection state lives in services/calendarSync.ts.
 const initialState = loadPersistedState();
+if (initialState.connected) {
+  persistState(false, null);
+}
 
 // Fake credentials (would be real OAuth tokens in production)
 export const MOCK_CREDENTIALS = {
   provider: 'google',
-  connected: initialState.connected,
-  email: initialState.email,
-  accessToken: initialState.connected ? 'mock_access_token_xyz123' : null,
+  connected: false,
+  email: null as string | null,
+  accessToken: null as string | null,
 };
 
 // Sample calendar events that suggest travel — dates generated relative to today

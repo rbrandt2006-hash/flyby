@@ -57,15 +57,23 @@ export function clearGoogleTokens() {
   }
 }
 
-/** Whether Google Calendar sync is available yet (i.e. credentials are set). */
-export async function getGoogleStatus(): Promise<{ configured: boolean }> {
-  if (!backend.getCurrentSession()) return { configured: false };
+/**
+ * Whether Google Calendar sync is available yet (i.e. credentials are set).
+ *
+ * `reachable` is false when we never got an answer — the backend is down, or
+ * nobody is signed in. That is a different thing from "Google isn't set up
+ * yet", and callers must not report it as "coming soon": a server that is
+ * merely offline would otherwise look like a feature that was never built.
+ */
+export async function getGoogleStatus(): Promise<{ configured: boolean; reachable: boolean }> {
+  if (!backend.getCurrentSession()) return { configured: false, reachable: false };
   try {
     const response = await authedFetch("/api/google/status");
-    if (!response.ok) return { configured: false };
-    return await response.json();
+    if (!response.ok) return { configured: false, reachable: false };
+    const body = await response.json();
+    return { configured: Boolean(body?.configured), reachable: true };
   } catch {
-    return { configured: false };
+    return { configured: false, reachable: false };
   }
 }
 

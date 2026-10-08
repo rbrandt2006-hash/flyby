@@ -931,6 +931,8 @@ export default function Trips() {
         open={calendarViewOpen}
         onClose={() => setCalendarViewOpen(false)}
         trips={allCalendarTrips}
+        calendarEvents={agent.events}
+        calendarProvider={agent.provider}
         onConfirmTrip={(tripId) => {
           const trip = localTrips.find(t => t.id === tripId);
           confirmLocalTrip(tripId, approvalDecisionFor(trip));

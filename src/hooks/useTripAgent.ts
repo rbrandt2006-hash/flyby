@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  connectedAccount, connectedProvider, fetchUpcomingEvents, impliesTravel,
+  calendarSyncError, connectedAccount, connectedProvider, fetchUpcomingEvents, impliesTravel,
   type CalendarProvider, type UnifiedCalendarEvent,
 } from "@/services/calendarSync";
 import {
@@ -43,6 +43,10 @@ export interface TripAgentState {
   connected: boolean;
   checking: boolean;
   lastCheckedAt: string | null;
+  /** Every upcoming meeting on the connected calendar, travel or not. */
+  events: UnifiedCalendarEvent[];
+  /** Set when the last calendar read failed, so empty never means "looked, found nothing". */
+  syncError: string | null;
   /** Meetings that look like travel but have no trip yet. */
   unbooked: UnbookedMeeting[];
   /** Booked trips that no longer match the calendar. */
@@ -60,6 +64,7 @@ export function useTripAgent(trips: AgentTrip[], expenses: AgentExpense[]): Trip
   const [checking, setChecking] = useState(false);
   const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
   const [events, setEvents] = useState<UnifiedCalendarEvent[]>([]);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   // Kept in refs so the polling loop always sees current data without being
   // torn down and recreated every time a trip or expense changes.
@@ -78,6 +83,7 @@ export function useTripAgent(trips: AgentTrip[], expenses: AgentExpense[]): Trip
     setChecking(true);
     try {
       setEvents(await fetchUpcomingEvents());
+      setSyncError(calendarSyncError());
       setLastCheckedAt(new Date().toISOString());
     } finally {
       setChecking(false);
@@ -125,6 +131,8 @@ export function useTripAgent(trips: AgentTrip[], expenses: AgentExpense[]): Trip
     connected,
     checking,
     lastCheckedAt,
+    events: connected ? events : [],
+    syncError: connected ? syncError : null,
     unbooked,
     drifts,
     reportsDue,

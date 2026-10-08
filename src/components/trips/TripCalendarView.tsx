@@ -16,7 +16,9 @@ import {
   Share2,
   Plane,
   Building2,
-  MapPin
+  MapPin,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
@@ -38,6 +40,7 @@ import {
 } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import type { LocalTrip } from "@/hooks/useTrips";
+import type { CalendarProvider, UnifiedCalendarEvent } from "@/services/calendarSync";
 import { CalendarTripPreview } from "./CalendarTripPreview";
 import { TripConflictPanel } from "./TripConflictPanel";
 import { CalendarExportModal } from "./CalendarExportModal";
@@ -50,6 +53,15 @@ interface TripCalendarViewProps {
   onClose: () => void;
   trips: LocalTrip[];
   onConfirmTrip?: (tripId: string) => void;
+  /**
+   * Meetings from the traveler's connected Outlook or Google calendar.
+   *
+   * Shown alongside trips so the calendar answers the question people actually
+   * have — "does this trip clash with anything I've already committed to?" —
+   * instead of only showing what Flyby itself booked.
+   */
+  calendarEvents?: UnifiedCalendarEvent[];
+  calendarProvider?: CalendarProvider;
 }
 
 interface TripConflict {
@@ -59,7 +71,9 @@ interface TripConflict {
   overlapEnd: Date;
 }
 
-export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCalendarViewProps) {
+export function TripCalendarView({
+  open, onClose, trips, onConfirmTrip, calendarEvents = [], calendarProvider = null,
+}: TripCalendarViewProps) {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(() => {
@@ -77,6 +91,15 @@ export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCa
   const [showConflictPanel, setShowConflictPanel] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showMeetings, setShowMeetings] = useState(true);
+
+  // Cancelled meetings are dropped — they aren't commitments any more, and
+  // leaving them on the grid would make the month look busier than it is.
+  const meetings = useMemo(
+    () => calendarEvents.filter((e) => !e.cancelled && e.startDate),
+    [calendarEvents],
+  );
+  const providerLabel = calendarProvider === "outlook" ? "Outlook" : "Google Calendar";
 
   // All trips shown on calendar - drafts shown as tentative
   const calendarTrips = useMemo(() => {
@@ -201,6 +224,20 @@ export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCa
     return dayTrips;
   }, [calendarTrips, tentativeTripIds]);
 
+  // Meetings touching a given day. A multi-day meeting shows on each of its
+  // days, the same way a trip does.
+  const getMeetingsForDay = useCallback((day: Date) => {
+    if (!showMeetings) return [] as UnifiedCalendarEvent[];
+    return meetings.filter((event) => {
+      const start = parseISO(event.startDate);
+      const end = parseISO(event.endDate || event.startDate);
+      if (Number.isNaN(start.getTime())) return false;
+      const safeEnd = Number.isNaN(end.getTime()) ? start : end;
+      return isSameDay(day, start) || isSameDay(day, safeEnd)
+        || isWithinInterval(day, { start, end: safeEnd });
+    });
+  }, [meetings, showMeetings]);
+
   // Handle trip click
   const handleTripClick = (trip: LocalTrip, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -256,12 +293,28 @@ export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCa
               <p className="text-sm text-muted-foreground">
                 {calendarTrips.length} trip{calendarTrips.length !== 1 ? 's' : ''}
                 {tentativeTripIds.size > 0 && ` · ${tentativeTripIds.size} tentative`}
+                {meetings.length > 0 && ` · ${meetings.length} meeting${meetings.length !== 1 ? 's' : ''} from ${providerLabel}`}
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Show or hide the connected calendar's meetings */}
+          {meetings.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowMeetings((v) => !v)}
+              title={`${showMeetings ? "Hide" : "Show"} meetings from ${providerLabel}`}
+            >
+              {showMeetings
+                ? <Eye className="w-4 h-4 mr-2" />
+                : <EyeOff className="w-4 h-4 mr-2" />}
+              {providerLabel}
+            </Button>
+          )}
+
           {/* Conflict alert */}
           {conflicts.length > 0 && (
             <Button
@@ -441,7 +494,56 @@ export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCa
                 </div>
               );
             })}
-            {calendarTrips.length === 0 && (
+
+            {/* Meetings from the connected calendar, on their own quieter rows */}
+            {showMeetings && meetings.map((event) => {
+              const monthStart = startOfMonth(currentDate);
+              const totalDays = calendarDays.length;
+              const eventStart = parseISO(event.startDate);
+              const eventEnd = parseISO(event.endDate || event.startDate);
+              if (Number.isNaN(eventStart.getTime())) return null;
+              const safeEnd = Number.isNaN(eventEnd.getTime()) ? eventStart : eventEnd;
+
+              const startCol = differenceInDays(eventStart, monthStart);
+              const endCol = Math.min(totalDays - 1, differenceInDays(safeEnd, monthStart));
+              if (endCol < 0 || startCol >= totalDays) return null;
+
+              const clampedStart = Math.max(0, startCol);
+              const span = Math.max(1, endCol - clampedStart + 1);
+
+              return (
+                <div key={`meeting-row-${event.id}`} className="flex items-center h-10">
+                  <div className="w-44 shrink-0 pr-3 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
+                      <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm text-muted-foreground truncate">{event.title}</p>
+                      <p className="text-[10px] text-muted-foreground/70 truncate">
+                        {event.location || providerLabel}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex-1 grid relative h-full" style={{ gridTemplateColumns: `repeat(${totalDays}, minmax(0, 1fr))` }}>
+                    {calendarDays.map((day) => (
+                      <div key={day.toISOString()} className="border-l border-border/10 h-full" />
+                    ))}
+                    <div
+                      title={event.location || undefined}
+                      className="absolute top-2 bottom-2 rounded-lg flex items-center px-3 text-[11px] border border-dashed border-border/60 bg-muted/30 text-muted-foreground"
+                      style={{
+                        left: `${(clampedStart / totalDays) * 100}%`,
+                        width: `${(span / totalDays) * 100}%`,
+                      }}
+                    >
+                      <span className="truncate">{event.title}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {calendarTrips.length === 0 && meetings.length === 0 && (
               <div className="text-center py-16 text-muted-foreground">
                 <CalendarIcon className="w-8 h-8 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No trips this month</p>
@@ -467,6 +569,7 @@ export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCa
           {/* Calendar days */}
           {calendarDays.map((day) => {
             const dayTrips = getTripsForDay(day);
+            const dayMeetings = getMeetingsForDay(day);
             const isToday = isSameDay(day, new Date());
             const isCurrentMonth = viewMode === "month" ? isSameMonth(day, currentDate) : true;
 
@@ -539,6 +642,27 @@ export function TripCalendarView({ open, onClose, trips, onConfirmTrip }: TripCa
                   {dayTrips.length > (viewMode === "month" ? 3 : 6) && (
                     <div className="text-[10px] text-muted-foreground px-2 font-medium">
                       +{dayTrips.length - (viewMode === "month" ? 3 : 6)} more
+                    </div>
+                  )}
+
+                  {/* Meetings from the connected calendar. Deliberately quieter
+                      than trips — they are context for planning, not something
+                      Flyby booked. */}
+                  {dayMeetings.slice(0, viewMode === "month" ? 2 : 5).map((event) => (
+                    <div
+                      key={`meeting-${event.id}`}
+                      title={`${event.title}${event.location ? ` — ${event.location}` : ""}`}
+                      className="w-full text-left px-2 py-1 rounded-lg text-[11px] truncate border border-dashed border-border/60 bg-muted/30 text-muted-foreground"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <CalendarDays className="w-3 h-3 shrink-0 opacity-70" />
+                        <span className="truncate">{event.title}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {dayMeetings.length > (viewMode === "month" ? 2 : 5) && (
+                    <div className="text-[10px] text-muted-foreground/70 px-2">
+                      +{dayMeetings.length - (viewMode === "month" ? 2 : 5)} more meetings
                     </div>
                   )}
                 </div>

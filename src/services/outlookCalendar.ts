@@ -26,6 +26,20 @@ export interface OutlookCalendarEvent {
 
 const TOKEN_KEY = "flyby.outlookCalendar.v1";
 
+/**
+ * Why the last calendar read failed, if it did.
+ *
+ * Reading the calendar is a background job, so a failure has no request to
+ * attach itself to. Without this the traveler just sees an empty calendar and
+ * assumes Flyby looked and found nothing — which is a very different thing
+ * from Flyby never managing to look.
+ */
+let lastError: string | null = null;
+
+export function getOutlookSyncError(): string | null {
+  return lastError;
+}
+
 interface StoredTokens {
   accessToken: string;
   refreshToken?: string;
@@ -67,15 +81,20 @@ export function getOutlookEmail(): string | null {
   return getStoredOutlookTokens()?.email ?? null;
 }
 
-/** Whether Outlook sync is available (i.e. credentials are configured). */
-export async function getOutlookStatus(): Promise<{ configured: boolean }> {
-  if (!backend.getCurrentSession()) return { configured: false };
+/**
+ * Whether Outlook sync is available (i.e. credentials are configured).
+ *
+ * `reachable` is false when we never got an answer — see getGoogleStatus.
+ */
+export async function getOutlookStatus(): Promise<{ configured: boolean; reachable: boolean }> {
+  if (!backend.getCurrentSession()) return { configured: false, reachable: false };
   try {
     const response = await authedFetch("/api/outlook/status");
-    if (!response.ok) return { configured: false };
-    return await response.json();
+    if (!response.ok) return { configured: false, reachable: false };
+    const body = await response.json();
+    return { configured: Boolean(body?.configured), reachable: true };
   } catch {
-    return { configured: false };
+    return { configured: false, reachable: false };
   }
 }
 
@@ -134,7 +153,10 @@ export async function fetchOutlookEvents(): Promise<OutlookCalendarEvent[]> {
         timeMin: new Date().toISOString(),
       }),
     });
-    if (!response.ok) return [];
+    if (!response.ok) {
+      lastError = "request_failed";
+      return [];
+    }
     const body = await response.json();
     // The backend renews an expired access token transparently; keep the new one.
     if (body?.accessToken && body.accessToken !== tokens.accessToken) {
@@ -144,8 +166,13 @@ export async function fetchOutlookEvents(): Promise<OutlookCalendarEvent[]> {
         refreshToken: body.refreshToken || tokens.refreshToken,
       });
     }
+    lastError = body?.error ? String(body.error) : null;
+    if (lastError) {
+      console.warn("[flyby] Outlook calendar read failed:", lastError);
+    }
     return Array.isArray(body?.events) ? (body.events as OutlookCalendarEvent[]) : [];
   } catch {
+    lastError = "network_error";
     return [];
   }
 }

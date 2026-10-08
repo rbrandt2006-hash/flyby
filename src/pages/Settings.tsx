@@ -31,6 +31,7 @@ import { LoyaltySection } from "@/components/settings/LoyaltySection";
 import { useBookingMode, type BookingMode } from "@/hooks/useAutoPlan";
 import { completeOutlookConnect } from "@/services/outlookCalendar";
 import { completeGoogleConnect } from "@/services/googleCalendar";
+import { connectCalendar } from "@/services/calendarSync";
 import { PolicySection } from "@/components/settings/PolicySection";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import {
@@ -243,6 +244,9 @@ export default function Settings() {
       return;
     }
     if (outlookCode) {
+      // Claim the slot first: one calendar at a time, so a successful Outlook
+      // connect releases Google rather than leaving both stored.
+      connectCalendar("outlook");
       completeOutlookConnect(outlookCode).then(({ ok, email }) => {
         toast[ok ? "success" : "error"](
           ok ? `Outlook connected${email ? ` — ${email}` : ""}` : "Couldn't finish connecting Outlook.",
@@ -250,6 +254,7 @@ export default function Settings() {
         clean();
       });
     } else if (googleCode) {
+      connectCalendar("google");
       completeGoogleConnect(googleCode).then(({ ok, email }) => {
         toast[ok ? "success" : "error"](
           ok ? `Google Calendar connected${email ? ` — ${email}` : ""}` : "Couldn't finish connecting Google Calendar.",

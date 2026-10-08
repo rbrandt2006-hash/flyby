@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,18 +11,25 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Check, Loader2, Calendar, Mail, MessageSquare, Users, ShieldCheck, Eye, Clock, Cloud, Briefcase } from "lucide-react";
-import {
-  disconnectCalendar,
-  isCalendarConnected,
-  getConnectedEmail,
-} from "@/services/mockCalendarService";
+import { Check, Calendar, Mail, MessageSquare, Users, Clock, Cloud, Briefcase, RefreshCw } from "lucide-react";
 import { getGoogleStatus, getGoogleAuthUrl } from "@/services/googleCalendar";
-import { useUserProfileContext } from "@/contexts/UserProfileContext";
-import flybyLogo from "@/assets/flybyLogo";
+import { getOutlookStatus, getOutlookAuthUrl } from "@/services/outlookCalendar";
+import {
+  connectCalendar, connectedAccount, connectedProvider, disconnectCalendar,
+  type CalendarProvider,
+} from "@/services/calendarSync";
 import { toast } from "sonner";
 
-type StubId = "outlook" | "slack" | "teams" | "salesforce" | "workday";
+/**
+ * Connected services.
+ *
+ * The calendar is a single slot: Flyby watches one calendar, so connecting
+ * Outlook releases Google and vice versa. Showing both as independently
+ * connectable was what let the app claim Outlook was connected while still
+ * asking for Google.
+ */
+
+type StubId = "slack" | "teams" | "salesforce" | "workday";
 
 const stubIntegrations: {
   id: StubId;
@@ -32,13 +38,6 @@ const stubIntegrations: {
   icon: React.ReactNode;
   iconBg: string;
 }[] = [
-  {
-    id: "outlook",
-    name: "Microsoft Outlook",
-    description: "Email and calendar sync",
-    icon: <Mail className="w-5 h-5 text-blue-600" />,
-    iconBg: "bg-blue-50 dark:bg-blue-950/30",
-  },
   {
     id: "slack",
     name: "Slack",
@@ -69,125 +68,198 @@ const stubIntegrations: {
   },
 ];
 
-export function IntegrationsSettings() {
-  const navigate = useNavigate();
-  const { profile } = useUserProfileContext();
+type Provider = Exclude<CalendarProvider, null>;
 
-  const [gcalConnected, setGcalConnected] = useState<boolean>(() => isCalendarConnected());
-  const [gcalEmail, setGcalEmail] = useState<string | null>(() => getConnectedEmail());
-  const [oauthOpen, setOauthOpen] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+const CALENDARS: {
+  id: Provider;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  iconBg: string;
+}[] = [
+  {
+    id: "google",
+    name: "Google Calendar",
+    description: "Sync travel events with your calendar",
+    icon: <Calendar className="w-5 h-5 text-red-600" />,
+    iconBg: "bg-red-50 dark:bg-red-950/30",
+  },
+  {
+    id: "outlook",
+    name: "Microsoft Outlook",
+    description: "Sync travel events with your Outlook calendar",
+    icon: <Mail className="w-5 h-5 text-blue-600" />,
+    iconBg: "bg-blue-50 dark:bg-blue-950/30",
+  },
+];
+
+export function IntegrationsSettings() {
+  const [provider, setProvider] = useState<CalendarProvider>(() => connectedProvider());
+  const [account, setAccount] = useState<string | null>(() => connectedAccount());
   const [disconnectOpen, setDisconnectOpen] = useState(false);
 
-  // Keep in sync if state changes elsewhere
+  // The connection can change from the calendar dialog or an OAuth return, so
+  // keep this page honest rather than trusting the value it mounted with.
   useEffect(() => {
-    const id = setInterval(() => {
-      const c = isCalendarConnected();
-      if (c !== gcalConnected) {
-        setGcalConnected(c);
-        setGcalEmail(getConnectedEmail());
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [gcalConnected]);
-
-  // Whether Google credentials are configured on the backend. Until they are,
-  // this integration is genuinely unavailable and is shown as "Coming soon"
-  // rather than opening a consent screen that can't lead anywhere.
-  const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
-  useEffect(() => {
-    let active = true;
-    getGoogleStatus().then((st) => { if (active) setGoogleAvailable(st.configured); });
-    return () => { active = false; };
+    const sync = () => {
+      const current = connectedProvider();
+      setProvider((previous) => (previous === current ? previous : current));
+      setAccount(connectedAccount());
+    };
+    const id = setInterval(sync, 1000);
+    window.addEventListener("focus", sync);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("focus", sync);
+    };
   }, []);
 
-  const handleConnectGoogle = useCallback(async () => {
-    // Real OAuth — Google's own consent screen. The client secret stays on the
-    // backend and Flyby never handles the traveler's Google password.
-    const { authUrl } = await getGoogleAuthUrl();
+  // Whether each provider's credentials are configured on the backend. Until
+  // they are, the integration is genuinely unavailable and says "Coming soon"
+  // rather than opening a consent screen that can't lead anywhere.
+  // "unknown" until we hear back, "offline" when we never did. Offline must not
+  // be shown as "coming soon" — a backend that is merely down would look like a
+  // feature that doesn't exist, and the fix (start the server) wouldn't be
+  // discoverable from the UI.
+  type Availability = "unknown" | "offline" | "ready" | "soon";
+  const [available, setAvailable] = useState<Record<Provider, Availability>>({
+    google: "unknown",
+    outlook: "unknown",
+  });
+
+  const checkAvailability = useCallback(async () => {
+    const read = (st: { configured: boolean; reachable: boolean }): Availability =>
+      !st.reachable ? "offline" : st.configured ? "ready" : "soon";
+    const [google, outlook] = await Promise.all([getGoogleStatus(), getOutlookStatus()]);
+    setAvailable({ google: read(google), outlook: read(outlook) });
+  }, []);
+
+  useEffect(() => {
+    void checkAvailability();
+    // Checking only on mount meant a backend that came up later stayed "offline"
+    // until a full page reload. Re-check when the traveler returns to the tab.
+    const onFocus = () => void checkAvailability();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [checkAvailability]);
+
+  const handleConnect = useCallback(async (target: Provider) => {
+    // Real OAuth — the provider's own consent screen. The client secret stays
+    // on the backend and Flyby never handles the traveler's password.
+    const { authUrl } = target === "google"
+      ? await getGoogleAuthUrl()
+      : await getOutlookAuthUrl();
     if (!authUrl) {
-      toast.error("Could not start Google sign-in. Please try again.");
+      toast.error("Could not start sign-in. Please try again.");
       return;
     }
+    // Release the slot before leaving the page, so coming back from consent
+    // can't leave us holding tokens for two calendars at once.
+    connectCalendar(target);
     window.location.href = authUrl;
   }, []);
 
-  // Kept so the older consent dialog still has a handler, but it now hands off
-  // to Google's real consent screen instead of simulating a connection locally.
-  // Flyby should never imitate a provider's sign-in UI.
-  const handleAllow = useCallback(async () => {
-    setOauthOpen(false);
-    await handleConnectGoogle();
-  }, [handleConnectGoogle]);
-
-  const handleConfirmDisconnect = useCallback(async () => {
-    await disconnectCalendar();
-    setGcalConnected(false);
-    setGcalEmail(null);
+  const handleConfirmDisconnect = useCallback(() => {
+    const name = provider ? CALENDARS.find((c) => c.id === provider)?.name : "Calendar";
+    disconnectCalendar();
+    setProvider(null);
+    setAccount(null);
     setDisconnectOpen(false);
-    toast.success("Google Calendar disconnected");
-  }, []);
+    toast.success(`${name} disconnected`);
+  }, [provider]);
+
+  const connectedName = provider
+    ? CALENDARS.find((c) => c.id === provider)?.name ?? "Calendar"
+    : null;
 
   return (
     <div className="space-y-3">
-      {/* Google Calendar — real-feeling OAuth flow */}
-      <motion.div
-        layout
-        className="flex items-center justify-between p-4 border rounded-xl hover:bg-secondary/30 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-red-600" />
-          </div>
-          <div>
-            <p className="font-medium">Google Calendar</p>
-            <p className="text-sm text-muted-foreground">
-              {gcalConnected
-                ? gcalEmail
-                : googleAvailable === false
-                  ? "Not available yet — we're finishing Google approval."
-                  : "Sync travel events with your calendar"}
-            </p>
-          </div>
-        </div>
+      {/* Calendar — one connected at a time */}
+      {CALENDARS.map((calendar) => {
+        const isConnected = provider === calendar.id;
+        const heldByOther = provider !== null && !isConnected;
+        const state = available[calendar.id];
+        const comingSoon = state === "soon";
+        const offline = state === "offline";
 
-        <div className="flex items-center gap-2">
-          {gcalConnected ? (
-            <>
-              <Badge
-                variant="secondary"
-                className="bg-success/10 text-success border-success/20 gap-1"
-              >
-                <Check className="w-3 h-3" />
-                Connected
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={() => setDisconnectOpen(true)}
-              >
-                Disconnect
-              </Button>
-            </>
-          ) : googleAvailable === false ? (
-            <Badge variant="secondary" className="gap-1">
-              <Clock className="w-3 h-3" />
-              Coming soon
-            </Badge>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-xl min-w-[110px]"
-              onClick={handleConnectGoogle}
-              disabled={googleAvailable === null}
-            >
-              Connect
-            </Button>
-          )}
-        </div>
-      </motion.div>
+        return (
+          <motion.div
+            key={calendar.id}
+            layout
+            className={cn(
+              "flex items-center justify-between p-4 border rounded-xl transition-colors",
+              heldByOther ? "opacity-60" : "hover:bg-secondary/30",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", calendar.iconBg)}>
+                {calendar.icon}
+              </div>
+              <div>
+                <p className="font-medium">{calendar.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {isConnected
+                    ? account ?? "Connected"
+                    : heldByOther
+                      ? `Disconnect ${connectedName} to switch — Flyby syncs one calendar at a time.`
+                      : offline
+                        ? "Can't reach the Flyby server — check it's running, then retry."
+                        : comingSoon
+                          ? "Not available yet"
+                          : calendar.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isConnected ? (
+                <>
+                  <Badge
+                    variant="secondary"
+                    className="bg-success/10 text-success border-success/20 gap-1"
+                  >
+                    <Check className="w-3 h-3" />
+                    Connected
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => setDisconnectOpen(true)}
+                  >
+                    Disconnect
+                  </Button>
+                </>
+              ) : offline ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl min-w-[110px] gap-1"
+                  onClick={() => void checkAvailability()}
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Retry
+                </Button>
+              ) : comingSoon ? (
+                <Badge variant="secondary" className="gap-1">
+                  <Clock className="w-3 h-3" />
+                  Coming soon
+                </Badge>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl min-w-[110px]"
+                  onClick={() => handleConnect(calendar.id)}
+                  disabled={state === "unknown" || heldByOther}
+                >
+                  Connect
+                </Button>
+              )}
+            </div>
+          </motion.div>
+        );
+      })}
 
       {/* Stubbed integrations — Coming soon */}
       {stubIntegrations.map((integration) => (
@@ -212,84 +284,11 @@ export function IntegrationsSettings() {
         </motion.div>
       ))}
 
-      {/* Fake Google OAuth consent screen */}
-      <Dialog open={oauthOpen} onOpenChange={(o) => !syncing && setOauthOpen(o)}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
-          <div className="p-6 space-y-5">
-            <div className="flex items-center gap-3">
-              <img src={flybyLogo.url} alt="Flyby AI" className="w-10 h-10 rounded-lg" />
-              <div className="text-sm text-muted-foreground">→</div>
-              <div className="w-10 h-10 rounded-lg bg-white border border-border flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="w-6 h-6">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-              </div>
-            </div>
-
-            <div>
-              <DialogHeader className="space-y-1 p-0 text-left">
-                <DialogTitle className="text-xl">Flyby wants to access your Google Calendar</DialogTitle>
-                <DialogDescription>
-                  Signed in as <span className="font-medium text-foreground">{profile?.email || "you@company.com"}</span>
-                </DialogDescription>
-              </DialogHeader>
-            </div>
-
-            <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                This will allow Flyby to:
-              </p>
-              <div className="space-y-2.5">
-                <div className="flex items-start gap-2.5 text-sm">
-                  <Eye className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                  <span>Read events on your primary calendar for the next 90 days</span>
-                </div>
-                <div className="flex items-start gap-2.5 text-sm">
-                  <ShieldCheck className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                  <span>Detect travel-related meetings to suggest trips</span>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              You can review and revoke this access at any time in your Google Account settings.
-            </p>
-
-            <DialogFooter className="gap-2 sm:gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setOauthOpen(false)}
-                disabled={syncing}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAllow}
-                disabled={syncing}
-                className="min-w-[120px]"
-              >
-                {syncing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Syncing your calendar...
-                  </>
-                ) : (
-                  "Allow"
-                )}
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Disconnect confirmation */}
       <Dialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Disconnect Google Calendar?</DialogTitle>
+            <DialogTitle>Disconnect {connectedName}?</DialogTitle>
             <DialogDescription>
               Disconnecting will stop Flyby from detecting upcoming trips. Continue?
             </DialogDescription>

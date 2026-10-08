@@ -34,7 +34,9 @@ export function TripAgentPanel({
 
   // Nothing connected and nothing to report — stay out of the way entirely.
   if (!agent.connected && agent.reportsDue.length === 0) return null;
-  if (findings === 0) return null;
+  // A failed read is itself worth saying: an empty panel would otherwise read as
+  // "your calendar is clear" when Flyby never managed to look.
+  if (findings === 0 && !agent.syncError) return null;
 
   const tripById = (id: string) => trips.find((t) => t.id === id);
 
@@ -63,6 +65,17 @@ export function TripAgentPanel({
         </div>
 
         <CardContent className="px-5 pb-4 pt-0 space-y-2">
+          {/* Couldn't read the calendar at all */}
+          {agent.syncError && (
+            <Row
+              icon={<AlertTriangle className="w-4 h-4 text-destructive" />}
+              text="Flyby couldn't read your connected calendar, so this list may be incomplete."
+              note={`Reason: ${agent.syncError}. Reconnecting the calendar in Settings usually fixes it.`}
+              actionLabel="Try again"
+              onAction={() => agent.refresh()}
+            />
+          )}
+
           {/* A meeting that still needs travel booked */}
           {agent.unbooked.slice(0, 4).map(({ event, summary }) => (
             <Row

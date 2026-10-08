@@ -21,6 +21,8 @@ import Settings from "./pages/Settings";
 import IntegrationManage from "./pages/IntegrationManage";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 import OAuthConsent from "./pages/OAuthConsent";
 
 function needsOnboarding(): boolean {
@@ -101,6 +103,9 @@ function AppRoutes() {
       <Route path="/get-started" element={user ? <Navigate to={safeNext ?? "/"} replace /> : <GetStarted />} />
       <Route path="/onboarding" element={user ? <Onboarding /> : <Navigate to="/get-started" replace />} />
       <Route path="/auth" element={<Navigate to="/get-started" replace />} />
+      {/* Public — a logged-out reviewer must be able to read these */}
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
 
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<Dashboard />} />
