@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   calendarSyncError, connectedAccount, connectedProvider, fetchUpcomingEvents, impliesTravel,
+  travelDestination,
   type CalendarProvider, type UnifiedCalendarEvent,
 } from "@/services/calendarSync";
 import {
@@ -35,6 +36,12 @@ const POLL_INTERVAL_MS = 5 * 60 * 1000; // five minutes
 export interface UnbookedMeeting {
   event: UnifiedCalendarEvent;
   summary: string;
+  /**
+   * The bookable place from the meeting's location — the city, not the street.
+   * Outlook rewrites a location into a full postal address, so the raw field is
+   * not something to hand a trip parser.
+   */
+  destination: string;
 }
 
 export interface TripAgentState {
@@ -57,7 +64,13 @@ export interface TripAgentState {
 }
 
 /** A place name resolves to somewhere with an airport. */
-const resolvePlace = (text: string) => findAirports(text.split(",")[0].trim()).length > 0;
+const resolvePlace = (text: string) => findAirports(text.trim()).length > 0;
+
+/** ...and names a city specifically, rather than its state or country. */
+const isCity = (text: string) => {
+  const needle = text.trim().toLowerCase();
+  return findAirports(needle).some((airport) => airport.city.toLowerCase() === needle);
+};
 
 export function useTripAgent(trips: AgentTrip[], expenses: AgentExpense[]): TripAgentState {
   const [provider, setProvider] = useState<CalendarProvider>(connectedProvider());
@@ -116,10 +129,16 @@ export function useTripAgent(trips: AgentTrip[], expenses: AgentExpense[]): Trip
     ? events
         .filter((e) => !bookedEventIds.has(e.id))
         .filter((e) => impliesTravel(e, resolvePlace))
-        .map((event) => ({
-          event,
-          summary: `"${event.title}" in ${event.location} on ${event.startDate} has no trip booked yet.`,
-        }))
+        .map((event) => {
+          // impliesTravel passed, so a candidate resolved; the raw location is
+          // only a fallback for an unreachable edge case.
+          const destination = travelDestination(event, resolvePlace, isCity) ?? event.location;
+          return {
+            event,
+            destination,
+            summary: `"${event.title}" in ${destination} on ${event.startDate} has no trip booked yet.`,
+          };
+        })
     : [];
 
   const drifts = connected ? detectItineraryDrift(trips, events) : [];

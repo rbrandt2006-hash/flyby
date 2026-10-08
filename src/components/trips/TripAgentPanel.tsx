@@ -77,14 +77,14 @@ export function TripAgentPanel({
           )}
 
           {/* A meeting that still needs travel booked */}
-          {agent.unbooked.slice(0, 4).map(({ event, summary }) => (
+          {agent.unbooked.slice(0, 4).map(({ event, summary, destination }) => (
             <Row
               key={`unbooked-${event.id}`}
               icon={<CalendarClock className="w-4 h-4 text-primary" />}
               text={summary}
               actionLabel="Book it"
               onAction={() =>
-                onBookMeeting(`Trip to ${event.location} from ${event.startDate} to ${event.endDate}`)
+                onBookMeeting(`Trip to ${destination} from ${event.startDate} to ${event.endDate}`)
               }
             />
           ))}

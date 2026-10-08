@@ -145,6 +145,42 @@ function normalizeOutlook(e: OutlookCalendarEvent): UnifiedCalendarEvent {
   };
 }
 
+/** Locations that carry a "place" that isn't one. */
+const VIRTUAL_LOCATION = /zoom|teams|meet\.google|webex|http|virtual|online|phone|call/i;
+
+/**
+ * The pieces of a location string worth testing against the airport list.
+ *
+ * Calendars disagree about what goes in this field. Google stores whatever the
+ * organizer typed, so "Chicago, IL" arrives intact. Outlook runs the Location
+ * box through Bing Places, so picking a suggestion rewrites it as a full postal
+ * address — "233 S Wacker Dr, Chicago, IL 60606". Reading only the first
+ * segment therefore worked on Google and silently failed on Outlook, where the
+ * first segment is a street.
+ *
+ * Returned last segment first, because postal formats put city, region and
+ * country at the end. Segments are matched whole rather than by substring,
+ * which is what keeps "Lincoln Building" from resolving to Lincoln.
+ */
+export function locationCandidates(location: string): string[] {
+  // Parentheses too: Outlook shows a picked place as
+  // "San Diego International Airport (2412 N Harbor Dr, San Diego, CA, …)".
+  const parts = location.split(/[,()]/).map((part) => part.trim()).filter(Boolean);
+  const candidates: string[] = [];
+  const add = (text: string) => {
+    if (text && !candidates.includes(text)) candidates.push(text);
+  };
+  for (const part of parts.reverse()) {
+    add(part);
+    // "IL 60606" / "TX 78701" — drop the postcode so the region still resolves.
+    add(part.replace(/\s+\d[\d\s-]*$/, "").trim());
+    // "San Diego International Airport" / "JFK Airport" — a venue that is
+    // itself the destination. Strip the suffix and the city is what's left.
+    add(part.replace(/\s+(international\s+)?airport$/i, "").trim());
+  }
+  return candidates;
+}
+
 /**
  * Whether a meeting implies travel.
  *
@@ -160,8 +196,32 @@ export function impliesTravel(
   const location = (event.location || "").trim();
   if (!location) return false;
   // Virtual meetings carry a "location" too — it just isn't a place.
-  if (/zoom|teams|meet\.google|webex|http|virtual|online|phone|call/i.test(location)) {
-    return false;
+  if (VIRTUAL_LOCATION.test(location)) return false;
+  return locationCandidates(location).some(resolvePlace);
+}
+
+/**
+ * The part of a location to actually book travel to.
+ *
+ * A booking query built from the raw field would read "Trip to 233 S Wacker Dr,
+ * Chicago, IL 60606" and hand the trip parser a street address to find an
+ * airport in. This hands it the city instead.
+ */
+export function travelDestination(
+  event: UnifiedCalendarEvent,
+  resolvePlace: (text: string) => boolean,
+  isCity?: (text: string) => boolean,
+): string | null {
+  const location = (event.location || "").trim();
+  if (!location || VIRTUAL_LOCATION.test(location)) return null;
+  const candidates = locationCandidates(location);
+  // Prefer an actual city. Candidates run last-segment-first, and the tail of a
+  // postal address is the country or state — so "London, United Kingdom" would
+  // otherwise book a trip to the United Kingdom, and "…, Chicago, IL 60606" to
+  // Illinois. Both resolve to airports; neither is a destination.
+  if (isCity) {
+    const city = candidates.find(isCity);
+    if (city) return city;
   }
-  return resolvePlace(location);
+  return candidates.find(resolvePlace) ?? null;
 }
