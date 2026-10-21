@@ -77,6 +77,16 @@ export default function Trips() {
   const [tripToRebook, setTripToRebook] = useState<LocalTrip | null>(null);
   const handleRebookClick = (trip: LocalTrip, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    // Rebook here swaps the flight on Flyby's record — it does not change a
+    // ticket with the airline. On a ticketed trip that would leave the record
+    // showing a flight the traveler doesn't hold, so it isn't offered.
+    if (trip.flight?.bookingReference) {
+      toast.info("This flight is already ticketed", {
+        description: `Airline confirmation ${trip.flight.bookingReference}. Changing a ticketed flight isn't available in Flyby yet — change it with the airline, then book any new flight here as a new trip.`,
+        duration: 12000,
+      });
+      return;
+    }
     setTripToRebook(trip);
     setRebookOpen(true);
   };
@@ -178,7 +188,6 @@ export default function Trips() {
           name: (t.hotel_details as any)?.name || "",
           location: (t.hotel_details as any)?.address || "",
         } : null,
-        groundTransport: null,
         estimatedCost: t.total_estimated_cost || 0,
         confidenceLevel: 90,
         aiReasoning: {
@@ -251,15 +260,42 @@ export default function Trips() {
     setConfirmModalOpen(true);
   };
 
-  const handleConfirmDraftTrip = (tripId: string) => {
-    const trip = localTrips.find(t => t.id === tripId);
-    confirmLocalTrip(tripId, approvalDecisionFor(trip));
-    setPendingUndoTripId(tripId);
-    undoConfirmation.show(trip?.destination || "Trip");
+  /**
+   * Take a planned trip into the real booking flow.
+   *
+   * A draft is a plan, not a purchase: nothing on it has been searched live or
+   * paid for. "Confirm & Book" used to flip its status to confirmed and say
+   * "Flight confirmed!" with no ticket behind it. Booking means live fares, a
+   * card payment and an airline confirmation, and that all happens in the
+   * planner — so this hands the trip's destination and dates to it.
+   */
+  const bookTripForReal = (trip?: LocalTrip | null) => {
+    if (!trip) return;
+    // Local calendar date — slicing the ISO string would shift the day for
+    // anyone east of UTC.
+    const usDate = (iso: string) => {
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? iso : format(d, "MM/dd/yyyy");
+    };
+    try {
+      sessionStorage.setItem(
+        "flyby_prefill_query",
+        `Trip to ${trip.destination} from ${usDate(trip.startDate)} to ${usDate(trip.endDate)}`,
+      );
+    } catch { /* ignore */ }
+    navigate("/");
   };
 
+  const handleConfirmDraftTrip = (tripId: string) => {
+    bookTripForReal(localTrips.find(t => t.id === tripId));
+  };
+
+  // New trips are planned and booked in one place — the planner — where
+  // flights and hotels are live and payment is real. The separate wizard this
+  // used to open listed generated hotels and saved a "confirmed" trip without
+  // charging for or reserving anything.
   const handleNewTrip = () => {
-    setBookingDialogOpen(true);
+    navigate("/");
   };
 
   const handleCalendarConnected = async () => {
@@ -311,7 +347,6 @@ export default function Trips() {
         purpose: draft.purpose,
         flight: draft.flight,
         hotel: draft.hotel,
-        groundTransport: null,
         estimatedCost: draft.estimatedCost,
         confidenceLevel: 88,
         sourceCalendarEventId: draft.sourceCalendarEventId,
@@ -350,7 +385,6 @@ export default function Trips() {
         name: tripData.hotel.name,
         location: tripData.hotel.area,
       },
-      groundTransport: null,
       estimatedCost: tripData.estimatedCost,
       confidenceLevel: 92,
     });
@@ -381,7 +415,6 @@ export default function Trips() {
         name: tripData.hotel.name,
         location: tripData.hotel.area,
       },
-      groundTransport: null,
       estimatedCost: tripData.estimatedCost,
       confidenceLevel: 87,
     });
@@ -429,7 +462,6 @@ export default function Trips() {
         emissions: selection.flight.co2Emissions,
       },
       hotel: hotel ? { name: hotel.name, location: hotel.destination } : null,
-      groundTransport: null,
       estimatedCost: selection.flight.price + hotelCost,
       confidenceLevel: 84,
       clientCompanyId: clientCompany?.id ?? null,
@@ -590,7 +622,6 @@ export default function Trips() {
           purpose: draft.purpose,
           flight: draft.flight,
           hotel: draft.hotel,
-          groundTransport: null,
           estimatedCost: draft.estimatedCost,
           confidenceLevel: 88,
           sourceCalendarEventId: draft.sourceCalendarEventId,
@@ -861,7 +892,17 @@ export default function Trips() {
           <DialogHeader>
             <DialogTitle>Remove this trip?</DialogTitle>
             <DialogDescription>
-              This will cancel your booking and cannot be undone.
+              {tripToDelete?.flight?.bookingReference || tripToDelete?.hotel?.reserved ? (
+                <>
+                  This removes the trip from Flyby only. It does <strong>not</strong> cancel or refund
+                  {tripToDelete?.flight?.bookingReference ? ` your airline ticket (confirmation ${tripToDelete.flight.bookingReference})` : ""}
+                  {tripToDelete?.flight?.bookingReference && tripToDelete?.hotel?.reserved ? " or" : ""}
+                  {tripToDelete?.hotel?.reserved ? ` your hotel reservation${tripToDelete.hotel.bookingReference ? ` (confirmation ${tripToDelete.hotel.bookingReference})` : ""}` : ""}
+                  . To cancel those, contact the airline or hotel directly.
+                </>
+              ) : (
+                "This removes the trip from Flyby and can't be undone. Nothing on it was booked, so there is nothing to cancel."
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -934,11 +975,8 @@ export default function Trips() {
         calendarEvents={agent.events}
         calendarProvider={agent.provider}
         onConfirmTrip={(tripId) => {
-          const trip = localTrips.find(t => t.id === tripId);
-          confirmLocalTrip(tripId, approvalDecisionFor(trip));
-          setPendingUndoTripId(tripId);
-          undoConfirmation.show(trip?.destination || "Trip");
-          toast.success("Flight confirmed!");
+          setCalendarViewOpen(false);
+          bookTripForReal(localTrips.find(t => t.id === tripId));
         }}
       />
 
@@ -1075,7 +1113,7 @@ export default function Trips() {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground -mt-2">
-            Auto-generated itineraries from your calendar — review, then Confirm &amp; Book or Discard.
+            Planned trips that haven't been booked. Nothing here has been paid for or reserved — Confirm &amp; Book searches live flights and hotels for it.
           </p>
           <div className="grid gap-3">
             {draftTrips.map((draft, index) => (
@@ -1269,7 +1307,7 @@ export default function Trips() {
                     <p className="text-xs text-muted-foreground">
                       Depart: {selectedDraft.flight.departTime}
                       {selectedDraft.flight.arrivalTime && ` → ${selectedDraft.flight.arrivalTime}`}
-                      {selectedDraft.flight.returnTime && ` • Return: ${selectedDraft.flight.returnTime}`}
+                      {selectedDraft.flight.returnTime && !selectedDraft.flight.arrivalTime && ` → ${selectedDraft.flight.returnTime}`}
                     </p>
                     {(selectedDraft.flight.duration || typeof selectedDraft.flight.stops === "number") && (
                       <p className="text-xs text-muted-foreground">

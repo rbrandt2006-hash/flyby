@@ -10,7 +10,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AirportAutocomplete } from "./AirportAutocomplete";
 import { FlightResults, type Flight } from "./FlightResults";
-import { generateMockFlights } from "@/services/mockFlightService";
+import { searchRealFlightsDetailed } from "@/services/duffelFlights";
+import { findAirports } from "@/data/globalAirports";
 import { toast } from "sonner";
 
 export interface FlightSelectionDraft {
@@ -50,16 +51,46 @@ export function FlightSearchDialog({ open, onOpenChange, onFlightSelected, embed
   const [isSearching, setIsSearching] = useState(false);
   const [selectingFlightId, setSelectingFlightId] = useState<string | null>(null);
 
+  // "Chicago (ORD)" from the picker, or whatever was typed, → an airport code.
+  const airportCode = (value: string): string | null => {
+    const picked = value.match(/\(([A-Z]{3})\)\s*$/);
+    if (picked) return picked[1];
+    return findAirports(value.trim())[0]?.code ?? null;
+  };
+
   const handleSearch = async () => {
+    const from = airportCode(origin);
+    const to = airportCode(destination);
+    if (!from || !to || !departureDate) {
+      toast.error("Pick a departure airport, a destination and a date first.");
+      return;
+    }
     setIsSearching(true);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const mockFlights = generateMockFlights(origin, destination, cabinClass, parseInt(passengers));
-    setFlights(mockFlights);
-    setShowResults(true);
-    setIsSearching(false);
+    try {
+      // Live airline fares only. This used to wait 800ms and then show generated
+      // flights, which looked like a search but described flights that may not
+      // exist.
+      const outcome = await searchRealFlightsDetailed({
+        origin: from,
+        destination: to,
+        departureDate: format(departureDate, "yyyy-MM-dd"),
+        passengers: parseInt(passengers) || 1,
+        cabinClass,
+      });
+      const live = outcome.flights ?? [];
+      if (live.length === 0) {
+        toast.error(
+          outcome.reason === "no_results"
+            ? "No flights on sale for that route and date. Try nearby dates or another airport."
+            : "Can't reach live flight search right now. Flyby only shows real flights, so there's nothing to show until it's reachable — another network or a hotspot usually fixes it.",
+        );
+        return;
+      }
+      setFlights(live);
+      setShowResults(true);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleSelectFlight = async (flight: Flight) => {

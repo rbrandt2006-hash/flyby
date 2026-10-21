@@ -16,6 +16,11 @@ export interface TravelPreferencesData {
   dietaryRestrictions: string | null;
   avoidLayovers: boolean;
   costSensitivity: CostSensitivity;
+  /**
+   * IATA code trips start from when the request doesn't name an origin, e.g.
+   * "SAN". Null until the traveler picks one.
+   */
+  homeAirport: string | null;
 }
 
 const defaultPreferences: TravelPreferencesData = {
@@ -29,6 +34,7 @@ const defaultPreferences: TravelPreferencesData = {
   dietaryRestrictions: null,
   avoidLayovers: false,
   costSensitivity: "medium",
+  homeAirport: null,
 };
 
 const GUEST_PREFS_KEY = "guest_travel_preferences";
@@ -100,6 +106,7 @@ export function useTravelPreferences() {
             avoidLayovers: (data as { avoid_layovers?: boolean }).avoid_layovers ?? false,
             costSensitivity:
               ((data as { cost_sensitivity?: string }).cost_sensitivity as CostSensitivity) || "medium",
+            homeAirport: (data as { home_airport?: string | null }).home_airport || null,
           });
         }
       } catch (error) {
@@ -329,6 +336,33 @@ export function useTravelPreferences() {
     }
   }, [user?.id, useLocalStorage, preferences, persistLocal]);
 
+  // Set (or clear, with null) the default departure airport
+  const updateHomeAirport = useCallback(async (code: string | null) => {
+    const next = code ? code.trim().toUpperCase() : null;
+    setIsSaving(true);
+    try {
+      if (useLocalStorage) {
+        const updated = { ...preferences, homeAirport: next };
+        persistLocal(updated);
+        setPreferences(updated);
+      } else {
+        if (!user?.id) return;
+        const { error } = await backend
+          .from("travel_preferences")
+          .update({ home_airport: next, updated_at: new Date().toISOString() } as never)
+          .eq("user_id", user.id);
+        if (error) throw error;
+        setPreferences(prev => ({ ...prev, homeAirport: next }));
+      }
+      toast.success(next ? `Trips will start from ${next} by default` : "Default starting city cleared");
+    } catch (error) {
+      console.error("Error updating home_airport:", error);
+      toast.error("Failed to update starting city");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user?.id, useLocalStorage, preferences, persistLocal]);
+
   return {
     preferences,
     isLoading,
@@ -343,5 +377,6 @@ export function useTravelPreferences() {
     removeCustomPreference,
     updateAvoidLayovers,
     updateCostSensitivity,
+    updateHomeAirport,
   };
 }

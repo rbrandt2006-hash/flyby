@@ -40,6 +40,19 @@ export interface DuffelOffer {
   origin: string;
   destination: string;
   cabinClass: string;
+  arriveDayOffset?: number;
+  stopCities?: string[];
+  tripType?: "one_way" | "round_trip";
+  returnFlightNumber?: string;
+  returnDepartTime?: string;
+  returnArriveTime?: string;
+  returnArriveDayOffset?: number;
+  returnDuration?: string;
+  returnStops?: number;
+  returnStopCities?: string[];
+  returnOrigin?: string;
+  returnDestination?: string;
+  identityDocumentsRequired?: boolean;
 }
 
 export interface SearchFlightParams {
@@ -70,6 +83,19 @@ function mapToFlight(o: DuffelOffer): Flight {
     origin: o.origin,
     destination: o.destination,
     co2Emissions: "", // Duffel doesn't return this on the basic offer
+    arriveDayOffset: o.arriveDayOffset || 0,
+    stopCities: o.stopCities || (o.stopCity ? [o.stopCity] : []),
+    tripType: o.tripType || "one_way",
+    returnFlightNumber: o.returnFlightNumber,
+    returnDepartureTime: o.returnDepartTime,
+    returnArrivalTime: o.returnArriveTime,
+    returnArriveDayOffset: o.returnArriveDayOffset,
+    returnDuration: o.returnDuration,
+    returnStops: o.returnStops,
+    returnStopCities: o.returnStopCities,
+    returnOrigin: o.returnOrigin,
+    returnDestination: o.returnDestination,
+    identityDocumentsRequired: Boolean(o.identityDocumentsRequired),
   };
 }
 
@@ -81,6 +107,12 @@ export interface FlightSearchOutcome {
   flights: Flight[] | null;
   /** Set only when `flights` is null. */
   reason?: FlightSearchFailure;
+  /**
+   * True when a return date was asked for but the airlines sold nothing as a
+   * round trip, so these are outbound-only fares and the return still needs
+   * booking.
+   */
+  returnUnavailable?: boolean;
 }
 
 /**
@@ -114,13 +146,16 @@ export async function searchRealFlightsDetailed(
     if (!Array.isArray(body.offers) || body.offers.length === 0) {
       return { flights: null, reason: "no_results" };
     }
-    return { flights: (body.offers as DuffelOffer[]).map(mapToFlight) };
+    return {
+      flights: (body.offers as DuffelOffer[]).map(mapToFlight),
+      returnUnavailable: Boolean(body.returnUnavailable),
+    };
   } catch {
     return { flights: null, reason: "unreachable" };
   }
 }
 
-/** Search real flights; returns null to signal "fall back to the generator". */
+/** Search real flights; null means none could be returned (nothing is generated instead). */
 export async function searchRealFlights(params: SearchFlightParams): Promise<Flight[] | null> {
   return (await searchRealFlightsDetailed(params)).flights;
 }
@@ -190,6 +225,13 @@ export interface Passenger {
   title: "mr" | "ms" | "mrs" | "miss" | "dr";
   email: string;
   phone_number: string;
+  /** Sent only when the airline requires it for this fare. */
+  identity_documents?: Array<{
+    type: "passport";
+    unique_identifier: string;
+    issuing_country_code: string; // ISO 3166-1 alpha-2, e.g. "US"
+    expires_on: string; // YYYY-MM-DD
+  }>;
 }
 
 export interface BookingResult {
@@ -199,6 +241,13 @@ export interface BookingResult {
     bookingReference: string;
     totalAmount: string;
     totalCurrency: string;
+    /** The travelers on the ticket, as the airline recorded them. */
+    passengers?: Array<{
+      given_name?: string;
+      family_name?: string;
+      email?: string;
+      phone_number?: string;
+    }>;
   };
   error?: string;
   code?: string;

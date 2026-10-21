@@ -4,7 +4,7 @@ import { format, addDays } from "date-fns";
 import { 
   Plus, AlertTriangle, Clock, Globe, Save, RotateCcw, 
   ChevronDown, ChevronUp, Pencil, Check, X,
-  Plane, Building2, DoorOpen, Users, Utensils, Car, Coffee, FileText
+  Plane, Building2, DoorOpen, Users, Utensils, Coffee, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,7 +165,6 @@ export function ItineraryEditor({
   const blockTypeOptions: { type: ItineraryBlockType; label: string; icon: string }[] = [
     { type: "meeting", label: "Meeting", icon: "users" },
     { type: "meal", label: "Business Meal", icon: "utensils" },
-    { type: "transport", label: "Transportation", icon: "car" },
     { type: "free_time", label: "Free Time", icon: "coffee" },
     { type: "flight", label: "Flight", icon: "plane" },
     { type: "hotel_checkin", label: "Hotel Check-in", icon: "building" },
@@ -388,7 +387,6 @@ export function ItineraryEditor({
                                 {option.type === 'hotel_checkout' && <DoorOpen className="w-4 h-4 mr-2" />}
                                 {option.type === 'meeting' && <Users className="w-4 h-4 mr-2" />}
                                 {option.type === 'meal' && <Utensils className="w-4 h-4 mr-2" />}
-                                {option.type === 'transport' && <Car className="w-4 h-4 mr-2" />}
                                 {option.type === 'free_time' && <Coffee className="w-4 h-4 mr-2" />}
                                 {option.type === 'custom' && <FileText className="w-4 h-4 mr-2" />}
                                 {option.label}

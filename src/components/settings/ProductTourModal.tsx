@@ -36,7 +36,7 @@ const tourSteps = [
   {
     icon: Plane,
     title: "Plan Trips Effortlessly",
-    description: "Create complete travel itineraries with flights, hotels, and ground transport in seconds. Our AI considers your preferences, company policies, and budget.",
+    description: "Create complete travel itineraries with flights and hotels in seconds. Our AI considers your preferences, company policies, and budget.",
     tip: "Click 'Plan Trip' on any calendar event to get started.",
   },
   {

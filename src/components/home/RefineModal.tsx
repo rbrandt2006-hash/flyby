@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plane, Hotel, Car, Check, ChevronDown, Star, Clock, DollarSign, MapPin, Fuel } from "lucide-react";
+import { X, Plane, Hotel, Check, ChevronDown, Star, Clock, DollarSign, MapPin, Fuel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,8 +9,6 @@ import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import type { Flight } from "@/components/flights/FlightResults";
 import type { HotelOption as TripHotelOption } from "@/components/chats/booking/types";
-import type { GroundTransportOption } from "@/services/mockGroundTransportService";
-import { getHotelsForDestination } from "@/services/mockHotelService";
 
 interface FlightOption {
   id: string;
@@ -21,6 +19,11 @@ interface FlightOption {
   duration: string;
   stops: number;
   tags: string[];
+  /** Days after departure the outbound lands. */
+  arriveDayOffset?: number;
+  /** The journey home, when the fare is a round trip. */
+  returnLine?: string;
+  roundTrip?: boolean;
 }
 
 interface HotelOption {
@@ -28,17 +31,10 @@ interface HotelOption {
   name: string;
   location: string;
   pricePerNight: number;
+  /** The supplier's total for the stay — not per-night times nights, which drifts by rounding. */
+  totalPrice: number;
   rating: number;
   distance: string;
-  tags: string[];
-}
-
-interface GroundOption {
-  id: string;
-  type: string;
-  provider: string;
-  price: number;
-  description: string;
   tags: string[];
 }
 
@@ -56,115 +52,33 @@ interface RefineModalProps {
   // elsewhere in the app). When provided, the Hotels tab shows these instead
   // of a generic mock list.
   hotels?: TripHotelOption[];
-  // The real ground-transport options for this trip (same list shown at search
-  // time). When provided, the Ground tab shows these instead of a generic mock.
-  ground?: GroundTransportOption[];
   currentFlight: { airline: string; departTime: string; returnTime: string };
   currentHotel: { name: string; location: string };
-  currentGroundTransport: string;
   currentCost: number;
+  /** Nights of the stay, so the hotel is priced for the actual trip. */
+  nights?: number;
   onSave: (selections: {
+    /** Id of the chosen offer — what Confirm & Book must actually purchase. */
+    flightId: string;
+    /** Live search result id of the chosen hotel, or null for no hotel. */
+    hotelId: string | null;
     flight: { airline: string; departTime: string; returnTime: string };
-    hotel: { name: string; location: string };
-    groundTransport: string;
+    hotel: { name: string; location: string; pricePerNight?: number; totalPrice?: number; nights?: number };
     estimatedCost: number;
   }) => void;
 }
 
-// Generate mock flight options
-function generateFlightOptions(destination: string): FlightOption[] {
-  const airlines = [
-    { name: "American Airlines", basePrice: 380 },
-    { name: "Delta Air Lines", basePrice: 420 },
-    { name: "United Airlines", basePrice: 395 },
-    { name: "Southwest Airlines", basePrice: 310 },
-    { name: "JetBlue Airways", basePrice: 340 },
-  ];
-  
-  const departures = ["6:00 AM", "7:45 AM", "9:30 AM", "12:15 PM", "3:45 PM"];
-  const returns = ["4:30 PM", "5:45 PM", "7:00 PM", "8:30 PM", "9:15 PM"];
-  
-  return airlines.map((airline, i) => {
-    const priceVariation = Math.floor(Math.random() * 100) - 50;
-    const price = airline.basePrice + priceVariation;
-    const stops = i < 2 ? 0 : i < 4 ? 1 : 2;
-    const duration = stops === 0 ? "2h 45m" : stops === 1 ? "4h 15m" : "6h 30m";
-    
-    const tags: string[] = [];
-    if (i === 3) tags.push("Best value");
-    if (i === 0) tags.push("Shortest travel time");
-    if (stops === 0) tags.push("Nonstop");
-    
-    return {
-      id: `flight-${i}`,
-      airline: airline.name,
-      departTime: departures[i],
-      returnTime: returns[i],
-      price,
-      duration,
-      stops,
-      tags,
-    };
-  });
-}
-
-// Fallback hotels for the destination.
-//
-// This used to return a hardcoded Washington-DC list ("The Willard
-// InterContinental", "Capitol Hill"...) regardless of where the trip actually
-// went, so refining a London trip could show DC hotels. It now uses the same
-// destination-aware hotel source the rest of the app uses, so the fallback is
-// at least for the right city.
-function generateHotelOptions(destination: string): HotelOption[] {
-  return getHotelsForDestination({ destination, nights: 3 }).map(realToHotelOption);
-}
-
-// Generate mock ground transport options
-function generateGroundOptions(): GroundOption[] {
-  return [
-    {
-      id: "ground-1",
-      type: "Rideshare",
-      provider: "Uber",
-      price: 35,
-      description: "Estimated fare from DCA airport",
-      tags: ["Convenient"],
-    },
-    {
-      id: "ground-2",
-      type: "Rideshare",
-      provider: "Lyft",
-      price: 32,
-      description: "Estimated fare from DCA airport",
-      tags: ["Best value"],
-    },
-    {
-      id: "ground-3",
-      type: "Public Transit",
-      provider: "Metro",
-      price: 6,
-      description: "Blue/Yellow Line from DCA to downtown",
-      tags: ["Budget", "Eco-friendly"],
-    },
-    {
-      id: "ground-4",
-      type: "Rental Car",
-      provider: "Hertz",
-      price: 65,
-      description: "Compact car, per day rate",
-      tags: ["Flexibility"],
-    },
-  ];
-}
-
 // Map a real Flight (Duffel offer or local fallback) into the modal's
-// FlightOption shape. Real flights are one-way departure→arrival, so the
-// "return" slot displays the arrival time.
+// FlightOption shape. `returnTime` holds the outbound's arrival time (the name
+// is historical); the journey home, on a round trip, is in `returnLine`.
 function realToFlightOption(f: Flight): FlightOption {
   const tags: string[] = [];
   if (f.isFastest) tags.push("Shortest travel time");
   if (f.isLowest) tags.push("Best value");
   if (f.stops === 0) tags.push("Nonstop");
+  const plus = (days?: number) => (days ? ` (+${days})` : "");
+  const stops = (n?: number) => (n === undefined ? "" : n === 0 ? "Nonstop" : `${n} stop${n > 1 ? "s" : ""}`);
+  const roundTrip = f.tripType === "round_trip";
   return {
     id: f.id,
     airline: f.airline,
@@ -174,18 +88,11 @@ function realToFlightOption(f: Flight): FlightOption {
     duration: f.duration,
     stops: f.stops,
     tags,
-  };
-}
-
-// Map a real ground-transport option into the modal's GroundOption shape.
-function realToGroundOption(g: GroundTransportOption): GroundOption {
-  return {
-    id: g.id,
-    type: g.rideType || g.type,
-    provider: g.provider,
-    price: g.price,
-    description: g.description,
-    tags: g.tags,
+    arriveDayOffset: f.arriveDayOffset,
+    roundTrip,
+    returnLine: roundTrip
+      ? `Back ${f.returnDepartureTime} → ${f.returnArrivalTime}${plus(f.returnArriveDayOffset)} · ${[f.returnDuration, stops(f.returnStops)].filter(Boolean).join(" · ")}`
+      : undefined,
   };
 }
 
@@ -196,6 +103,7 @@ function realToHotelOption(h: TripHotelOption): HotelOption {
     name: h.name,
     location: h.area,
     pricePerNight: h.pricePerNight,
+    totalPrice: h.totalPrice,
     rating: h.rating,
     distance: h.distanceToVenue,
     tags: h.tags,
@@ -209,71 +117,71 @@ export function RefineModal({
   dates,
   flights,
   hotels,
-  ground,
   currentFlight,
   currentHotel,
-  currentGroundTransport,
   currentCost,
+  nights = 1,
   onSave,
 }: RefineModalProps) {
   const [activeTab, setActiveTab] = useState("flights");
   const [sortBy, setSortBy] = useState("recommended");
 
-  // Prefer the real flights this trip was planned with (so Refine matches what
-  // the user actually searched); fall back to the local generator only when no
-  // real flights were passed in (e.g. offline).
+  // Only the live offers this trip was planned with. There is no generated
+  // fallback: a list of invented flights here once offered a Qatar Airways
+  // nonstop from LAX to Dubai, which does not exist. Offer ids from the airline
+  // feed start with "off_"; anything else is dropped.
   const flightOptions = useMemo(
-    () =>
-      flights && flights.length > 0
-        ? flights.map(realToFlightOption)
-        : generateFlightOptions(destination),
-    [flights, destination],
+    () => (flights || []).filter((f) => f.id.startsWith("off_")).map(realToFlightOption),
+    [flights],
   );
+  // Only hotels from the live supplier — the ones this trip was planned with.
+  // No generated list stands in when there are none.
   const hotelOptions = useMemo(
-    () =>
-      hotels && hotels.length > 0
-        ? hotels.map(realToHotelOption)
-        : generateHotelOptions(destination),
-    [hotels, destination],
-  );
-  const groundOptions = useMemo(
-    () =>
-      ground && ground.length > 0
-        ? ground.map(realToGroundOption)
-        : generateGroundOptions(),
-    [ground],
+    () => (hotels || []).filter((h) => h.live).map(realToHotelOption),
+    [hotels],
   );
   
   // Track selections
   const [selectedFlight, setSelectedFlight] = useState<FlightOption | null>(
-    flightOptions.find(f => f.airline === currentFlight.airline) || flightOptions[0]
+    flightOptions.find(f => f.airline === currentFlight.airline && f.departTime === currentFlight.departTime)
+      || flightOptions.find(f => f.airline === currentFlight.airline)
+      || flightOptions[0]
+      || null
   );
+  // Starts on the hotel already on the itinerary — or on none, if it has none.
+  // It used to default to the first hotel in the list, so merely opening Refine
+  // and saving would add a hotel nobody chose.
   const [selectedHotel, setSelectedHotel] = useState<HotelOption | null>(
-    hotelOptions.find(h => h.name === currentHotel.name) || hotelOptions[0]
+    (currentHotel.name && hotelOptions.find(h => h.name === currentHotel.name)) || null
   );
-  const [selectedGround, setSelectedGround] = useState<GroundOption | null>(groundOptions[0]);
   
-  // Calculate updated cost
-  const updatedCost = useMemo(() => {
-    const flightCost = (selectedFlight?.price || 0) * 2; // Round trip
-    const hotelCost = (selectedHotel?.pricePerNight || 0) * 2; // 2 nights
-    const groundCost = (selectedGround?.price || 0) * 2; // Both ways
-    return flightCost + hotelCost + groundCost + 150; // Add misc costs
-  }, [selectedFlight, selectedHotel, selectedGround]);
-  
+  // What will be charged: the fare and the stay, exactly as the itinerary sums
+  // them.
+  const updatedCost = useMemo(
+    () => (selectedFlight?.price || 0) + (selectedHotel?.totalPrice || 0),
+    [selectedFlight, selectedHotel],
+  );
+
   const handleSave = () => {
-    if (selectedFlight && selectedHotel && selectedGround) {
+    // A flight is required; a hotel is not — a trip can have none.
+    if (selectedFlight) {
       onSave({
+        flightId: selectedFlight.id,
+        hotelId: selectedHotel?.id ?? null,
         flight: {
           airline: selectedFlight.airline,
           departTime: selectedFlight.departTime,
           returnTime: selectedFlight.returnTime,
         },
-        hotel: {
-          name: selectedHotel.name,
-          location: selectedHotel.location,
-        },
-        groundTransport: `${selectedGround.provider} - $${selectedGround.price} estimated`,
+        hotel: selectedHotel
+          ? {
+              name: selectedHotel.name,
+              location: selectedHotel.location,
+              pricePerNight: selectedHotel.pricePerNight,
+              totalPrice: selectedHotel.totalPrice,
+              nights,
+            }
+          : { name: "", location: "" },
         estimatedCost: updatedCost,
       });
       onOpenChange(false);
@@ -352,7 +260,7 @@ export function RefineModal({
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
               {/* Controls row - Sticky */}
               <div className="shrink-0 px-6 py-4 flex items-center justify-between border-b border-border/50 bg-background">
-                <TabsList className="grid grid-cols-3 w-auto">
+                <TabsList className="grid grid-cols-2 w-auto">
                   <TabsTrigger value="flights" className="gap-2">
                     <Plane className="w-4 h-4" />
                     Flights
@@ -360,10 +268,6 @@ export function RefineModal({
                   <TabsTrigger value="hotels" className="gap-2">
                     <Hotel className="w-4 h-4" />
                     Hotels
-                  </TabsTrigger>
-                  <TabsTrigger value="ground" className="gap-2">
-                    <Car className="w-4 h-4" />
-                    Ground
                   </TabsTrigger>
                 </TabsList>
                 
@@ -386,6 +290,14 @@ export function RefineModal({
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
                 <div className="mx-auto w-full max-w-[760px] px-6 py-5">
                 <TabsContent value="flights" className="mt-0 space-y-3">
+                  {sortedFlights.length === 0 && (
+                    <div className="rounded-xl border border-border p-6 text-center text-sm space-y-1">
+                      <p className="font-medium">No live flights to choose from</p>
+                      <p className="text-muted-foreground">
+                        Flyby only lists real flights from the airlines. Run the search again once live flight search is reachable.
+                      </p>
+                    </div>
+                  )}
                   {sortedFlights.map((flight) => (
                     <motion.div
                       key={flight.id}
@@ -410,15 +322,18 @@ export function RefineModal({
                           <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {flight.departTime} → {flight.returnTime}
+                              {flight.departTime} → {flight.returnTime}{flight.arriveDayOffset ? ` (+${flight.arriveDayOffset})` : ""}
                             </span>
                             <span>{flight.duration}</span>
                             <span>{flight.stops === 0 ? "Nonstop" : `${flight.stops} stop${flight.stops > 1 ? "s" : ""}`}</span>
                           </div>
+                          {flight.returnLine && (
+                            <p className="text-sm text-muted-foreground">{flight.returnLine}</p>
+                          )}
                         </div>
                         <div className="text-right flex flex-col items-end">
                           <p className="text-lg font-bold">${flight.price}</p>
-                          <p className="text-xs text-muted-foreground">per person</p>
+                          <p className="text-xs text-muted-foreground">{flight.roundTrip ? "round trip total" : "one way total"}</p>
                           {selectedFlight?.id === flight.id && (
                             <Check className="w-5 h-5 text-primary mt-1" />
                           )}
@@ -429,12 +344,21 @@ export function RefineModal({
                 </TabsContent>
                 
                 <TabsContent value="hotels" className="mt-0 space-y-3">
+                  {sortedHotels.length === 0 && (
+                    <div className="rounded-xl border border-border p-6 text-center text-sm space-y-1">
+                      <p className="font-medium">No hotels to choose from</p>
+                      <p className="text-muted-foreground">
+                        Flyby only lists real, bookable hotels, and none were available for this trip.
+                      </p>
+                    </div>
+                  )}
                   {sortedHotels.map((hotel) => (
                     <motion.div
                       key={hotel.id}
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
-                      onClick={() => setSelectedHotel(hotel)}
+                      // Clicking the selected hotel again removes it from the trip.
+                      onClick={() => setSelectedHotel(selectedHotel?.id === hotel.id ? null : hotel)}
                       className={cn(
                         "w-full p-4 rounded-xl border-2 cursor-pointer transition-all",
                         selectedHotel?.id === hotel.id
@@ -455,7 +379,7 @@ export function RefineModal({
                               <MapPin className="w-3 h-3" />
                               {hotel.location}
                             </span>
-                            <span>{hotel.distance} to center</span>
+                            {hotel.distance && <span>{hotel.distance}</span>}
                             <span className="flex items-center gap-1">
                               <Star className="w-3 h-3 fill-warning text-warning" />
                               {hotel.rating}
@@ -464,7 +388,7 @@ export function RefineModal({
                         </div>
                         <div className="text-right flex flex-col items-end">
                           <p className="text-lg font-bold">${hotel.pricePerNight}</p>
-                          <p className="text-xs text-muted-foreground">per night</p>
+                          <p className="text-xs text-muted-foreground">per night · ${hotel.totalPrice.toLocaleString()} total</p>
                           {selectedHotel?.id === hotel.id && (
                             <Check className="w-5 h-5 text-primary mt-1" />
                           )}
@@ -474,42 +398,6 @@ export function RefineModal({
                   ))}
                 </TabsContent>
                 
-                <TabsContent value="ground" className="mt-0 space-y-3">
-                  {groundOptions.map((option) => (
-                    <motion.div
-                      key={option.id}
-                      whileHover={{ scale: 1.01 }}
-                      whileTap={{ scale: 0.99 }}
-                      onClick={() => setSelectedGround(option)}
-                      className={cn(
-                        "w-full p-4 rounded-xl border-2 cursor-pointer transition-all",
-                        selectedGround?.id === option.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/30"
-                      )}
-                    >
-                      <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
-                        <div className="space-y-1.5 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold">{option.provider}</p>
-                            <Badge variant="outline" className="text-xs">{option.type}</Badge>
-                            {option.tags.map(tag => (
-                              <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                            ))}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{option.description}</p>
-                        </div>
-                        <div className="text-right flex flex-col items-end">
-                          <p className="text-lg font-bold">${option.price}</p>
-                          <p className="text-xs text-muted-foreground">each way</p>
-                          {selectedGround?.id === option.id && (
-                            <Check className="w-5 h-5 text-primary mt-1" />
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </TabsContent>
                 </div>
               </div>
             </Tabs>

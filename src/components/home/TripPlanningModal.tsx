@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plane, Hotel, Car, DollarSign, Check, Loader2, MapPin, Calendar, ChevronRight, Sparkles, RefreshCw, Star, Trash2, Plus } from "lucide-react";
+import { X, Plane, Hotel, DollarSign, Check, Loader2, MapPin, Calendar, ChevronRight, Sparkles, RefreshCw, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -9,12 +9,9 @@ import { toast } from "sonner";
 import type { CalendarEvent } from "@/services/mockCalendarService";
 import { FlightSelectionPage, type FlightOption } from "@/components/trips/FlightSelectionPage";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
-import { GroundTransportSelectionPage } from "@/components/trips/GroundTransportSelectionPage";
 import type { HotelOption as FullHotelOption } from "@/components/chats/booking/types";
 import { generateFlightOptions } from "@/services/mockFlightGenerator";
-import { getAllGroundTransportOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
 import { getHotelsForDestination } from "@/services/mockHotelService";
-import { TransportIcon } from "@/components/trips/TransportIcon";
 import { usePreferences } from "@/hooks/usePreferences";
 
 interface TripPlanningModalProps {
@@ -31,25 +28,21 @@ export interface TripProposal {
   purpose: string;
   flight: FlightOption;
   hotel: FullHotelOption;
-  ground: GroundTransportOption | null;
   estimatedCost: number;
 }
 
-// Using FlightOption from FlightSelectionPage, FullHotelOption from types, and GroundTransportOption from service
+// Using FlightOption from FlightSelectionPage and FullHotelOption from types
 
-type PlanningStep = "reading" | "flights" | "hotels" | "ground" | "calculating" | "done";
+type PlanningStep = "reading" | "flights" | "hotels" | "calculating" | "done";
 
 const stepLabels: Record<PlanningStep, string> = {
   reading: "Reading event details…",
   flights: "Finding flights…",
   hotels: "Finding hotels…",
-  ground: "Planning ground transport…",
   calculating: "Calculating total cost…",
   done: "Done!",
 };
 // Hotel options now use imported getHotelsForDestination from mockHotelService
-
-// Ground options now use imported generateUberOptions
 
 export function TripPlanningModal({ 
   open, 
@@ -62,17 +55,14 @@ export function TripPlanningModal({
   const [currentStep, setCurrentStep] = useState<PlanningStep>("reading");
   const [flightOptions, setFlightOptions] = useState<FlightOption[]>([]);
   const [hotelOptions, setHotelOptions] = useState<FullHotelOption[]>([]);
-  const [groundOptions, setGroundOptions] = useState<GroundTransportOption[]>([]);
   const [selectedFlight, setSelectedFlight] = useState<FlightOption | null>(null);
   const [selectedHotel, setSelectedHotel] = useState<FullHotelOption | null>(null);
-  const [selectedGround, setSelectedGround] = useState<GroundTransportOption | null>(null);
   const [isRefining, setIsRefining] = useState(false);
-  const [refineSection, setRefineSection] = useState<"flights" | "hotels" | "ground" | null>(null);
+  const [refineSection, setRefineSection] = useState<"flights" | "hotels" | null>(null);
   const [flightDrawerOpen, setFlightDrawerOpen] = useState(false);
   const [hotelDrawerOpen, setHotelDrawerOpen] = useState(false);
-  const [groundDrawerOpen, setGroundDrawerOpen] = useState(false);
 
-  const estimatedTotal = (selectedFlight?.price || 0) + (selectedHotel?.totalPrice || 0) + (selectedGround?.price || 0);
+  const estimatedTotal = (selectedFlight?.price || 0) + (selectedHotel?.totalPrice || 0);
 
   // Calculate nights from event dates
   const calculateNights = (): number => {
@@ -105,10 +95,8 @@ export function TripPlanningModal({
       setCurrentStep("reading");
       setFlightOptions([]);
       setHotelOptions([]);
-      setGroundOptions([]);
       setSelectedFlight(null);
       setSelectedHotel(null);
-      setSelectedGround(null);
       setIsRefining(false);
       setRefineSection(null);
       setFlightDrawerOpen(false);
@@ -164,18 +152,9 @@ export function TripPlanningModal({
     
     setHotelOptions(sortedHotels);
     setSelectedHotel(sortedHotels[0]);
-    setCurrentStep("ground");
-    
-    // Step 4: Ground (load all transport options: rideshare, rental, transit)
-    await new Promise(r => setTimeout(r, 800));
-    const ground = getAllGroundTransportOptions();
-    setGroundOptions(ground);
-    // Default to best value rideshare option
-    const defaultRideshare = ground.find(g => g.type === "rideshare" && g.tags.includes("Best value")) || ground[0];
-    setSelectedGround(defaultRideshare);
     setCurrentStep("calculating");
     
-    // Step 5: Done
+    // Step 4: Done
     await new Promise(r => setTimeout(r, 500));
     setCurrentStep("done");
   };
@@ -193,7 +172,6 @@ export function TripPlanningModal({
       purpose: event.title,
       flight: selectedFlight,
       hotel: selectedHotel,
-      ground: selectedGround,
       estimatedCost: estimatedTotal,
     };
     
@@ -210,7 +188,6 @@ export function TripPlanningModal({
       purpose: event.title,
       flight: selectedFlight,
       hotel: selectedHotel,
-      ground: selectedGround,
       estimatedCost: estimatedTotal,
     };
     
@@ -219,7 +196,7 @@ export function TripPlanningModal({
   };
 
   const stepComplete = (step: PlanningStep): boolean => {
-    const steps: PlanningStep[] = ["reading", "flights", "hotels", "ground", "calculating", "done"];
+    const steps: PlanningStep[] = ["reading", "flights", "hotels", "calculating", "done"];
     const currentIndex = steps.indexOf(currentStep);
     const stepIndex = steps.indexOf(step);
     return stepIndex < currentIndex;
@@ -284,7 +261,7 @@ export function TripPlanningModal({
               {/* Planning Steps */}
               {currentStep !== "done" && (
                 <div className="space-y-3 mb-6">
-                  {(["reading", "flights", "hotels", "ground", "calculating"] as PlanningStep[]).map((step) => (
+                  {(["reading", "flights", "hotels", "calculating"] as PlanningStep[]).map((step) => (
                     <div 
                       key={step}
                       className={cn(
@@ -429,63 +406,6 @@ export function TripPlanningModal({
                     </div>
                   )}
 
-                  {/* Ground Transport */}
-                  {selectedGround ? (
-                    <div className="p-4 rounded-xl bg-card border border-border/60 group">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <TransportIcon type={selectedGround.iconType} size="md" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">{selectedGround.rideType}</p>
-                            <p className="text-sm text-muted-foreground">{selectedGround.provider} • {selectedGround.description}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{selectedGround.eta} • {selectedGround.seats} seats</p>
-                            <div className="flex gap-1.5 mt-2">
-                              {selectedGround.tags.map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-semibold">${selectedGround.price}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <button 
-                              onClick={() => setGroundDrawerOpen(true)}
-                              className="text-xs text-primary hover:underline"
-                            >
-                              Change
-                            </button>
-                            <span className="text-muted-foreground">•</span>
-                            <button 
-                              onClick={() => setSelectedGround(null)}
-                              className="text-xs text-destructive hover:underline flex items-center gap-1"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setGroundDrawerOpen(true)}
-                      className="w-full p-4 rounded-xl border-2 border-dashed border-border/60 hover:border-primary/30 transition-all text-left group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                          <Plus className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">Add ground transport</p>
-                          <p className="text-sm text-muted-foreground">Uber, rental car, or public transit</p>
-                        </div>
-                      </div>
-                    </button>
-                  )}
-
                   {/* Total with breakdown */}
                   <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
                     <div className="space-y-3">
@@ -499,10 +419,6 @@ export function TripPlanningModal({
                           <span>${selectedHotel.totalPrice}</span>
                         </div>
                       )}
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>Ground transport</span>
-                        <span>${selectedGround?.price || 0}</span>
-                      </div>
                       <div className="border-t border-primary/20 pt-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <DollarSign className="w-5 h-5 text-primary" />
@@ -510,7 +426,7 @@ export function TripPlanningModal({
                         </div>
                         <span className="text-2xl font-bold text-primary">
                           ${(isSameDayTrip 
-                            ? (selectedFlight?.price || 0) + (selectedGround?.price || 0) 
+                            ? (selectedFlight?.price || 0) 
                             : estimatedTotal
                           ).toLocaleString()}
                         </span>
@@ -534,7 +450,6 @@ export function TripPlanningModal({
                     <h3 className="text-sm font-medium">
                       {refineSection === "flights" && "Select Flight"}
                       {refineSection === "hotels" && "Select Hotel"}
-                      {refineSection === "ground" && "Select Ground Transport"}
                     </h3>
                   </div>
 
@@ -611,15 +526,6 @@ export function TripPlanningModal({
                     </div>
                   )}
 
-                  {refineSection === "ground" && (
-                    <div className="text-center py-8">
-                      <Car className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                      <p className="text-muted-foreground mb-4">Use the full-screen selector for ground transport</p>
-                      <Button onClick={() => { setGroundDrawerOpen(true); setIsRefining(false); setRefineSection(null); }}>
-                        Open Ground Transport
-                      </Button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -674,15 +580,6 @@ export function TripPlanningModal({
         onSelect={setSelectedHotel}
         nights={nights}
         venueName={event?.location}
-      />
-
-      {/* Ground Transport Selection Full-Screen Page */}
-      <GroundTransportSelectionPage
-        open={groundDrawerOpen}
-        onClose={() => setGroundDrawerOpen(false)}
-        options={groundOptions}
-        selectedOption={selectedGround}
-        onSelect={setSelectedGround}
       />
     </>
   );

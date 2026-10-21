@@ -14,6 +14,8 @@ import { useExpenses } from "@/hooks/useExpenses";
 import { useBookingMode } from "@/hooks/useAutoPlan";
 import { useChats } from "@/hooks/useChats";
 import { usePreferences } from "@/hooks/usePreferences";
+import { AIRPORTS } from "@/data/globalAirports";
+import { matchesPreferredAirline, matchedHotelBrand } from "@/services/preferenceMatching";
 import { useTravelPreferences } from "@/hooks/useTravelPreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -21,11 +23,13 @@ import { parsePurpose } from "@/services/tripTemplates";
 import { parseTravelRequest, parseTravelRequestSmart, parseTravelRequestCached } from "@/services/travelSearchParser";
 import { searchRealFlights, searchRealFlightsDetailed } from "@/services/duffelFlights";
 import { FlightBookingModal } from "@/components/booking/FlightBookingModal";
-import { generateMockFlights } from "@/services/mockFlightService";
 import { FlightResults, type Flight } from "@/components/flights/FlightResults";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
-import { getHotelsForDestination } from "@/services/mockHotelService";
-import { generateUberOptions, type GroundTransportOption } from "@/services/mockGroundTransportService";
+import { searchLiveHotels, hotelUnavailableMessage, type HotelSearchFailure } from "@/services/duffelStays";
+import { HotelBookingModal, type HotelGuestDefaults } from "@/components/booking/HotelBookingModal";
+import { useTravelPolicy } from "@/hooks/useTravelPolicy";
+import type { BookingResult } from "@/services/duffelFlights";
+import type { LocalTripHotel } from "@/hooks/useTrips";
 import { BookingChatThread, type ChatMsg, type ChatThreadMeta, type BookingResults } from "@/components/home/BookingChatThread";
 import type { HotelOption } from "@/components/chats/booking/types";
 import { RefineModal } from "@/components/home/RefineModal";
@@ -57,6 +61,9 @@ interface TripPlan {
     airline: string;
     departTime: string;
     returnTime: string;
+    /** Airport codes, shown so the traveler can see where the trip departs from. */
+    from?: string;
+    to?: string;
   };
   hotel: {
     name: string;
@@ -64,8 +71,11 @@ interface TripPlan {
     pricePerNight?: number;
     totalPrice?: number;
     nights?: number;
+    /** Live search result id — what a reservation is made from. */
+    id?: string;
+    currency?: string;
+    dueAtAccommodation?: number;
   };
-  groundTransport: string;
   estimatedCost: number;
   confidenceLevel: number;
   originalPrompt: string;
@@ -83,6 +93,9 @@ interface PersistedBookingFlow {
   showHotelStep: boolean;
 }
 
+/** A flight that came from the live airline feed (a Duffel offer), not generated. */
+const isLiveOffer = (flight: { id: string }) => typeof flight?.id === "string" && flight.id.startsWith("off_");
+
 const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 
 const bookingFlowReviver = (_key: string, value: unknown) => {
@@ -93,7 +106,29 @@ const bookingFlowReviver = (_key: string, value: unknown) => {
 const loadBookingFlow = (): PersistedBookingFlow | null => {
   try {
     const raw = sessionStorage.getItem(BOOKING_FLOW_KEY);
-    return raw ? (JSON.parse(raw, bookingFlowReviver) as PersistedBookingFlow) : null;
+    if (!raw) return null;
+    const flow = JSON.parse(raw, bookingFlowReviver) as PersistedBookingFlow;
+    // A flow saved before invented flights were removed may still hold one.
+    // Restoring it would put a flight that doesn't exist back on screen, so
+    // start clean instead.
+    const held = [flow.selectedFlightFromResults, ...(flow.flightResults || [])].filter(Boolean) as Flight[];
+    const planFlights = [flow.planResult, flow.pendingPlanResult]
+      .flatMap((plan) => (plan as (TripPlan & { _flights?: Flight[] }) | null)?._flights || []);
+    if ([...held, ...planFlights].some((f) => !isLiveOffer(f))) {
+      sessionStorage.removeItem(BOOKING_FLOW_KEY);
+      return null;
+    }
+    // Same for hotels: one saved before the generated list was removed names a
+    // property that may not exist and that nothing can reserve.
+    const plans = [flow.planResult, flow.pendingPlanResult].filter(Boolean) as Array<TripPlan & { _hotels?: HotelOption[] }>;
+    const staleHotel = plans.some(
+      (plan) => (plan.hotel?.name && !plan.hotel.id) || (plan._hotels || []).some((h) => !h.live),
+    );
+    if (staleHotel) {
+      sessionStorage.removeItem(BOOKING_FLOW_KEY);
+      return null;
+    }
+    return flow;
   } catch { return null; }
 };
 
@@ -106,7 +141,11 @@ const clearBookingFlow = () => {
 };
 
 // Generate trip plan based on parsed destination
-const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDestination: true; flights?: never }> => {
+const generateTripPlan = async (
+  prompt: string,
+  /** The traveler's default departure airport from Settings, e.g. "SAN". */
+  homeAirportCode?: string | null,
+): Promise<TripPlan | { needsDestination: true; flights?: never }> => {
   await new Promise(r => setTimeout(r, 850));
 
   // AI-first parse (Gemini) with the heuristic as an automatic fallback; the
@@ -117,12 +156,16 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
 
   // Default origin to user's home airport when not parsed. Mark as inferred so
   // the chip displays "Nearest airport" instead of pretending we knew the origin.
+  // A starting city the request names always wins; otherwise the traveler's
+  // saved home airport; otherwise the long-standing fallback.
   const DEFAULT_HOME = { code: "SEA", city: "Nearest airport" };
-  const originAirport = parsed.origin?.airports[0] || { code: DEFAULT_HOME.code, city: DEFAULT_HOME.city } as any;
+  const savedHome = homeAirportCode
+    ? AIRPORTS.find((a) => a.code === homeAirportCode.toUpperCase())
+    : undefined;
+  const originAirport = parsed.origin?.airports[0]
+    || savedHome
+    || { code: DEFAULT_HOME.code, city: DEFAULT_HOME.city } as any;
   const purpose = parsePurpose(prompt);
-
-  const hotelBrands = ["Four Seasons", "Marriott", "Hyatt Regency", "Westin", "CitizenM", "InterContinental"];
-  const hotelAreas = ["City Center", "Financial District", "Waterfront", "Convention Quarter", "Old Town"];
 
   const now = new Date();
   const startDate = parsed.dates?.departure || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -135,12 +178,8 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
   const cabinClass = parsed.cabinClass || "economy";
   const passengers = parsed.passengers || 1;
 
-  const hotelName = `${hotelBrands[Math.floor(Math.random() * hotelBrands.length)]} ${destAirport.city}`;
-  const hotelLocation = `${hotelAreas[Math.floor(Math.random() * hotelAreas.length)]}, ${destAirport.city}`;
-  const estimatedCostBase = destAirport.country === "United States" || destAirport.country === "USA" ? 1450 : 2850;
-
-  // Real flights from Duffel when available (carrying the offer id needed to
-  // book), falling back to the local generator so search always returns results.
+  // Real flights and real hotels, searched together. Each carries the supplier
+  // id needed to book it. Nothing is generated when a search comes back empty.
   const toISODate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   // A departure date in the past is rejected outright by the flight provider
@@ -153,20 +192,45 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
 
   let flightNote: "past_date" | "no_results" | "unreachable" | undefined;
   let realFlights: Flight[] | null = null;
+  let returnUnavailable = false;
+  let liveHotels: HotelOption[] = [];
+  let hotelNote: HotelSearchFailure | undefined;
+  // A trip has a way home. Unless the request says one-way, the return is
+  // priced into the same fare — searching only the outbound used to "book" a
+  // two-week trip with no flight back.
+  const returnDate = parsed.tripType === "oneway" ? undefined : toISODate(endDate);
   if (departureIsPast) {
     flightNote = "past_date";
   } else {
-    const outcome = await searchRealFlightsDetailed({
-      origin: originCode,
-      destination: destCode,
-      departureDate: toISODate(startDate),
-      passengers,
-      cabinClass,
-    });
+    const [outcome, stay] = await Promise.all([
+      searchRealFlightsDetailed({
+        origin: originCode,
+        destination: destCode,
+        departureDate: toISODate(startDate),
+        returnDate,
+        passengers,
+        cabinClass,
+      }),
+      searchLiveHotels({
+        destinationCode: destCode,
+        destinationCity: destAirport.city,
+        checkIn: toISODate(startDate),
+        checkOut: toISODate(endDate),
+        guests: passengers,
+      }),
+    ]);
     realFlights = outcome.flights;
     if (!realFlights) flightNote = outcome.reason ?? "unreachable";
+    returnUnavailable = Boolean(outcome.returnUnavailable);
+    liveHotels = stay.hotels ?? [];
+    if (!stay.hotels) hotelNote = stay.reason ?? "unreachable";
   }
-  const flights = realFlights ?? generateMockFlights(originCode, destCode, cabinClass, passengers);
+  // Only flights that came back from the live airline feed. This used to fall
+  // back to generated "estimates" when the feed was unreachable, which put
+  // flights on screen that don't exist — a Qatar Airways nonstop from LAX to
+  // Dubai, for one. No flight is better than an invented one: the traveler is
+  // told why nothing came back (see _flightNote) instead.
+  const flights: Flight[] = realFlights ?? [];
 
   return {
     destination: destLabel,
@@ -178,28 +242,26 @@ const generateTripPlan = async (prompt: string): Promise<TripPlan | { needsDesti
     needsDateClarification: false,
     purpose,
     flight: {
-      airline: flights[0]?.airline || "United Airlines",
-      departTime: flights[0]?.departureTime || "7:45 AM",
-      returnTime: flights[0]?.arrivalTime || "5:30 PM",
+      airline: flights[0]?.airline || "",
+      departTime: flights[0]?.departureTime || "",
+      returnTime: flights[0]?.arrivalTime || "",
     },
-    hotel: { name: hotelName, location: hotelLocation },
-    groundTransport: `Airport transfer from ${destCode} + local mobility pass`,
-    estimatedCost: (() => {
-      const nights = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-      const flightPrice = flights[0]?.price ?? Math.round(estimatedCostBase * 0.4);
-      const hotelPricePerNight = destAirport.country === "United States" || destAirport.country === "USA" ? 245 : 310;
-      return flightPrice + hotelPricePerNight * nights;
-    })(),
+    hotel: { name: "", location: "" },
+    estimatedCost: flights[0]?.price ?? 0,
     confidenceLevel: Math.min(98, 92 + Math.floor(Math.random() * 4)),
     originalPrompt: prompt,
     _flights: flights,
     _flightNote: flightNote,
+    _returnDate: returnDate,
+    _returnUnavailable: returnUnavailable,
+    _liveHotels: liveHotels,
+    _hotelNote: hotelNote,
     _parsed: parsed,
     _originCode: originCode,
     _originCity: originAirport.city,
     _destCode: destCode,
     _destCity: destAirport.city,
-  } as TripPlan & { _flights: Flight[]; _flightNote?: "past_date" | "no_results" | "unreachable"; _parsed: ReturnType<typeof parseTravelRequest>; _originCode: string; _originCity: string; _destCode: string; _destCity: string };
+  } as TripPlan & { _flights: Flight[]; _flightNote?: "past_date" | "no_results" | "unreachable"; _returnDate?: string; _returnUnavailable: boolean; _liveHotels: HotelOption[]; _hotelNote?: HotelSearchFailure; _parsed: ReturnType<typeof parseTravelRequest>; _originCode: string; _originCity: string; _destCode: string; _destCity: string };
 };
 
 // Derive a short conversation title from the first user message + destination chip
@@ -257,7 +319,7 @@ function isFollowUpIntent(text: string): boolean {
 // airline search isn't available or returned nothing).
 function applyFollowUp(text: string, prev: BookingResults): { results: BookingResults; note: string } {
   const t = text.toLowerCase();
-  let results = { ...prev, flights: [...prev.flights], hotels: [...prev.hotels], ground: [...prev.ground] };
+  let results = { ...prev, flights: [...prev.flights], hotels: [...prev.hotels] };
   let note = "Refining your search…";
 
   if (/nonstop|non-stop|direct/.test(t)) {
@@ -324,7 +386,8 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { demoMode } = useDemoMode();
-  const { createTrip, deleteTrip } = useTrips();
+  const { createTrip, deleteTrip, updateTrip } = useTrips();
+  const { policy: travelPolicy } = useTravelPolicy();
   const { addExpense } = useExpenses();
   const { autoPlan, autoBook } = useBookingMode();
   // Set when autonomous mode has assembled a trip that should now be booked.
@@ -333,7 +396,7 @@ export default function Dashboard() {
   const [pendingAutoBook, setPendingAutoBook] = useState(false);
   const { createChat } = useChats();
   const { preferences, getActivePreferenceLabels, hasLearnedPreferences, recordBookingChoice } = usePreferences();
-  const { preferences: savedTravelPrefs } = useTravelPreferences();
+  const { preferences: savedTravelPrefs, isLoading: travelPrefsLoading } = useTravelPreferences();
   const [tripInput, setTripInput] = useState("");
   const [isPlanning, setIsPlanning] = useState(false);
   const [planResult, setPlanResult] = useState<TripPlan | null>(() => loadBookingFlow()?.planResult ?? null);
@@ -373,6 +436,7 @@ export default function Dashboard() {
   // "show me Emirates" can re-query live Duffel inventory for that carrier.
   const searchContextRef = useRef<{
     origin: string; destination: string; departureDate: string;
+    returnDate?: string;
     passengers: number; cabinClass: string;
   } | null>(null);
 
@@ -392,19 +456,12 @@ export default function Dashboard() {
   }, [messages, activeThreadId]);
 
   // Restore in-progress booking flow when the dashboard remounts (e.g. after
-  // navigating to Trips/Team/Settings and back). Hotel options are regenerated
-  // on return so we don't bloat sessionStorage with the full inventory.
+  // navigating to Trips/Team/Settings and back). The hotel step picks up the
+  // same live hotels the plan was built with — never a regenerated list.
   useEffect(() => {
     const flow = loadBookingFlow();
     if (flow?.showHotelStep && flow?.pendingPlanResult) {
-      const nights = Math.max(
-        1,
-        Math.ceil(
-          (flow.pendingPlanResult.endDate.getTime() - flow.pendingPlanResult.startDate.getTime()) /
-            (1000 * 60 * 60 * 24),
-        ),
-      );
-      setHotelOptions(getHotelsForDestination({ destination: flow.pendingPlanResult.destination, nights }));
+      setHotelOptions((flow.pendingPlanResult as TripPlan & { _hotels?: HotelOption[] })._hotels ?? []);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -450,6 +507,9 @@ export default function Dashboard() {
     const anyResult = result as TripPlan & {
       _flights?: Flight[];
       _flightNote?: "past_date" | "no_results" | "unreachable";
+      _returnUnavailable?: boolean;
+      _liveHotels?: HotelOption[];
+      _hotelNote?: HotelSearchFailure;
       _parsed?: ReturnType<typeof parseTravelRequest>;
       _originCode?: string; _originCity?: string;
       _destCode?: string; _destCity?: string;
@@ -457,18 +517,34 @@ export default function Dashboard() {
     const rawFlights = anyResult._flights || [];
     const parsed = anyResult._parsed;
     const nights = Math.max(1, Math.ceil((anyResult.endDate.getTime() - anyResult.startDate.getTime()) / (1000 * 60 * 60 * 24)));
-    const rawHotels = getHotelsForDestination({ destination: anyResult.destination, nights });
+    // Real hotels from the live supplier. "Policy compliant" is judged against
+    // the company's actual nightly cap; with no cap set, no claim is made.
+    const nightlyCap = travelPolicy?.max_nightly_hotel_rate ?? null;
+    const rawHotels: HotelOption[] = (anyResult._liveHotels ?? []).map((h) => ({
+      ...h,
+      tags: nightlyCap == null
+        ? h.tags
+        : [...h.tags, h.pricePerNight <= nightlyCap ? "Policy compliant" : "Out of policy"],
+    }));
+    // The supplier names the chain and brand outright, which is a far better
+    // thing to match a preference against than the property's name alone.
+    const hotelBrandText = (h: HotelOption) => [h.name, h.brand, h.chain].filter(Boolean).join(" ");
     const preferredHotelBrands = savedTravelPrefs.preferredHotelBrands || [];
+    // A preferred brand the traveler can actually book (within policy) comes
+    // first; among those, and among everything else, the usual price/rating
+    // balance decides. This used to be a small score nudge that a slightly
+    // cheaper hotel always outweighed, so the preference rarely showed.
+    const isPreferredHotel = (h: (typeof rawHotels)[number]) =>
+      !h.tags.includes("Out of policy") && matchedHotelBrand(hotelBrandText(h), preferredHotelBrands) !== null;
     const hotels = [...rawHotels].sort((a, b) => {
+      const preferredFirst = Number(isPreferredHotel(b)) - Number(isPreferredHotel(a));
+      if (preferredFirst !== 0) return preferredFirst;
       const cs = savedTravelPrefs.costSensitivity;
       const priceW = cs === "high" ? 1.4 : cs === "low" ? 0.3 : 0.8;
       const ratingW = cs === "low" ? 60 : cs === "high" ? 15 : 35;
-      const brandBonus = (h: typeof a) =>
-        preferredHotelBrands.some((b) => h.name.toLowerCase().includes(b.toLowerCase())) ? -40 : 0;
-      const score = (h: typeof a) => h.pricePerNight * priceW - h.rating * ratingW + brandBonus(h);
+      const score = (h: typeof a) => h.pricePerNight * priceW - h.rating * ratingW;
       return score(a) - score(b);
     });
-    const ground = generateUberOptions(15);
 
     // Re-rank flights to respect saved "avoid layovers" + "cost sensitivity" preferences,
     // falling back to the inferred (learned) prefs when no saved value is set.
@@ -480,8 +556,15 @@ export default function Dashboard() {
     const costSensitivity = savedTravelPrefs.costSensitivity; // "low" | "medium" | "high"
     const priceWeight = costSensitivity === "high" ? 1.6 : costSensitivity === "low" ? 0.3 : 1;
     const minPrice = rawFlights.reduce((m, f) => Math.min(m, f.price), Infinity);
+    // A round trip is judged on both directions. Scoring only the outbound let
+    // a 31-hour, two-stop journey home rank as if it weren't there.
+    const isRoundTrip = (f: typeof rawFlights[number]) => f.tripType === "round_trip";
+    const totalStops = (f: typeof rawFlights[number]) =>
+      f.stops + (isRoundTrip(f) ? (f.returnStops ?? 0) : 0);
+    const totalMins = (f: typeof rawFlights[number]) =>
+      (parseDurationMins(f.duration) || 0) + (isRoundTrip(f) ? (parseDurationMins(f.returnDuration || "") || 0) : 0);
     const minDuration = rawFlights.reduce(
-      (m, f) => Math.min(m, parseDurationMins(f.duration) || Infinity),
+      (m, f) => Math.min(m, totalMins(f) || Infinity),
       Infinity,
     );
     const scoreFlight = (f: typeof rawFlights[number]) => {
@@ -493,11 +576,19 @@ export default function Dashboard() {
       // hasn't set a preference — this keeps a cheap 2-stop from burying a
       // reasonable nonstop. "Avoid layovers" makes stops near-disqualifying.
       const stopPenalty = avoidLayovers ? 1500 : 320;
-      score += f.stops * stopPenalty;
-      // Prefer shorter itineraries: penalize each hour over the fastest option.
-      const extraMins = Math.max(0, parseDurationMins(f.duration) - (minDuration === Infinity ? 0 : minDuration));
+      score += totalStops(f) * stopPenalty;
+      // Prefer shorter itineraries: penalize each hour over the fastest option,
+      // counting the time spent travelling in both directions.
+      const extraMins = Math.max(0, totalMins(f) - (minDuration === Infinity ? 0 : minDuration));
       score += (extraMins / 60) * 25;
-      if (preferredAirlines.includes(f.airline)) score -= 150;
+      // Coming home to a different airport than you left from (ONT instead of
+      // LAX) means a car or a parked car in the wrong place. Real, but rarely
+      // wanted — it has to be clearly better to win.
+      if (isRoundTrip(f) && f.returnDestination && f.origin && f.returnDestination !== f.origin) score += 400;
+      // Preferred carrier: worth about one stop, or ~$300 at medium cost
+      // sensitivity. Matched loosely — "Delta" must match Duffel's "Delta Air
+      // Lines", which the old exact comparison never did.
+      if (matchesPreferredAirline(f, preferredAirlines)) score -= 300;
       return score;
     };
     const ranked = [...rawFlights].sort((a, b) => scoreFlight(a) - scoreFlight(b));
@@ -527,16 +618,17 @@ export default function Dashboard() {
 
     const topFlight = flights[0];
     const topHotel = hotels[0];
-    const topGround = ground[0];
 
-    const reasons: { flight?: string; hotel?: string; ground?: string } = {};
+    const reasons: { flight?: string; hotel?: string } = {};
     if (topFlight) {
-      const stopsLabel =
-        topFlight.stops === 0
-          ? "Nonstop"
-          : `${topFlight.stops} stop${topFlight.stops > 1 ? "s" : ""}`;
+      const stopsWord = (n: number) => (n === 0 ? "nonstop" : `${n} stop${n > 1 ? "s" : ""}`);
+      const stopsLabel = isRoundTrip(topFlight)
+        ? (totalStops(topFlight) === 0
+            ? "Nonstop both ways"
+            : `${stopsWord(topFlight.stops).replace(/^./, (c) => c.toUpperCase())} out, ${stopsWord(topFlight.returnStops ?? 0)} back`)
+        : stopsWord(topFlight.stops).replace(/^./, (c) => c.toUpperCase());
       const isCheapest = topFlight.price === minPrice;
-      const airlinePreferred = preferredAirlines.includes(topFlight.airline);
+      const airlinePreferred = matchesPreferredAirline(topFlight, preferredAirlines);
       const bits: string[] = [];
       bits.push(
         `${stopsLabel} ${anyResult._originCode}→${anyResult._destCode} on ${topFlight.airline} (${topFlight.flightNumber}), departs ${topFlight.departureTime} · ${topFlight.duration} · $${topFlight.price}.`,
@@ -546,17 +638,35 @@ export default function Dashboard() {
       else if (topFlight.stops === 0) why.push("nonstop service");
       else if (avoidLayovers) why.push("no nonstop available on this route — best connecting option");
       if (airlinePreferred) why.push(`on your preferred carrier ${topFlight.airline}`);
+      // Say so when a preferred airline wasn't an option at all — otherwise the
+      // pick looks like the preference was ignored. (If one was offered but
+      // lost on stops or price, the ranking made that trade-off deliberately.)
+      const preferredOffered = flights.some((f) => matchesPreferredAirline(f, preferredAirlines));
+      const preferredNote =
+        preferredAirlines.length > 0 && !airlinePreferred && !preferredOffered
+          ? ` None of your preferred airlines (${preferredAirlines.join(", ")}) fly this route on these dates.`
+          : "";
       if (isCheapest) why.push("lowest fare available");
       else why.push("competitive fare for the schedule");
-      reasons.flight = `${bits[0]} Picked because ${why.join(", ")}.`;
+      reasons.flight = `${bits[0]} Picked because ${why.join(", ")}.${preferredNote}`;
     }
     if (topHotel) {
-      reasons.hotel = anchor
-        ? `Closest in-policy hotel to your meeting (${topHotel.distanceToVenue} from ${anchor}). Matches your preferred brands.`
-        : `Top-rated in-policy hotel in ${topHotel.area}. Matches your preferred brands.`;
-    }
-    if (topGround) {
-      reasons.ground = `Fastest pickup at ${anyResult._destCode} with ${topGround.eta} ETA. Estimated $${topGround.priceMin}–$${topGround.priceMax} to your hotel.`;
+      // Only claim a brand match when there is one — this used to say "Matches
+      // your preferred brands" on every hotel, preferences set or not.
+      const brand = matchedHotelBrand(hotelBrandText(topHotel), preferredHotelBrands);
+      const brandNote = brand
+        ? ` Part of your preferred ${brand}.`
+        : preferredHotelBrands.length > 0
+          ? ` None of your preferred brands (${preferredHotelBrands.join(", ")}) ${nightlyCap != null ? "had an in-policy room" : "had a room"} for these dates.`
+          : "";
+      // Only what the supplier actually reported about this property.
+      const facts = [
+        `$${topHotel.pricePerNight}/night`,
+        topHotel.reviewCount > 0 ? `rated ${topHotel.rating}/5 by ${topHotel.reviewCount.toLocaleString()} guests` : null,
+        topHotel.distanceToVenue || null,
+        nightlyCap != null && topHotel.tags.includes("Policy compliant") ? `within your $${nightlyCap}/night policy` : null,
+      ].filter(Boolean).join(", ");
+      reasons.hotel = `${topHotel.name}: ${facts}.${brandNote}`;
     }
 
     return {
@@ -570,10 +680,11 @@ export default function Dashboard() {
       },
       flights,
       hotels,
-      ground,
       reasons,
       nights,
       flightNote: anyResult._flightNote,
+      hotelNote: anyResult._hotelNote,
+      returnUnavailable: anyResult._returnUnavailable,
     };
   };
 
@@ -665,7 +776,7 @@ export default function Dashboard() {
     setIsPlanning(true); setIsThinking(true);
     startNewThread(text);
     try {
-      const result = await generateTripPlan(text);
+      const result = await generateTripPlan(text, savedTravelPrefs.homeAirport);
       if ("needsDestination" in result) {
         setNeedsDestination(true);
         pushAssistantText("I couldn't find a destination in that request — can you try again with a city or airport?");
@@ -673,7 +784,7 @@ export default function Dashboard() {
       }
       // Remember the resolved search params so an airline follow-up can re-query.
       const ctx = result as TripPlan & {
-        _originCode?: string; _destCode?: string;
+        _originCode?: string; _destCode?: string; _returnDate?: string;
         _parsed?: { passengers?: number; cabinClass?: string };
       };
       const toISODate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -682,14 +793,16 @@ export default function Dashboard() {
           origin: ctx._originCode,
           destination: ctx._destCode,
           departureDate: toISODate(result.startDate),
+          // So "show me Emirates" re-searches the same kind of trip.
+          returnDate: ctx._returnDate,
           passengers: ctx._parsed?.passengers || 1,
           cabinClass: ctx._parsed?.cabinClass || "economy",
         };
       }
       const built = buildResultsFromPlan(result);
       if (built) {
-        // Automatic planning: accept the top-ranked flight, hotel and ground
-        // instead of stopping for two manual picks. The options still render
+        // Automatic planning: accept the top-ranked flight and hotel instead
+        // of stopping for two manual picks. The options still render
         // above the itinerary, so the traveler can Refine or Rebook if they
         // disagree with any choice.
         const planned = autoPlan && applyAutoSelection(result, built);
@@ -745,7 +858,7 @@ export default function Dashboard() {
         pushAssistantResults(results, note);
       } else {
         // No prior results — treat as a fresh search
-        const result = await generateTripPlan(text);
+        const result = await generateTripPlan(text, savedTravelPrefs.homeAirport);
         if ("needsDestination" in result) {
           pushAssistantText("I couldn't find a destination — try a city or airport.");
         } else {
@@ -773,18 +886,29 @@ export default function Dashboard() {
     await runInitialPlan(input);
   };
 
-  // Consume a pre-filled query handed off from another page (e.g. /trips → "Plan trip")
+  // Consume a pre-filled query handed off from another page (e.g. /trips → "Plan trip",
+  // or "Book it" on a calendar meeting).
+  //
+  // Waits for saved travel preferences first. Those load asynchronously, and a
+  // plan started before they arrive would ignore the traveler's home airport
+  // and preferred carriers — the hand-off used to fire 50ms after mount, which
+  // was always too early. The ref holds the latest runInitialPlan so the
+  // deferred call doesn't use the first render's stale closure.
+  const runInitialPlanRef = useRef(runInitialPlan);
+  runInitialPlanRef.current = runInitialPlan;
+  const prefillConsumedRef = useRef(false);
   useEffect(() => {
+    if (travelPrefsLoading || prefillConsumedRef.current) return;
+    prefillConsumedRef.current = true;
     let prefill: string | null = null;
     try { prefill = sessionStorage.getItem("flyby_prefill_query"); } catch { /* ignore */ }
     if (prefill) {
       try { sessionStorage.removeItem("flyby_prefill_query"); } catch { /* ignore */ }
       setTripInput(prefill);
       // Run on next tick so other state is settled
-      setTimeout(() => { runInitialPlan(prefill!); }, 50);
+      setTimeout(() => { runInitialPlanRef.current(prefill!); }, 50);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [travelPrefsLoading]);
 
 
 
@@ -802,15 +926,15 @@ export default function Dashboard() {
     const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : flight.destination;
     const nights = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
 
-    // Real, destination-specific hotels for this trip — used both for the guided
-    // hotel step and carried onto the plan so the Refine modal shows the same
-    // real hotels instead of a generic mock list.
-    const hotels = getHotelsForDestination({ destination: destLabel, nights });
+    // The live hotels this search returned, already ranked against the
+    // traveler's preferences — used for the hotel step and carried onto the
+    // plan so Refine shows the same ones. Empty when none could be searched.
+    const hotels = lastResults?.hotels ?? [];
 
     // Carry the real flight + hotel lists (the same ones shown in results) onto
     // the plan so the Refine modal can show the actual options, not mock ones.
     const allFlights = lastResults?.flights ?? [flight];
-    const partialPlan: TripPlan & { _flights?: Flight[]; _hotels?: HotelOption[]; _ground?: GroundTransportOption[] } = {
+    const partialPlan: TripPlan & { _flights?: Flight[]; _hotels?: HotelOption[]; _hotelNote?: HotelSearchFailure; _returnUnavailable?: boolean } = {
       destination: destLabel,
       dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
       startDate, endDate,
@@ -818,16 +942,26 @@ export default function Dashboard() {
       datesConfirmed: !!parsed.dates?.departure,
       needsDateClarification: false,
       purpose: parsePurpose(tripInput),
-      flight: { airline: flight.airline, departTime: flight.departureTime, returnTime: flight.arrivalTime },
+      flight: { airline: flight.airline, departTime: flight.departureTime, returnTime: flight.arrivalTime, from: flight.origin, to: flight.destination },
       hotel: { name: "", location: "" },
-      groundTransport: `Airport transfer from ${flight.destination} + local mobility pass`,
       estimatedCost: flight.price,
       confidenceLevel: 96,
       originalPrompt: tripInput,
       _flights: allFlights,
       _hotels: hotels,
-      _ground: lastResults?.ground,
+      _hotelNote: lastResults?.hotelNote,
+      _returnUnavailable: lastResults?.returnUnavailable,
     };
+
+    if (hotels.length === 0) {
+      // No real hotels to choose from, so there is no hotel step: go straight
+      // to the itinerary, which says why there's no hotel on it.
+      setPendingPlanResult(null);
+      setHotelOptions([]);
+      setShowHotelStep(false);
+      setPlanResult(partialPlan);
+      return;
+    }
 
     setPendingPlanResult(partialPlan);
     setHotelOptions(hotels);
@@ -838,8 +972,8 @@ export default function Dashboard() {
    * Automatic planning — assemble the whole itinerary instead of asking the
    * traveler to pick each piece.
    *
-   * `buildResultsFromPlan` has already ranked flights, hotels and ground
-   * transport against the traveler's saved preferences (cost sensitivity,
+   * `buildResultsFromPlan` has already ranked flights and hotels against the
+   * traveler's saved preferences (cost sensitivity,
    * preferred airlines and hotel brands, layover tolerance), so the top of each
    * list *is* the recommended choice. This accepts those picks and produces the
    * same finished plan the manual flight -> hotel flow would have produced, so
@@ -850,13 +984,13 @@ export default function Dashboard() {
     const flight = built.flights[0];
     if (!flight) return false;
     const hotel = built.hotels[0];
-    const ground = built.ground[0];
     const nights = built.nights;
 
     const plan: TripPlan & {
       _flights?: Flight[];
       _hotels?: HotelOption[];
-      _ground?: GroundTransportOption[];
+      _hotelNote?: HotelSearchFailure;
+      _returnUnavailable?: boolean;
     } = {
       destination: result.destination,
       dates: result.dates,
@@ -870,27 +1004,31 @@ export default function Dashboard() {
         airline: flight.airline,
         departTime: flight.departureTime,
         returnTime: flight.arrivalTime,
+        from: flight.origin,
+        to: flight.destination,
       },
       hotel: hotel
         ? {
+            id: hotel.id,
             name: hotel.name,
             location: hotel.area,
             pricePerNight: hotel.pricePerNight,
             totalPrice: hotel.totalPrice,
             nights,
+            currency: hotel.currency,
+            dueAtAccommodation: hotel.dueAtAccommodation,
           }
         : { name: "", location: "" },
-      groundTransport: ground
-        ? `${ground.provider} ${ground.rideType} · about $${ground.price}`
-        : `Airport transfer from ${flight.destination}`,
-      estimatedCost: flight.price + (hotel?.totalPrice ?? 0) + (ground?.price ?? 0),
+      // What will actually be charged: the fare and the stay.
+      estimatedCost: flight.price + (hotel?.totalPrice ?? 0),
       confidenceLevel: result.confidenceLevel,
       originalPrompt: result.originalPrompt,
       // Carried so Refine and Rebook have the full option lists, exactly as the
       // manual path provides them.
       _flights: built.flights,
       _hotels: built.hotels,
-      _ground: built.ground,
+      _hotelNote: built.hotelNote,
+      _returnUnavailable: built.returnUnavailable,
     };
 
     // The selected flight carries the route/price used when the trip is booked
@@ -915,11 +1053,14 @@ export default function Dashboard() {
     const finalPlan: TripPlan = {
       ...pendingPlanResult,
       hotel: {
+        id: hotel.id,
         name: hotel.name,
         location: hotel.area,
         pricePerNight: hotel.pricePerNight,
         totalPrice: hotel.totalPrice,
         nights,
+        currency: hotel.currency,
+        dueAtAccommodation: hotel.dueAtAccommodation,
       },
       estimatedCost: pendingPlanResult.estimatedCost + hotel.totalPrice,
     };
@@ -942,20 +1083,59 @@ export default function Dashboard() {
   const handleRefine = () => { setIsRefineOpen(true); };
 
   const handleRefineSave = (selections: {
+    flightId: string;
+    hotelId: string | null;
     flight: { airline: string; departTime: string; returnTime: string };
-    hotel: { name: string; location: string };
-    groundTransport: string;
+    hotel: { name: string; location: string; pricePerNight?: number; totalPrice?: number; nights?: number };
     estimatedCost: number;
   }) => {
-    if (planResult) {
-      setPlanResult({ ...planResult, ...selections });
-      toast.success("Trip options updated");
+    if (!planResult) return;
+    const { flightId, hotelId, ...shown } = selections;
+    // The hotel must stay tied to its live search result, or there is nothing
+    // to reserve it from later.
+    const planHotels = (planResult as TripPlan & { _hotels?: HotelOption[] })._hotels || [];
+    const chosenHotel = hotelId ? planHotels.find((h) => h.id === hotelId) : undefined;
+    // Switch the offer that Confirm & Book will actually purchase. Saving used
+    // to change only the text on the itinerary, so picking a different flight
+    // here showed the new airline while payment still went to the original one.
+    const planFlights = (planResult as TripPlan & { _flights?: Flight[] })._flights || [];
+    const chosen = planFlights.find((f) => f.id === flightId);
+    if (!chosen) {
+      toast.error("That flight is no longer available. Please search again.");
+      return;
     }
+    setSelectedFlightFromResults(chosen);
+    setPlanResult({
+      ...planResult,
+      ...shown,
+      flight: { ...shown.flight, from: chosen.origin, to: chosen.destination },
+      hotel: chosenHotel
+        ? {
+            ...shown.hotel,
+            id: chosenHotel.id,
+            currency: chosenHotel.currency,
+            dueAtAccommodation: chosenHotel.dueAtAccommodation,
+          }
+        : { name: "", location: "" },
+    });
+    toast.success("Trip options updated");
   };
 
   const [isBooking, setIsBooking] = useState(false);
   // The real Duffel offer being paid for, when the payment modal is open.
   const [bookingFlight, setBookingFlight] = useState<Flight | null>(null);
+  // The hotel waiting to be reserved once the flight is ticketed. The trip is
+  // already saved by then — with this hotel marked as not yet reserved — so
+  // closing the window or losing the page can't lose the flight booking.
+  const [hotelReservation, setHotelReservation] = useState<{
+    hotel: HotelOption;
+    tripId: string;
+    tripHotel: LocalTripHotel;
+    tripName: string;
+    tripDates: string;
+    startDate: string;
+    guest: HotelGuestDefaults;
+  } | null>(null);
 
   // Idempotency: persist in-flight + recently completed booking keys across reloads
   const BOOKING_IDEMPOTENCY_KEY = "flyby.bookingIdempotency.v1";
@@ -1000,7 +1180,17 @@ export default function Dashboard() {
    * It's passed in after a real payment so the flight expense reflects what was
    * charged rather than the quoted fare — those can differ by taxes/fees.
    */
-  const handleSaveDraft = async (paidAmount?: number) => {
+  /**
+   * Record a trip whose flight has just been paid for and ticketed.
+   *
+   * Only ever called after a successful flight order, with that order. The trip
+   * is saved as confirmed, carrying the airline's confirmation. The hotel, if
+   * one was chosen, is saved as *not yet reserved* and then offered for
+   * reservation — it becomes "reserved", and an expense, only once the hotel
+   * actually confirms.
+   */
+  const handleSaveDraft = async (booking: { charged?: number; order?: BookingResult["order"] }) => {
+    const paidAmount = booking.charged;
     if (!planResult || isBooking) return;
     const idempotencyKey = buildIdempotencyKey(planResult);
     const existing = readIdempotencyMap()[idempotencyKey];
@@ -1033,6 +1223,24 @@ export default function Dashboard() {
       // lets "Rebook" later search live flights for the same route and dates
       // without the traveler re-entering anything.
       const bookedFlight = selectedFlightFromResults;
+      // The hotel that was chosen, if it can still be reserved from its live
+      // search result. Saved on the trip as not reserved until it really is.
+      const chosenHotel = planResult.hotel?.id
+        ? ((planResult as TripPlan & { _hotels?: HotelOption[] })._hotels || [])
+            .find((h) => h.id === planResult.hotel.id && h.live)
+        : undefined;
+      const tripHotel: LocalTripHotel | null = planResult.hotel?.name
+        ? {
+            name: planResult.hotel.name,
+            location: planResult.hotel.location,
+            pricePerNight: planResult.hotel.pricePerNight,
+            totalPrice: planResult.hotel.totalPrice,
+            nights: planResult.hotel.nights,
+            currency: planResult.hotel.currency,
+            dueAtAccommodation: planResult.hotel.dueAtAccommodation,
+            reserved: false,
+          }
+        : null;
       const created = createTrip({
         destination: planResult.destination, startDate, endDate,
         purpose: planResult.purpose,
@@ -1047,11 +1255,24 @@ export default function Dashboard() {
                 duration: bookedFlight.duration,
                 stops: bookedFlight.stops,
                 price: bookedFlight.price,
+                arriveDayOffset: bookedFlight.arriveDayOffset,
+                tripType: bookedFlight.tripType,
+                returnFlightNumber: bookedFlight.returnFlightNumber,
+                returnDepartTime: bookedFlight.returnDepartureTime,
+                returnArrivalTime: bookedFlight.returnArrivalTime,
+                returnArriveDayOffset: bookedFlight.returnArriveDayOffset,
+                returnDuration: bookedFlight.returnDuration,
+                returnStops: bookedFlight.returnStops,
               }
             : {}),
+          // The airline's confirmation — what makes this a booking and not a plan.
+          ...(booking.order
+            ? { bookingReference: booking.order.bookingReference, orderId: booking.order.id }
+            : {}),
         },
-        hotel: planResult.hotel, groundTransport: null,
+        hotel: tripHotel,
         estimatedCost: planResult.estimatedCost, confidenceLevel: planResult.confidenceLevel,
+        booked: Boolean(booking.order),
       });
       if (!created || !created.id) {
         throw new Error("Trip could not be saved. Please try again.");
@@ -1082,23 +1303,8 @@ export default function Dashboard() {
             tripDates,
           });
         }
-        const hotelCost = planResult.hotel?.totalPrice ?? 0;
-        if (planResult.hotel?.name && hotelCost > 0) {
-          addExpense({
-            merchant: planResult.hotel.name,
-            description: `${planResult.hotel.nights ?? 1} night${(planResult.hotel.nights ?? 1) > 1 ? "s" : ""} in ${planResult.destination}`,
-            date: startDate,
-            amount: hotelCost,
-            category: "hotel",
-            status: "pending",
-            location: planResult.hotel.location || planResult.destination,
-            paymentMethod: "Booked in Flyby",
-            reimbursable: true,
-            tripId: created.id,
-            tripName: planResult.destination,
-            tripDates,
-          });
-        }
+        // No hotel expense here. Choosing a hotel isn't paying for one — it is
+        // filed when the reservation is actually made and charged (below).
       } catch (expenseErr) {
         console.warn("Expense import failed (non-fatal):", expenseErr);
       }
@@ -1110,9 +1316,9 @@ export default function Dashboard() {
       }
       const isEarly = planResult.flight.departTime.includes("AM") && parseInt(planResult.flight.departTime) < 10;
       recordBookingChoice({ isEarlyFlight: isEarly, isDirect: true, isBudgetOption: planResult.estimatedCost < 2000 });
-      toast.success("Trip booked and added to calendar.", {
-        action: { label: "View Calendar", onClick: () => navigate("/trips?view=calendar") },
-      });
+      const reference = booking.order?.bookingReference;
+      const tripDatesLabel = `${format(planResult.startDate, "MMM d")} – ${format(planResult.endDate, "MMM d, yyyy")}`;
+      const tripName = planResult.destination;
       setPlanResult(null);
       setPendingPlanResult(null);
       setShowHotelStep(false);
@@ -1120,7 +1326,35 @@ export default function Dashboard() {
       setFlightResults([]);
       clearBookingFlow();
       setTripInput("");
-      navigate("/trips");
+
+      if (chosenHotel && tripHotel) {
+        // Flight is ticketed and the trip is saved. Now reserve the hotel —
+        // staying here until that's done or declined.
+        const traveler = booking.order?.passengers?.[0];
+        toast.success(reference ? `Flight booked — confirmation ${reference}` : "Flight booked", {
+          description: "Next: reserve your hotel.",
+        });
+        setHotelReservation({
+          hotel: chosenHotel,
+          tripId: created.id,
+          tripHotel,
+          tripName,
+          tripDates: tripDatesLabel,
+          startDate,
+          guest: {
+            given_name: traveler?.given_name,
+            family_name: traveler?.family_name,
+            email: traveler?.email,
+            phone_number: traveler?.phone_number,
+          },
+        });
+      } else {
+        toast.success(reference ? `Flight booked — confirmation ${reference}` : "Flight booked", {
+          description: tripHotel ? undefined : "No hotel is included on this trip.",
+          action: { label: "View Calendar", onClick: () => navigate("/trips?view=calendar") },
+        });
+        navigate("/trips");
+      }
     } catch (err) {
       // Clear the in_flight marker so the user can retry
       try {
@@ -1128,11 +1362,16 @@ export default function Dashboard() {
         delete map[idempotencyKey];
         sessionStorage.setItem(BOOKING_IDEMPOTENCY_KEY, JSON.stringify(map));
       } catch { /* ignore */ }
-      const message = err instanceof Error ? err.message : "Something went wrong while booking your trip.";
-      console.error("Confirm & Book failed:", err);
-      toast.error("Booking failed", {
-        description: `${message} Your itinerary is still here — try again.`,
-        action: { label: "Retry", onClick: () => handleSaveDraft() },
+      // The flight is already paid for and ticketed at this point — only saving
+      // the trip record failed. Say that, not "booking failed": the traveler
+      // must not think they need to buy the ticket again.
+      const message = err instanceof Error ? err.message : "The trip couldn't be saved.";
+      const reference = booking.order?.bookingReference;
+      console.error("Saving the booked trip failed:", err);
+      toast.error("Your flight is booked, but the trip didn't save", {
+        description: `${reference ? `Airline confirmation ${reference}. ` : ""}${message} Retry to save it — you won't be charged again.`,
+        duration: 30000,
+        action: { label: "Retry", onClick: () => handleSaveDraft(booking) },
       });
     } finally {
       setIsBooking(false);
@@ -1158,7 +1397,12 @@ export default function Dashboard() {
     if (offer) {
       setBookingFlight(offer); // open the Duffel payment modal
     } else {
-      handleSaveDraft(); // no real offer to pay for — save locally
+      // No live fare behind this itinerary, so there is nothing to buy. This
+      // used to save the trip anyway and report it as booked — a trip with no
+      // ticket. Say so and let them search again.
+      toast.error("This fare is no longer available", {
+        description: "Search the trip again to get current flights before booking.",
+      });
     }
   };
 
@@ -1184,7 +1428,7 @@ export default function Dashboard() {
       setBookingFlight(offer); // opens the payment modal, pre-filled
     } else {
       toast.info("Itinerary ready to review", {
-        description: "Live fares weren't available, so this can't be paid for yet.",
+        description: "That fare is no longer available, so this can't be paid for yet.",
       });
     }
   }, [pendingAutoBook, planResult, selectedFlightFromResults]);
@@ -1412,7 +1656,7 @@ export default function Dashboard() {
             const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
             const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);
             const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : top.destination;
-            const finalPlan: TripPlan & { _flights?: Flight[]; _hotels?: HotelOption[]; _ground?: GroundTransportOption[] } = {
+            const finalPlan: TripPlan & { _flights?: Flight[]; _hotels?: HotelOption[] } = {
               destination: destLabel,
               dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
               startDate, endDate,
@@ -1422,13 +1666,11 @@ export default function Dashboard() {
               purpose: parsePurpose(tripInput),
               flight: { airline: top.airline, departTime: top.departureTime, returnTime: top.arrivalTime },
               hotel: { name: h.name, location: h.area },
-              groundTransport: `Airport transfer from ${top.destination} + local mobility pass`,
               estimatedCost: top.price + h.totalPrice,
               confidenceLevel: 96,
               originalPrompt: tripInput,
               _flights: cur?.flights ?? [top],
               _hotels: cur?.hotels ?? [h],
-              _ground: cur?.ground,
             };
             setPlanResult(finalPlan);
           }}
@@ -1469,7 +1711,6 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-success/10 text-success border-success/20">{planResult.confidenceLevel}%</Badge>
                     <Button variant="ghost" size="icon-sm" onClick={() => setPlanResult(null)}><X className="w-4 h-4" /></Button>
                   </div>
                 </div>
@@ -1478,7 +1719,49 @@ export default function Dashboard() {
                 <div className="grid gap-3">
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
                     <Plane className="w-5 h-5 text-primary" />
-                    <div className="flex-1"><p className="font-medium">{planResult.flight.airline}</p><p className="text-sm text-muted-foreground">Depart {planResult.flight.departTime} · Return {planResult.flight.returnTime}</p></div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium">{planResult.flight.airline}{planResult.flight.from && planResult.flight.to && <span className="font-normal text-muted-foreground"> · {planResult.flight.from} → {planResult.flight.to}</span>}</p>
+                      {(() => {
+                        // The offer that will actually be bought carries the full
+                        // detail; the plan's own strings are the fallback.
+                        const f = selectedFlightFromResults;
+                        const plus = (days?: number) => (days ? ` (+${days} day${days > 1 ? "s" : ""})` : "");
+                        const stopsText = (n?: number) => (n === undefined ? "" : n === 0 ? " · Nonstop" : ` · ${n} stop${n > 1 ? "s" : ""}`);
+                        const roundTrip = f?.tripType === "round_trip";
+                        return (
+                          <>
+                            <p className="text-sm text-muted-foreground">
+                              {roundTrip ? "Out: " : ""}Departs {planResult.flight.departTime} · Arrives {planResult.flight.returnTime}{plus(f?.arriveDayOffset)}
+                              {f?.duration ? ` · ${f.duration}` : ""}{stopsText(f?.stops)}
+                            </p>
+                            {roundTrip ? (
+                              <>
+                                <p className="text-sm text-muted-foreground">
+                                  Back: {f?.returnOrigin} → {f?.returnDestination} · Departs {f?.returnDepartureTime} · Arrives {f?.returnArrivalTime}{plus(f?.returnArriveDayOffset)}
+                                  {f?.returnDuration ? ` · ${f.returnDuration}` : ""}{stopsText(f?.returnStops)}
+                                </p>
+                                {f?.returnDestination && f.origin && f.returnDestination !== f.origin && (
+                                  <p className="text-xs text-warning mt-0.5">
+                                    Returns to {f.returnDestination}, not {f.origin} — a different airport from the one you leave from.
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-xs text-warning mt-0.5">
+                                {(planResult as TripPlan & { _returnUnavailable?: boolean })._returnUnavailable
+                                  ? "One-way fare — no airline sells this as a round trip for your dates, so the flight home is not included and needs booking separately."
+                                  : "One-way fare — no return flight is included."}
+                              </p>
+                            )}
+                            {f && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                ${f.price.toLocaleString()} {roundTrip ? "round trip" : "one way"}{f.identityDocumentsRequired ? " · passport details required" : ""}
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
                     <Building2 className="w-5 h-5 text-primary" />
@@ -1494,11 +1777,24 @@ export default function Dashboard() {
                               {planResult.hotel.totalPrice
                                 ? `$${planResult.hotel.totalPrice.toLocaleString()} total${planResult.hotel.nights ? ` (${planResult.hotel.nights} ${planResult.hotel.nights === 1 ? "night" : "nights"})` : ""}`
                                 : null}
+                              {planResult.hotel.dueAtAccommodation ? ` · plus $${planResult.hotel.dueAtAccommodation.toLocaleString()} in fees at the hotel` : null}
                             </p>
                           )}
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Reserved right after the flight is booked, at the room rate you choose.
+                          </p>
                         </>
                       ) : (
-                        <p className="text-sm text-muted-foreground">No hotel selected — you can add one later</p>
+                        <p className="text-sm text-muted-foreground">
+                          {(() => {
+                            const plan = planResult as TripPlan & { _hotels?: HotelOption[]; _hotelNote?: HotelSearchFailure };
+                            // Hotels were available and none was picked, versus
+                            // none could be offered at all — different things.
+                            return (plan._hotels || []).length > 0
+                              ? "No hotel selected. Use Refine to add one."
+                              : hotelUnavailableMessage(plan._hotelNote);
+                          })()}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -1507,6 +1803,9 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2"><DollarSign className="w-5 h-5 text-primary" /><span className="font-medium">Estimated Total</span></div>
                   <span className="text-2xl font-bold text-primary">${planResult.estimatedCost.toLocaleString()}</span>
                 </div>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Flight{planResult.hotel.name ? " and hotel" : ""}. The exact amount is confirmed with the airline{planResult.hotel.name ? " and hotel" : ""} before you pay.
+                </p>
                 <div className="flex gap-3 pt-1">
                   <Button variant="default" className="flex-1" onClick={handleConfirmBook} disabled={isBooking}>{isBooking ? "Booking…" : "Confirm & Book"}</Button>
                   <Button variant="outline" className="flex-1" onClick={handleRefine}>Refine</Button>
@@ -1727,7 +2026,7 @@ export default function Dashboard() {
       />
 
       {/* ─── Refine Modal ─── */}
-      {planResult && <RefineModal open={isRefineOpen} onOpenChange={setIsRefineOpen} destination={planResult.destination} dates={planResult.dates} flights={(planResult as TripPlan & { _flights?: Flight[] })._flights} hotels={(planResult as TripPlan & { _hotels?: HotelOption[] })._hotels} ground={(planResult as TripPlan & { _ground?: GroundTransportOption[] })._ground} currentFlight={planResult.flight} currentHotel={planResult.hotel} currentGroundTransport={planResult.groundTransport} currentCost={planResult.estimatedCost} onSave={handleRefineSave} />}
+      {planResult && <RefineModal open={isRefineOpen} onOpenChange={setIsRefineOpen} destination={planResult.destination} dates={planResult.dates} flights={(planResult as TripPlan & { _flights?: Flight[] })._flights} hotels={(planResult as TripPlan & { _hotels?: HotelOption[] })._hotels} currentFlight={planResult.flight} currentHotel={planResult.hotel} currentCost={planResult.estimatedCost} nights={Math.max(1, Math.ceil((planResult.endDate.getTime() - planResult.startDate.getTime()) / (1000 * 60 * 60 * 24)))} onSave={handleRefineSave} />}
 
       {/* ─── Payment / booking (Duffel card + 3-D Secure) ─── */}
       <FlightBookingModal
@@ -1743,8 +2042,59 @@ export default function Dashboard() {
             // Pass the amount Duffel actually charged so the auto-filed flight
             // expense matches the real charge, not just the quoted fare.
             const charged = Number(result.order?.totalAmount);
-            handleSaveDraft(Number.isFinite(charged) && charged > 0 ? charged : undefined);
+            handleSaveDraft({
+              charged: Number.isFinite(charged) && charged > 0 ? charged : undefined,
+              order: result.order,
+            });
           }
+        }}
+      />
+
+      {/* ─── Hotel reservation (after the flight is ticketed) ─── */}
+      <HotelBookingModal
+        open={hotelReservation !== null}
+        hotel={hotelReservation?.hotel ?? null}
+        guestDefaults={hotelReservation?.guest}
+        onBooked={(result) => {
+          if (!result.ok || !result.booking || !hotelReservation) return;
+          const reserved = result.booking;
+          // Now it is a reservation: record the hotel's confirmation on the
+          // trip and file what was actually charged.
+          updateTrip(hotelReservation.tripId, {
+            hotel: {
+              ...hotelReservation.tripHotel,
+              totalPrice: reserved.totalPrice,
+              currency: reserved.currency,
+              reserved: true,
+              bookingReference: reserved.reference,
+              bookingId: reserved.id,
+            },
+          });
+          try {
+            const nights = hotelReservation.tripHotel.nights ?? 1;
+            addExpense({
+              merchant: reserved.hotelName || hotelReservation.tripHotel.name,
+              description: `${nights} night${nights > 1 ? "s" : ""} in ${hotelReservation.tripName}`,
+              date: hotelReservation.startDate,
+              amount: reserved.totalPrice,
+              category: "hotel",
+              status: "pending",
+              location: hotelReservation.tripHotel.location || hotelReservation.tripName,
+              paymentMethod: "Booked in Flyby",
+              reimbursable: true,
+              tripId: hotelReservation.tripId,
+              tripName: hotelReservation.tripName,
+              tripDates: hotelReservation.tripDates,
+            });
+          } catch (expenseErr) {
+            console.warn("Hotel expense import failed (non-fatal):", expenseErr);
+          }
+        }}
+        onOpenChange={(open) => {
+          if (open) return;
+          // Closed — reserved or not, the trip is already saved. Go to it.
+          setHotelReservation(null);
+          navigate("/trips");
         }}
       />
     </motion.div>

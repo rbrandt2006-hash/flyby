@@ -26,6 +26,26 @@ export interface Flight {
   co2Emissions: string;
   isLowest?: boolean;
   isFastest?: boolean;
+  /** Calendar days after departure that the outbound lands (1 = next day). */
+  arriveDayOffset?: number;
+  /** Every connection airport on the outbound, in order. */
+  stopCities?: string[];
+  /**
+   * "round_trip" when the fare includes the journey home — the `return*`
+   * fields then describe it, and `price` covers both directions.
+   */
+  tripType?: "one_way" | "round_trip";
+  returnFlightNumber?: string;
+  returnDepartureTime?: string;
+  returnArrivalTime?: string;
+  returnArriveDayOffset?: number;
+  returnDuration?: string;
+  returnStops?: number;
+  returnStopCities?: string[];
+  returnOrigin?: string;
+  returnDestination?: string;
+  /** The airline won't ticket this fare without passport details. */
+  identityDocumentsRequired?: boolean;
 }
 
 interface FlightResultsProps {

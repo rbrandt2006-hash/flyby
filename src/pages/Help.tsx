@@ -37,12 +37,12 @@ const faqData: FAQItem[] = [
   {
     category: "Getting Started",
     question: "How do I get started with FlyBy?",
-    answer: "Welcome to FlyBy! Start by connecting your calendar to automatically detect upcoming travel. Then, when you see a trip suggestion, click 'Plan Trip' to let our AI assistant find flights, hotels, and ground transport for you. You can customize preferences in Settings to personalize your experience."
+    answer: "Welcome to FlyBy! Start by connecting your calendar to automatically detect upcoming travel. Then, when you see a trip suggestion, click 'Plan Trip' to let our AI assistant find flights and hotels for you. You can customize preferences in Settings to personalize your experience."
   },
   {
     category: "Getting Started",
     question: "How do I plan a trip?",
-    answer: "There are two ways to plan a trip: 1) Connect your calendar and click 'Plan Trip' on detected events, or 2) Go to the Trips page and click 'New Trip' to manually create one. Our AI will search for the best flight, hotel, and ground transport options based on your preferences."
+    answer: "There are two ways to plan a trip: 1) Connect your calendar and click 'Plan Trip' on detected events, or 2) Go to the Trips page and click 'New Trip' to manually create one. Our AI will search for the best flight and hotel options based on your preferences."
   },
   {
     category: "Getting Started",
@@ -54,7 +54,7 @@ const faqData: FAQItem[] = [
   {
     category: "Booking & Trip Planning",
     question: "Can I book flights and hotels in one request?",
-    answer: "Yes! FlyBy's AI automatically bundles flights, hotels, and ground transportation into a single trip plan. When you click 'Plan Trip', we search all three categories simultaneously and present you with coordinated options that work together."
+    answer: "Yes! FlyBy's AI automatically bundles flights and hotels into a single trip plan. When you click 'Plan Trip', we search both at the same time and present you with coordinated options that work together."
   },
   {
     category: "Booking & Trip Planning",

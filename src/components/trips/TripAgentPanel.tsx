@@ -84,7 +84,7 @@ export function TripAgentPanel({
               text={summary}
               actionLabel="Book it"
               onAction={() =>
-                onBookMeeting(`Trip to ${destination} from ${event.startDate} to ${event.endDate}`)
+                onBookMeeting(`Trip to ${destination} from ${usDate(event.startDate)} to ${usDate(event.endDate)}`)
               }
             />
           ))}
@@ -123,6 +123,18 @@ export function TripAgentPanel({
       </Card>
     </motion.div>
   );
+}
+
+/**
+ * "2026-10-12" → "10/12/2026" for the booking query.
+ *
+ * Both parsers read this form the same way. The AI parser handles ISO dates,
+ * but the built-in fallback (used when the AI is unavailable) misreads them —
+ * "2026-10-12" came out as February 2014 — which would search a past date.
+ */
+function usDate(iso: string): string {
+  const m = (iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : iso;
 }
 
 function Row({

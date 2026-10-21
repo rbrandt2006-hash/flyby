@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import { useTravelPreferences } from "@/hooks/useTravelPreferences";
+import { HomeAirportPicker } from "@/components/settings/HomeAirportPicker";
+import { SignInMethods } from "@/components/settings/SignInMethods";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { FunctionalToggle } from "@/components/settings/FunctionalToggle";
 import { cn } from "@/lib/utils";
@@ -218,6 +220,7 @@ export default function Settings() {
     removeCustomPreference,
     updateAvoidLayovers,
     updateCostSensitivity,
+    updateHomeAirport,
   } = useTravelPreferences();
   const { mode: bookingMode, setMode: setBookingMode } = useBookingMode();
 
@@ -229,6 +232,26 @@ export default function Settings() {
     const outlookCode = params.get("outlook_code");
     const googleCode = params.get("google_code");
     const failed = params.get("outlook_error") || params.get("google_error");
+
+    // Back from connecting Google / Microsoft sign-in to this account.
+    const signinLinked = params.get("signin_linked");
+    const signinError = params.get("signin_error");
+    if (signinError) {
+      toast.error(signinError);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("signin_error");
+      window.history.replaceState({}, "", url.toString());
+      setActiveSection("security");
+      return;
+    }
+    if (signinLinked) {
+      toast.success(`${signinLinked === "microsoft" ? "Microsoft" : "Google"} sign-in connected.`);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("signin_linked");
+      window.history.replaceState({}, "", url.toString());
+      setActiveSection("security");
+      return;
+    }
 
     const clean = () => {
       const url = new URL(window.location.href);
@@ -546,6 +569,19 @@ export default function Settings() {
             description="Customize your travel experience"
             isLoading={isLoading || prefsLoading}
           >
+            {/* Default starting city */}
+            <div className="space-y-2">
+              <Label>Default starting city</Label>
+              <p className="text-xs text-muted-foreground">
+                Used when a request doesn't say where you're leaving from. Saying "from Denver" still overrides it.
+              </p>
+              <HomeAirportPicker
+                value={preferences.homeAirport}
+                onChange={updateHomeAirport}
+                disabled={prefsSaving}
+              />
+            </div>
+
             {/* Preferred Airlines */}
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -898,19 +934,8 @@ export default function Settings() {
             isLoading={isLoading}
           >
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Password</p>
-                  <p className="text-sm text-muted-foreground">Last changed 30 days ago</p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  className="rounded-xl"
-                  onClick={() => setChangePasswordOpen(true)}
-                >
-                  Change password
-                </Button>
-              </div>
+              {/* Password, Google and Microsoft — how this account signs in */}
+              <SignInMethods onChangePassword={() => setChangePasswordOpen(true)} />
               <Separator />
               <div className="flex items-center justify-between py-2">
                 <div>

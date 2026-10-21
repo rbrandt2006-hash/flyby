@@ -180,7 +180,7 @@ export function useItinerary(options: UseItineraryOptions) {
   
   // Every itinerary the user owns, kept in sync with the backend and keyed by
   // trip. This hook edits one of them.
-  const [itineraries, setItineraries] = useBackendDocument<Record<string, TripItinerary>>({
+  const [itineraries, setItineraries, itinerariesLoaded] = useBackendDocument<Record<string, TripItinerary>>({
     endpoint: "itineraries",
     payloadKey: "itineraries",
     cacheKey: STORAGE_KEY,
@@ -197,14 +197,20 @@ export function useItinerary(options: UseItineraryOptions) {
   // Adopt the server's copy once, so it doesn't overwrite edits made while the
   // request was still in flight.
   const adoptedFromServer = useRef(false);
+  // True once this trip's saved itinerary has been adopted — or the load has
+  // finished and there is none, so the generated one stands.
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     if (adoptedFromServer.current) return;
     const stored = itineraries[tripId];
     if (stored) {
       setItinerary(rehydrateDates(stored));
       adoptedFromServer.current = true;
+      setHydrated(true);
+    } else if (itinerariesLoaded) {
+      setHydrated(true);
     }
-  }, [itineraries, tripId]);
+  }, [itineraries, tripId, itinerariesLoaded]);
   
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
@@ -260,10 +266,14 @@ export function useItinerary(options: UseItineraryOptions) {
     return result;
   }, [itinerary]);
   
-  // Write this trip's itinerary back into the synced map.
+  // Write this trip's itinerary back into the synced map — only once the saved
+  // copy has been loaded. Writing earlier put the freshly generated placeholder
+  // on top of the saved itinerary as it arrived, replacing it, whenever the
+  // trip was opened in a browser without a local copy.
   useEffect(() => {
+    if (!hydrated) return;
     setItineraries((prev) => ({ ...prev, [tripId]: itinerary }));
-  }, [itinerary, tripId, setItineraries]);
+  }, [hydrated, itinerary, tripId, setItineraries]);
   
   // Add a block to a specific day
   const addBlock = useCallback((dayIndex: number, block: Omit<ItineraryBlock, "id" | "order" | "dayIndex">) => {

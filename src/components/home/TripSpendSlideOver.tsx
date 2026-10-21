@@ -189,7 +189,7 @@ export function TripSpendSlideOver({ trip, open, onClose }: TripSpendSlideOverPr
                   { label: "Airfare", value: trip.expenses.airfare, icon: Plane },
                   { label: "Hotel", value: trip.expenses.hotel, icon: Hotel },
                   { label: "Meals", value: trip.expenses.meals, icon: Utensils },
-                  { label: "Ground Transport", value: trip.expenses.transport, icon: Car },
+                  { label: "Transportation", value: trip.expenses.transport, icon: Car },
                   { label: "Miscellaneous", value: trip.expenses.misc, icon: DollarSign },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between py-2">

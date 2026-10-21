@@ -12,7 +12,6 @@ import {
   Check,
   Clock,
   MapPin,
-  Car,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -265,23 +264,6 @@ export function TripConfirmationModal({
                       )}
                     </div>
                   </div>
-
-                  {/* Ground Transport */}
-                  {trip.groundTransport && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-                      <div className="w-9 h-9 rounded-lg bg-background flex items-center justify-center shrink-0">
-                        <Car className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground">
-                          Ground Transport
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {trip.groundTransport}
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Total Cost */}

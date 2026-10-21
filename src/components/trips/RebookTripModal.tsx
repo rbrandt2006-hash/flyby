@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Plane, Loader2, Check, Search, ArrowRight, AlertTriangle } from "lucide-react";
+import { Plane, Loader2, Check, Search, ArrowRight } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,6 @@ import { toast } from "sonner";
 import type { LocalTrip } from "@/hooks/useTrips";
 import type { Flight } from "@/components/flights/FlightResults";
 import { searchRealFlights } from "@/services/duffelFlights";
-import { generateMockFlights } from "@/services/mockFlightService";
 import { findAirports } from "@/data/globalAirports";
 
 /**
@@ -91,9 +90,10 @@ export function RebookTripModal({ trip, open, onOpenChange, onRebook }: RebookTr
         setIsLive(true);
         setFlights(real);
       } else {
-        // Duffel unavailable — show clearly-labelled estimates rather than nothing.
+        // Nothing live came back. Show nothing rather than generated flights:
+        // rebooking onto a flight that doesn't exist is worse than not rebooking.
         setIsLive(false);
-        setFlights(generateMockFlights(from, destination, "economy", 1));
+        setFlights([]);
       }
     } finally {
       setLoading(false);
@@ -166,16 +166,6 @@ export function RebookTripModal({ trip, open, onOpenChange, onRebook }: RebookTr
           </Button>
         </div>
 
-        {!isLive && flights.length > 0 && (
-          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm">
-            <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
-            <p className="text-muted-foreground">
-              Couldn't reach live flight search, so these are approximate fares — times and
-              prices may differ, and they can't be booked.
-            </p>
-          </div>
-        )}
-
         <div className="space-y-2">
           {loading && (
             <div className="py-10 flex flex-col items-center gap-3 text-muted-foreground">
@@ -186,8 +176,9 @@ export function RebookTripModal({ trip, open, onOpenChange, onRebook }: RebookTr
 
           {!loading && searched && flights.length === 0 && (
             <div className="py-10 text-center text-sm text-muted-foreground">
-              No flights found for {origin} → {destination} on {dateLabel}. Try a different
-              departure airport.
+              No live flights came back for {origin} → {destination} on {dateLabel}. Flyby only
+              shows real flights from the airlines — try another date or airport, or check that
+              live flight search is reachable on this network.
             </div>
           )}
 

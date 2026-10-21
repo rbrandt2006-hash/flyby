@@ -489,6 +489,52 @@ const auth = {
     };
   },
 
+  /**
+   * Where to send the browser to sign in with Google or Microsoft. The backend
+   * runs the provider's sign-in and comes back to /signed-in with a
+   * one-time code — never with tokens in the address bar.
+   */
+  oauthSignInUrl(provider: "google" | "microsoft") {
+    return backendUrl(`/auth/v1/authorize?provider=${provider}&flow=app`);
+  },
+
+  /** Which sign-in providers the backend has set up. */
+  async oauthProviders(): Promise<Array<"google" | "microsoft">> {
+    try {
+      const response = await fetch(backendUrl("/auth/v1/providers"));
+      if (!response.ok) return [];
+      const body = await response.json();
+      return Array.isArray(body?.providers) ? body.providers : [];
+    } catch {
+      return [];
+    }
+  },
+
+  /** Finish a Google / Microsoft sign-in: trade the one-time code for a session. */
+  async signInWithOAuthCode(code: string) {
+    const result = await request("/auth/v1/token?grant_type=oauth_code", {
+      method: "POST",
+      body: { code },
+      auth: false,
+    });
+
+    if (!result.ok) {
+      return {
+        data: { user: null, session: null },
+        newAccount: false,
+        error: toError(
+          result.body?.error_description ?? result.body?.message ?? "That sign-in has expired. Please try again.",
+          { status: result.status },
+        ),
+      };
+    }
+
+    const newAccount = Boolean(result.body?.new_account);
+    writeStoredSession(result.body as BackendSession);
+    emit("SIGNED_IN", currentSession);
+    return { data: { user: currentSession!.user, session: currentSession }, newAccount, error: null };
+  },
+
   async signInWithPassword({ email, password }: { email: string; password: string }) {
     const result = await request("/auth/v1/token?grant_type=password", {
       method: "POST",

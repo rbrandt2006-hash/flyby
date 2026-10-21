@@ -39,6 +39,22 @@ export interface HotelOption {
   description: string;
   cancellationPolicy: string;
   roomTypes: string[];
+  /**
+   * Present on hotels from the live supplier (Duffel Stays). `id` is then the
+   * search result id that rates are fetched with, and these are the facts a
+   * reservation is made from.
+   */
+  live?: boolean;
+  chain?: string | null;
+  brand?: string | null;
+  address?: string;
+  currency?: string;
+  starRating?: number | null;
+  nights?: number;
+  checkInDate?: string;
+  checkOutDate?: string;
+  /** Fees the property collects on arrival, on top of the price shown. */
+  dueAtAccommodation?: number;
 }
 
 export interface TripBookingState {

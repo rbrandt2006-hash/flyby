@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Save, Plane, Building2, Users, UtensilsCrossed, Car, Clock, MapPin, Video, Briefcase } from "lucide-react";
+import { X, Save, Plane, Building2, Users, UtensilsCrossed, Clock, MapPin, Video, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,7 +17,6 @@ import {
   HotelCheckoutBlock,
   MeetingBlock,
   MealBlock,
-  TransportBlock,
   FreeTimeBlock,
   CustomBlock,
 } from "@/types/itinerary";
@@ -384,71 +383,6 @@ export function BlockEditorPanel({
           </div>
         );
         
-      case "transport":
-        const transportData = formData as Partial<TransportBlock>;
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Transport Type</Label>
-              <Select
-                value={transportData.transportType || "uber"}
-                onValueChange={(value) => updateField("transportType" as keyof ItineraryBlock, value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="uber">Uber</SelectItem>
-                  <SelectItem value="lyft">Lyft</SelectItem>
-                  <SelectItem value="rental">Rental Car</SelectItem>
-                  <SelectItem value="shuttle">Shuttle</SelectItem>
-                  <SelectItem value="taxi">Taxi</SelectItem>
-                  <SelectItem value="subway">Subway/Metro</SelectItem>
-                  <SelectItem value="walking">Walking</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Pickup Location</Label>
-                <Input
-                  value={transportData.pickupLocation || ""}
-                  onChange={(e) => updateField("pickupLocation" as keyof ItineraryBlock, e.target.value)}
-                  placeholder="SFO Airport"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Drop-off Location</Label>
-                <Input
-                  value={transportData.dropoffLocation || ""}
-                  onChange={(e) => updateField("dropoffLocation" as keyof ItineraryBlock, e.target.value)}
-                  placeholder="The Westin Hotel"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Estimated Cost ($)</Label>
-                <Input
-                  type="number"
-                  value={transportData.estimatedCost || ""}
-                  onChange={(e) => updateField("estimatedCost" as keyof ItineraryBlock, parseInt(e.target.value) || 0)}
-                  placeholder="45"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Confirmation #</Label>
-                <Input
-                  value={transportData.confirmationNumber || ""}
-                  onChange={(e) => updateField("confirmationNumber" as keyof ItineraryBlock, e.target.value)}
-                  placeholder="UBER123"
-                  className="font-mono"
-                />
-              </div>
-            </div>
-          </div>
-        );
-        
       case "free_time":
         const freeTimeData = formData as Partial<FreeTimeBlock>;
         return (
@@ -556,7 +490,6 @@ export function BlockEditorPanel({
                       <SelectItem value="hotel_checkout">Hotel Check-out</SelectItem>
                       <SelectItem value="meeting">Meeting</SelectItem>
                       <SelectItem value="meal">Business Meal</SelectItem>
-                      <SelectItem value="transport">Transportation</SelectItem>
                       <SelectItem value="free_time">Free Time / Buffer</SelectItem>
                       <SelectItem value="custom">Other</SelectItem>
                     </SelectContent>

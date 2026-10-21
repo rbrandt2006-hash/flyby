@@ -9,14 +9,12 @@ import { format } from "date-fns";
 import { BookingResultsPanel, type ParsedChips } from "@/components/home/BookingResultsPanel";
 import type { Flight } from "@/components/flights/FlightResults";
 import type { HotelOption } from "@/components/chats/booking/types";
-import type { GroundTransportOption } from "@/services/mockGroundTransportService";
 
 export interface BookingResults {
   chips: ParsedChips;
   flights: Flight[];
   hotels: HotelOption[];
-  ground: GroundTransportOption[];
-  reasons: { flight?: string; hotel?: string; ground?: string };
+  reasons: { flight?: string; hotel?: string };
   nights: number;
   /**
    * Why live fares are missing, when they are. Lets the UI say what actually
@@ -26,6 +24,13 @@ export interface BookingResults {
    *   "unreachable" — we couldn't reach the flight provider
    */
   flightNote?: "past_date" | "no_results" | "unreachable";
+  /** Why there are no hotels to show, when there aren't. */
+  hotelNote?: import("@/services/duffelStays").HotelSearchFailure;
+  /**
+   * A return date was asked for but nothing was sold as a round trip, so these
+   * fares are outbound only.
+   */
+  returnUnavailable?: boolean;
 }
 
 export type ChatMsg =
@@ -185,7 +190,8 @@ export function BookingChatThread({
                     flights={m.results.flights}
                     hotels={m.results.hotels}
                     flightNote={m.results.flightNote}
-                    ground={m.results.ground}
+                    hotelNote={m.results.hotelNote}
+                    returnUnavailable={m.results.returnUnavailable}
                     reasons={m.results.reasons}
                     onSelectFlight={onSelectFlight}
                     onSelectHotel={onSelectHotel}

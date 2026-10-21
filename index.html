@@ -37,16 +37,18 @@
          If you move the backend, update that origin here and VITE_API_URL.
          Duffel's card form loads Evervault (PCI card fields) and Stripe (card
          processing + 3-D Secure) under the hood, so those domains are allowed
-         for the secure card + payment flow. -->
+         for the secure card + payment flow. Plaid Link (connecting a card on
+         the Expenses page) loads its script and widget from cdn.plaid.com and
+         talks to *.plaid.com, so those are allowed too. -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://cdn.plaid.com;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       img-src 'self' data: blob: https: http://localhost:*;
       font-src 'self' https://fonts.gstatic.com;
-      connect-src 'self' https://hungerheros.opencodingsociety.com http://localhost:* http://127.0.0.1:* https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://*.stripe.network;
-      frame-src 'self' https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://*.stripe.network;
-      child-src 'self' https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://*.stripe.network;
+      connect-src 'self' https://hungerheros.opencodingsociety.com http://localhost:* http://127.0.0.1:* https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://*.stripe.network https://*.plaid.com;
+      frame-src 'self' https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://*.stripe.network https://cdn.plaid.com;
+      child-src 'self' https://*.duffel.com https://*.duffel.cards https://*.evervault.com https://*.evervault.io https://*.stripe.com https://*.stripe.network https://cdn.plaid.com;
       form-action 'self';
       base-uri 'self';
       object-src 'none';

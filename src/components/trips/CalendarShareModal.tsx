@@ -201,7 +201,7 @@ export function CalendarShareModal({
                   onCheckedChange={(checked) => setIncludeDetails(!!checked)}
                 />
                 <label htmlFor="include-details" className="text-sm cursor-pointer">
-                  Trip itinerary details (flight/hotel/ground)
+                  Trip itinerary details (flight/hotel)
                 </label>
               </div>
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Plane, Building2, LogOut, Users, UtensilsCrossed, Car, Clock, 
+  Plane, Building2, LogOut, Users, UtensilsCrossed, Clock, 
   MoreHorizontal, GripVertical, ChevronDown, ChevronUp, Trash2, 
   Copy, Edit2, MapPin, Briefcase, Video
 } from "lucide-react";
@@ -17,7 +17,6 @@ import {
   HotelCheckoutBlock,
   MeetingBlock,
   MealBlock,
-  TransportBlock,
   FreeTimeBlock,
   CustomBlock,
 } from "@/types/itinerary";
@@ -28,7 +27,6 @@ const iconMap = {
   LogOut,
   Users,
   UtensilsCrossed,
-  Car,
   Clock,
   MoreHorizontal,
 };
@@ -56,7 +54,9 @@ export function ItineraryBlockCard({
 }: ItineraryBlockCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   
-  const config = blockTypeConfig[block.type];
+  // A type the app no longer offers (an old "transport" block saved before
+  // ground transport was removed) is shown as a plain entry.
+  const config = blockTypeConfig[block.type] ?? blockTypeConfig.custom;
   const IconComponent = iconMap[config.icon as keyof typeof iconMap] || MoreHorizontal;
   
   const renderBlockContent = () => {
@@ -269,48 +269,6 @@ export function ItineraryBlockCard({
           </>
         );
         
-      case "transport":
-        const transport = block as TransportBlock;
-        const transportLabels = {
-          uber: "Uber",
-          lyft: "Lyft",
-          rental: "Rental Car",
-          shuttle: "Shuttle",
-          taxi: "Taxi",
-          subway: "Subway/Metro",
-          walking: "Walking",
-        };
-        return (
-          <>
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-foreground">
-                {transportLabels[transport.transportType]}
-              </span>
-              {transport.estimatedCost && (
-                <Badge variant="secondary" className="text-xs">
-                  ~${transport.estimatedCost}
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              {transport.pickupLocation} → {transport.dropoffLocation}
-            </p>
-            {isExpanded && transport.confirmationNumber && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-3 pt-3 border-t border-border/50"
-              >
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Confirmation: </span>
-                  <span className="font-mono">{transport.confirmationNumber}</span>
-                </div>
-              </motion.div>
-            )}
-          </>
-        );
-        
       case "free_time":
         const freeTime = block as FreeTimeBlock;
         return (
@@ -416,7 +374,7 @@ export function ItineraryBlockCard({
           {/* Actions */}
           <div className="flex items-center gap-1 shrink-0">
             {/* Expand/collapse for blocks with more details */}
-            {["flight", "hotel_checkin", "meeting", "meal", "transport"].includes(block.type) && (
+            {["flight", "hotel_checkin", "meeting", "meal"].includes(block.type) && (
               <Button
                 variant="ghost"
                 size="icon"

@@ -23,6 +23,10 @@ export interface Expense {
   linkedChatId?: string;
   notes?: string;
   currency?: string;
+  /** Where it came from when not entered by hand — "plaid" for a card charge. */
+  source?: "plaid";
+  /** The card charge's id at the bank, so the same charge is never filed twice. */
+  externalId?: string;
 }
 
 export interface TripExpenseGroup {
@@ -46,7 +50,7 @@ const initialExpenses: Expense[] = [];
 export function useExpenses() {
   // Expenses are stored in the backend; a new account starts from the sample
   // set so the reporting views have something to show.
-  const [expenses, setExpenses] = useBackendCollection<Expense[]>({
+  const [expenses, setExpenses, loaded] = useBackendCollection<Expense[]>({
     endpoint: "expenses",
     payloadKey: "expenses",
     cacheKey: STORAGE_KEY,
@@ -58,7 +62,9 @@ export function useExpenses() {
   const addExpense = useCallback((expenseData: Omit<Expense, "id">): Expense => {
     const newExpense: Expense = {
       ...expenseData,
-      id: `expense_${Date.now()}`,
+      // Several can be filed in the same millisecond (a card import), so the
+      // timestamp alone isn't unique.
+      id: `expense_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     };
     setExpenses((prev) => [newExpense, ...prev]);
     return newExpense;
@@ -180,6 +186,8 @@ export function useExpenses() {
 
   return {
     expenses,
+    /** True once the saved expenses have loaded. */
+    loaded,
     expensesByTrip,
     addExpense,
     updateExpense,

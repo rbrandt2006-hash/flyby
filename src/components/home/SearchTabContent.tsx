@@ -1,21 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Loader2, Plane, Hotel, Car, Star, MapPin, Clock, Check, AlertCircle } from "lucide-react";
+import { Search, X, Loader2, Plane, Hotel, Star, MapPin, Clock, Check, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useTravelSearch, SearchFlightResult, SearchHotelResult, SearchGroundResult } from "@/hooks/useTravelSearch";
+import { useTravelSearch, SearchFlightResult, SearchHotelResult } from "@/hooks/useTravelSearch";
 
 interface SearchTabContentProps {
   activeCategory: string;
   destination: string;
   onSelectFlight?: (flight: SearchFlightResult) => void;
   onSelectHotel?: (hotel: SearchHotelResult) => void;
-  onSelectGround?: (ground: SearchGroundResult) => void;
   selectedFlightId?: string;
   selectedHotelId?: string;
-  selectedGroundId?: string;
 }
 
 export function SearchTabContent({
@@ -23,10 +21,8 @@ export function SearchTabContent({
   destination,
   onSelectFlight,
   onSelectHotel,
-  onSelectGround,
   selectedFlightId,
   selectedHotelId,
-  selectedGroundId,
 }: SearchTabContentProps) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -43,9 +39,7 @@ export function SearchTabContent({
       ? "flights" 
       : activeCategory === "hotels" 
         ? "hotels" 
-        : activeCategory === "ground" 
-          ? "ground" 
-          : "all";
+        : "all";
 
     search({
       query,
@@ -67,7 +61,7 @@ export function SearchTabContent({
     }
   };
 
-  const hasResults = results.flights.length > 0 || results.hotels.length > 0 || results.ground.length > 0;
+  const hasResults = results.flights.length > 0 || results.hotels.length > 0;
   const showGroupedResults = activeCategory === "search" || !activeCategory;
 
   return (
@@ -81,7 +75,7 @@ export function SearchTabContent({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Search flights, hotels, or ground transportation"
+          placeholder="Search flights or hotels"
           className="pl-10 pr-10 h-12 text-base"
           aria-label="Search travel options"
         />
@@ -180,29 +174,6 @@ export function SearchTabContent({
                       hotel={hotel}
                       isSelected={selectedHotelId === hotel.id}
                       onSelect={() => onSelectHotel?.(hotel)}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Ground Section */}
-            {results.ground.length > 0 && (activeCategory === "ground" || activeCategory === "search" || !activeCategory) && (
-              <section>
-                {showGroupedResults && (
-                  <div className="flex items-center gap-2 mb-3">
-                    <Car className="w-4 h-4 text-primary" />
-                    <h3 className="font-semibold text-foreground">Ground Transport</h3>
-                    <Badge variant="secondary" className="text-xs">{results.ground.length}</Badge>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  {results.ground.map((ground) => (
-                    <GroundResultCard
-                      key={ground.id}
-                      ground={ground}
-                      isSelected={selectedGroundId === ground.id}
-                      onSelect={() => onSelectGround?.(ground)}
                     />
                   ))}
                 </div>
@@ -320,51 +291,6 @@ function HotelResultCard({
         <div className="text-right flex flex-col items-end">
           <p className="text-lg font-bold">${hotel.pricePerNight}</p>
           <p className="text-xs text-muted-foreground">per night</p>
-          {isSelected && (
-            <Check className="w-5 h-5 text-primary mt-1" />
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// Ground Transport Result Card
-function GroundResultCard({ 
-  ground, 
-  isSelected, 
-  onSelect 
-}: { 
-  ground: SearchGroundResult; 
-  isSelected: boolean; 
-  onSelect: () => void;
-}) {
-  return (
-    <motion.div
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.99 }}
-      onClick={onSelect}
-      className={cn(
-        "w-full p-4 rounded-xl border-2 cursor-pointer transition-all",
-        isSelected
-          ? "border-primary bg-primary/5"
-          : "border-border hover:border-primary/30"
-      )}
-    >
-      <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
-        <div className="space-y-1.5 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold">{ground.provider}</p>
-            <Badge variant="outline" className="text-xs">{ground.type}</Badge>
-            {ground.tags.slice(0, 2).map(tag => (
-              <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-            ))}
-          </div>
-          <p className="text-sm text-muted-foreground">{ground.description}</p>
-        </div>
-        <div className="text-right flex flex-col items-end">
-          <p className="text-lg font-bold">${ground.price}</p>
-          <p className="text-xs text-muted-foreground">each way</p>
           {isSelected && (
             <Check className="w-5 h-5 text-primary mt-1" />
           )}

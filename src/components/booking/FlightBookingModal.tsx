@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plane, Check, Loader2, ShieldAlert, ArrowRight, User } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -17,12 +17,13 @@ import { toast } from "sonner";
 /**
  * The customer booking interface for a real Duffel flight.
  *
- * Flow: confirm the live fare → enter passenger details → review → book. The
- * order is created on Flyby's Duffel balance (the app never touches card data
- * here). Every state is explicit — including when booking is turned off, when a
- * fare has expired, and when the airline declines — so the traveler always
- * knows exactly what happened. No charge occurs until the final "Confirm &
- * book", and only when booking is enabled on the backend.
+ * Flow: confirm the live fare → enter passenger details (and passport details
+ * when the airline requires them) → review → pay by card → book. Card entry and
+ * 3-D Secure are Duffel's; Flyby never sees card data. Every state is explicit
+ * — including when booking is turned off, when a fare has expired, and when the
+ * airline declines — so the traveler always knows exactly what happened. No
+ * charge occurs until the final "Pay & book", and only when booking is enabled
+ * on the backend.
  */
 
 interface FlightBookingModalProps {
@@ -48,12 +49,23 @@ function blankPassenger(): Passenger {
 
 const isRealOffer = (flight: Flight | null) => Boolean(flight?.id?.startsWith("off_"));
 
+interface PassportForm {
+  number: string;
+  country: string; // ISO 3166-1 alpha-2
+  expires: string; // YYYY-MM-DD
+}
+const blankPassport = (): PassportForm => ({ number: "", country: "", expires: "" });
+const passportComplete = (p: PassportForm) =>
+  p.number.trim().length >= 5 && /^[A-Za-z]{2}$/.test(p.country.trim()) && Boolean(p.expires);
+
 export function FlightBookingModal({ open, onOpenChange, flight, onBooked }: FlightBookingModalProps) {
   const { profile } = useUserProfileContext();
   const [step, setStep] = useState<Step>("loading");
   const [status, setStatus] = useState<DuffelStatus | null>(null);
   const [offer, setOffer] = useState<DuffelOffer | null>(null);
   const [passengers, setPassengers] = useState<Passenger[]>([blankPassenger()]);
+  // Passport details, collected only when this airline requires them.
+  const [passports, setPassports] = useState<PassportForm[]>([blankPassport()]);
   const [result, setResult] = useState<BookingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,9 +77,19 @@ export function FlightBookingModal({ open, onOpenChange, flight, onBooked }: Fli
   const [paying, setPaying] = useState(false);
   const cardForm = useDuffelCardFormActions();
 
+  // Read through refs so a profile refresh or a parent re-render can't restart
+  // this flow — and wipe what the traveler typed — while they're mid-payment.
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+  const flightRef = useRef(flight);
+  flightRef.current = flight;
+  const flightId = flight?.id ?? null;
+
   // On open: confirm the live fare and how many travelers it's for, and check
   // whether booking is switched on. This is read-only — nothing is charged.
   useEffect(() => {
+    const flight = flightRef.current;
+    const profile = profileRef.current;
     if (!open || !flight) return;
     let active = true;
     setStep("loading");
@@ -104,19 +126,45 @@ export function FlightBookingModal({ open, onOpenChange, flight, onBooked }: Fli
       }
       if (profile?.email) forms[0].email = profile.email;
       setPassengers(forms);
+      setPassports(forms.map(() => blankPassport()));
       setStep("passengers");
     })();
 
     return () => { active = false; };
-  }, [open, flight, profile]);
+  }, [open, flightId]);
 
   const updatePassenger = (i: number, patch: Partial<Passenger>) => {
     setPassengers((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
   };
 
+  const updatePassport = (i: number, patch: Partial<PassportForm>) => {
+    setPassports((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  };
+
+  // The airline, not Flyby, decides whether a passport is needed for this fare.
+  const needsPassport = Boolean(offer?.identityDocumentsRequired);
+
   const passengersValid = passengers.every(
-    (p) => p.given_name.trim() && p.family_name.trim() && p.born_on && p.email.trim() && p.phone_number.trim(),
+    (p, i) => p.given_name.trim() && p.family_name.trim() && p.born_on && p.email.trim() && p.phone_number.trim()
+      && (!needsPassport || passportComplete(passports[i] ?? blankPassport())),
   );
+
+  // What is sent to the airline: each traveler, with passport details attached
+  // only when this fare requires them.
+  const passengersForOrder = (): Passenger[] =>
+    passengers.map((p, i) => {
+      if (!needsPassport) return p;
+      const passport = passports[i] ?? blankPassport();
+      return {
+        ...p,
+        identity_documents: [{
+          type: "passport" as const,
+          unique_identifier: passport.number.trim(),
+          issuing_country_code: passport.country.trim().toUpperCase(),
+          expires_on: passport.expires,
+        }],
+      };
+    });
 
   // Review → payment: fetch the card-form client key.
   const goToPayment = async () => {
@@ -150,13 +198,15 @@ export function FlightBookingModal({ open, onOpenChange, flight, onBooked }: Fli
         return;
       }
       setStep("booking");
-      const res = await bookRealFlight(flight.id, passengers, session.id);
+      const res = await bookRealFlight(flight.id, passengersForOrder(), session.id);
       setResult(res);
       setStep("done");
       onBooked?.(res);
-      res.ok
-        ? toast.success("Flight booked", { description: `Confirmation ${res.order?.bookingReference}` })
-        : toast.error("Booking not completed", { description: res.error });
+      if (res.ok) {
+        toast.success("Flight booked", { description: `Confirmation ${res.order?.bookingReference}` });
+      } else {
+        toast.error("Booking not completed", { description: res.error });
+      }
     } catch {
       setPaying(false);
       setResult({ ok: false, error: "Payment couldn't be processed. Please try again." });
@@ -195,7 +245,7 @@ export function FlightBookingModal({ open, onOpenChange, flight, onBooked }: Fli
               </div>
               <p className="text-sm font-medium">Booking isn't available for this flight</p>
               <p className="text-sm text-muted-foreground">
-                {error || "This is a sample fare. Real booking works on live flights from search."}
+                {error || "Booking isn't available for this flight right now. Search again to get a current fare."}
               </p>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
             </motion.div>
@@ -251,6 +301,39 @@ export function FlightBookingModal({ open, onOpenChange, flight, onBooked }: Fli
                       <Label>Email</Label>
                       <Input type="email" value={p.email} onChange={(e) => updatePassenger(i, { email: e.target.value })} placeholder="traveler@company.com" />
                     </div>
+                    {needsPassport && (
+                      <>
+                        <p className="col-span-2 text-xs text-muted-foreground pt-1">
+                          This airline requires passport details to issue the ticket. Enter them exactly as printed.
+                        </p>
+                        <div className="space-y-1.5">
+                          <Label>Passport number</Label>
+                          <Input
+                            value={passports[i]?.number ?? ""}
+                            onChange={(e) => updatePassport(i, { number: e.target.value })}
+                            placeholder="As on passport"
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Issuing country</Label>
+                          <Input
+                            value={passports[i]?.country ?? ""}
+                            onChange={(e) => updatePassport(i, { country: e.target.value.toUpperCase().slice(0, 2) })}
+                            placeholder="2-letter code, e.g. US"
+                            maxLength={2}
+                          />
+                        </div>
+                        <div className="space-y-1.5 col-span-2">
+                          <Label>Passport expiry date</Label>
+                          <Input
+                            type="date"
+                            value={passports[i]?.expires ?? ""}
+                            onChange={(e) => updatePassport(i, { expires: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -264,10 +347,15 @@ export function FlightBookingModal({ open, onOpenChange, flight, onBooked }: Fli
             <motion.div key="review" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
               <div className="rounded-xl border border-border/60 divide-y divide-border/40">
                 <Row label="Flight" value={`${flight?.airline} ${flight?.flightNumber}`} />
-                <Row label="Route" value={`${flight?.origin} → ${flight?.destination}`} />
-                <Row label="Depart" value={flight?.departureTime || ""} />
+                <Row label="Outbound" value={`${flight?.origin} → ${flight?.destination} · ${flight?.departureTime} → ${flight?.arrivalTime}${flight?.arriveDayOffset ? ` (+${flight.arriveDayOffset})` : ""}`} />
+                {flight?.tripType === "round_trip" ? (
+                  <Row label="Return" value={`${flight.returnOrigin} → ${flight.returnDestination} · ${flight.returnDepartureTime} → ${flight.returnArrivalTime}${flight.returnArriveDayOffset ? ` (+${flight.returnArriveDayOffset})` : ""}`} />
+                ) : (
+                  <Row label="Return" value="Not included — one-way fare" />
+                )}
                 <Row label="Travelers" value={`${passengers.length}`} />
-                <Row label="Total fare" value={`$${fare.toLocaleString()} ${currency}`} emphasize />
+                {needsPassport && <Row label="Passport" value="Provided" />}
+                <Row label={flight?.tripType === "round_trip" ? "Total fare (round trip)" : "Total fare (one way)"} value={`$${fare.toLocaleString()} ${currency}`} emphasize />
               </div>
 
               {status && !status.bookingEnabled ? (

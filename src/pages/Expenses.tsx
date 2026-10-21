@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import ConnectCardModal from "@/components/expenses/ConnectCardModal";
+import ConnectCardModal, { cardLastUpdated } from "@/components/expenses/ConnectCardModal";
 import { AddExpenseModal } from "@/components/expenses/AddExpenseModal";
 import { SendToSupervisorModal } from "@/components/expenses/SendToSupervisorModal";
 import { DisputeModal } from "@/components/expenses/DisputeModal";
@@ -24,7 +25,9 @@ import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
-import { syncCardExpenses, getStoredLink, type TripWindow } from "@/services/plaidCards";
+import {
+  syncCardExpenses, ackCardExpenses, getCardStatus, describeCardError, type LinkedCard,
+} from "@/services/plaidCards";
 import { useTrips } from "@/hooks/useTrips";
 import { toast } from "sonner";
 import { 
@@ -65,6 +68,7 @@ export default function Expenses() {
   const { profile } = useUserProfileContext();
   const { 
     expenses, 
+    loaded: expensesLoaded,
     expensesByTrip,
     addExpense,
     updateExpense,
@@ -79,44 +83,143 @@ export default function Expenses() {
   } = useExpenses();
   const { getOrCreateExpenseChat, sendMessage, sendExpenseSystemMessage, postExpenseUpdate, supervisorMap, findChatByExpenseId } = useChats();
   
-  // Pull charges from the linked card and file them as expenses, each matched to
-  // the trip that was running when it happened. Plaid's cursor means repeat
-  // calls only return new activity, so this can't import the same charge twice.
+  // Connected cards. The server pulls each card's charges, keeps the travel
+  // spend made during a trip, and offers those here; they're filed as expenses
+  // and then confirmed back, so a charge is never lost or filed twice.
   const { trips: allTrips } = useTrips();
-  const importCardExpenses = useCallback(async () => {
-    if (!getStoredLink()?.accessToken) return;
-    const windows: TripWindow[] = allTrips
-      .filter((t) => t.status !== "cancelled" && t.status !== "archived")
-      .map((t) => ({ id: t.id, name: t.destination, start: t.startDate, end: t.endDate }));
-    const captured = await syncCardExpenses(windows);
-    if (captured.length === 0) return;
-    captured.forEach((c) => {
-      addExpense({
-        merchant: c.merchant,
-        description: c.description,
-        date: c.date,
-        amount: c.amount,
-        category: (c.category as Expense["category"]) ?? "office",
-        status: "pending",
-        location: c.location,
-        paymentMethod: c.paymentMethod,
-        reimbursable: c.reimbursable,
-        tripId: c.tripId ?? undefined,
-        tripName: c.tripName ?? undefined,
-        currency: c.currency,
-      });
-    });
-    toast.success(`Imported ${captured.length} card charge${captured.length > 1 ? "s" : ""}`, {
-      description: "Matched to the trips they happened on.",
-    });
-  }, [allTrips, addExpense]);
+  const [linkedCards, setLinkedCards] = useState<LinkedCard[]>([]);
+  const [syncingCards, setSyncingCards] = useState(false);
+  const expensesRef = useRef(expenses);
+  expensesRef.current = expenses;
+  const tripsRef = useRef(allTrips);
+  tripsRef.current = allTrips;
+  const syncInFlight = useRef(false);
+  const lastSyncAt = useRef(0);
+  const pageMounted = useRef(true);
+  useEffect(() => {
+    pageMounted.current = true;
+    return () => { pageMounted.current = false; };
+  }, []);
 
-  // Catch up on anything charged since the last visit.
-  useEffect(() => { importCardExpenses(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const importCardExpenses = useCallback(async ({ announceEmpty = false } = {}) => {
+    // Comparing against the saved expenses is what stops a duplicate, so wait
+    // until they've loaded. One sync at a time, for the same reason.
+    if (!expensesLoaded || syncInFlight.current) return;
+    syncInFlight.current = true;
+    setSyncingCards(true);
+    try {
+      const result = await syncCardExpenses();
+      lastSyncAt.current = Date.now();
+      // Left the page while this was in flight: nothing can be filed now, so
+      // nothing is confirmed — the server offers the same charges next time.
+      if (!pageMounted.current) return;
+      if (!result) {
+        if (announceEmpty) toast.error("Couldn't reach Flyby to check your cards.");
+        return;
+      }
+      setLinkedCards(result.cards);
+      const current = expensesRef.current;
+      const known = new Set(current.map((e) => e.externalId).filter(Boolean));
+      const filed: string[] = [];
+      let added = 0;
+      for (const charge of result.expenses) {
+        filed.push(charge.externalId);
+        if (known.has(charge.externalId)) continue; // filed before; the confirmation was lost
+        // Paid for while booking in Flyby: already filed from the booking itself.
+        const fromBooking = (charge.category === "flight" || charge.category === "hotel") && current.some((e) =>
+          e.paymentMethod === "Booked in Flyby" && e.tripId === charge.tripId &&
+          e.category === charge.category && Math.abs(e.amount - charge.amount) <= 1);
+        if (fromBooking) continue;
+        const trip = tripsRef.current.find((t) => t.id === charge.tripId);
+        let tripDates: string | undefined;
+        if (trip) {
+          const start = new Date(trip.startDate), end = new Date(trip.endDate);
+          if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+            tripDates = `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`;
+          }
+        }
+        addExpense({
+          merchant: charge.merchant,
+          description: charge.description,
+          date: charge.date,
+          amount: charge.amount,
+          category: charge.category,
+          status: "pending",
+          location: charge.location,
+          paymentMethod: charge.paymentMethod,
+          reimbursable: charge.reimbursable,
+          tripId: charge.tripId ?? undefined,
+          tripName: charge.tripName ?? undefined,
+          tripDates,
+          currency: charge.currency,
+          source: "plaid",
+          externalId: charge.externalId,
+        });
+        known.add(charge.externalId);
+        added += 1;
+      }
+      // Charges the bank has since withdrawn (reversed, or re-issued). Not yet
+      // submitted: removed. Already submitted: kept, with a note to say why
+      // it may need correcting.
+      for (const id of result.removed) {
+        const match = current.find((e) => e.externalId === id);
+        if (!match) continue;
+        if (match.status === "pending") deleteExpense(match.id);
+        else updateExpense(match.id, { notes: [match.notes, "Your bank has since reversed this card charge."].filter(Boolean).join("\n") });
+      }
+      await ackCardExpenses(filed, result.removed);
+      if (added > 0) {
+        toast.success(`Imported ${added} card charge${added > 1 ? "s" : ""}`, {
+          description: "Filed on the trips they happened on.",
+        });
+      } else if (announceEmpty) {
+        toast.success("Your cards are up to date", { description: "No new travel charges from your trips." });
+      }
+    } finally {
+      syncInFlight.current = false;
+      setSyncingCards(false);
+    }
+  }, [expensesLoaded, addExpense, deleteExpense, updateExpense]);
+
+  // Which cards are linked — known before the first sync finishes.
+  useEffect(() => {
+    let active = true;
+    getCardStatus().then((status) => { if (active && status) setLinkedCards(status.cards); });
+    return () => { active = false; };
+  }, []);
+
+  // Catch up once the saved expenses are in, whenever the traveler comes back
+  // to the tab, and every couple of minutes while it's open.
+  useEffect(() => {
+    if (!expensesLoaded) return;
+    void importCardExpenses();
+    const onFocus = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastSyncAt.current > 30_000) void importCardExpenses();
+    };
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void importCardExpenses();
+    }, 120_000);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [expensesLoaded, importCardExpenses]);
+
+  // Right after linking, the bank takes a few seconds to send the card's
+  // history — check a few times so it shows up without a refresh.
+  const followUpTimers = useRef<number[]>([]);
+  useEffect(() => () => followUpTimers.current.forEach((t) => window.clearTimeout(t)), []);
+  const handleCardLinked = useCallback(() => {
+    void importCardExpenses();
+    followUpTimers.current.forEach((t) => window.clearTimeout(t));
+    followUpTimers.current = [6_000, 15_000, 30_000].map((ms) => window.setTimeout(() => void importCardExpenses(), ms));
+  }, [importCardExpenses]);
 
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
-  const [isCardConnected, setIsCardConnected] = useState(false);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isSendSupervisorOpen, setIsSendSupervisorOpen] = useState(false);
   const [isDisputeOpen, setIsDisputeOpen] = useState(false);
@@ -499,21 +602,38 @@ export default function Expenses() {
 
       {/* Corporate Card CTA */}
       <motion.div variants={itemVariants}>
-        {isCardConnected ? (
-          <Card className="border-success/30 bg-success/5">
-            <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
-                  <Check className="w-6 h-6 text-success" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Corporate card connected</h3>
-                  <p className="text-sm text-muted-foreground">American Express Business •••• 3456</p>
-                </div>
-              </div>
-              <Badge variant="success">Active</Badge>
-            </CardContent>
-          </Card>
+        {linkedCards.length > 0 ? (
+          (() => {
+            const problem = linkedCards.map((c) => describeCardError(c.lastError)).find(Boolean);
+            const newest = [...linkedCards].sort((x, y) => (y.lastSyncedAt || "").localeCompare(x.lastSyncedAt || ""))[0];
+            return (
+              <Card className={problem ? "border-warning/30 bg-warning/5" : "border-success/30 bg-success/5"}>
+                <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${problem ? "bg-warning/10" : "bg-success/10"}`}>
+                      {problem ? <AlertCircle className="w-6 h-6 text-warning" /> : <Check className="w-6 h-6 text-success" />}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold">
+                        {linkedCards.length > 1 ? `${linkedCards.length} cards connected` : "Card connected"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {linkedCards.map((c) => c.institution).join(", ")} · {problem || cardLastUpdated(newest)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button variant="outline" className="rounded-xl" disabled={syncingCards} onClick={() => importCardExpenses({ announceEmpty: true })}>
+                      {syncingCards ? "Checking…" : "Check now"}
+                    </Button>
+                    <Button variant="outline" className="rounded-xl" onClick={() => setIsCardModalOpen(true)}>
+                      Manage
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()
         ) : (
           <Card className="border-dashed border-2 border-muted-foreground/20 bg-secondary/30">
             <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -638,7 +758,7 @@ export default function Expenses() {
       />
 
       {/* Modals */}
-      <ConnectCardModal open={isCardModalOpen} onOpenChange={setIsCardModalOpen} onSuccess={() => { setIsCardConnected(true); importCardExpenses(); }} />
+      <ConnectCardModal open={isCardModalOpen} onOpenChange={setIsCardModalOpen} onSuccess={handleCardLinked} onCardsChange={setLinkedCards} />
       <AddExpenseModal open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen} onSave={handleAddExpense} />
       {selectedExpense && (
         <>

@@ -5,7 +5,6 @@ export interface DestinationTemplate {
   aliases: string[];
   airlines: string[];
   hotels: { name: string; locations: string[] }[];
-  groundTransport: string;
   baseCost: number;
 }
 
@@ -19,7 +18,6 @@ export const destinationTemplates: DestinationTemplate[] = [
       { name: "Marriott Marquis Washington", locations: ["Near Convention Center", "Downtown"] },
       { name: "Hyatt Regency Capitol Hill", locations: ["Near Capitol", "Capitol Hill"] },
     ],
-    groundTransport: "Metro/Uber recommended - $15-35 from DCA, $50-70 from IAD",
     baseCost: 1650,
   },
   {
@@ -31,7 +29,6 @@ export const destinationTemplates: DestinationTemplate[] = [
       { name: "Four Seasons Downtown", locations: ["Near Wall Street", "Financial District"] },
       { name: "The Langham Fifth Avenue", locations: ["Near Central Park", "Midtown East"] },
     ],
-    groundTransport: "Taxi/Uber recommended - $50-70 from JFK, $30-45 from LGA",
     baseCost: 2100,
   },
   {
@@ -43,7 +40,6 @@ export const destinationTemplates: DestinationTemplate[] = [
       { name: "Four Seasons Chicago", locations: ["Near Navy Pier", "Streeterville"] },
       { name: "Hyatt Regency Chicago", locations: ["Near Millennium Park", "The Loop"] },
     ],
-    groundTransport: "CTA Blue Line or Uber - $2.50 train / $35-50 rideshare from ORD",
     baseCost: 1450,
   },
   {
@@ -55,7 +51,6 @@ export const destinationTemplates: DestinationTemplate[] = [
       { name: "The Edgewater Hotel", locations: ["Near Space Needle", "Waterfront"] },
       { name: "Fairmont Olympic Hotel", locations: ["Near Amazon HQ", "Downtown"] },
     ],
-    groundTransport: "Light Rail or Uber - $3 train / $40-55 rideshare from SEA",
     baseCost: 1550,
   },
   {
@@ -67,7 +62,6 @@ export const destinationTemplates: DestinationTemplate[] = [
       { name: "The Driskill", locations: ["Near Capitol", "6th Street"] },
       { name: "Fairmont Austin", locations: ["Near Downtown", "Lady Bird Lake"] },
     ],
-    groundTransport: "Uber/Lyft recommended - $25-35 from AUS",
     baseCost: 1350,
   },
   {
@@ -79,7 +73,6 @@ export const destinationTemplates: DestinationTemplate[] = [
       { name: "Four Seasons Embarcadero", locations: ["Near Financial District", "SOMA"] },
       { name: "Palace Hotel", locations: ["Near Moscone Center", "SOMA"] },
     ],
-    groundTransport: "BART or Uber - $10 train / $45-65 rideshare from SFO",
     baseCost: 1950,
   },
   {
@@ -91,7 +84,6 @@ export const destinationTemplates: DestinationTemplate[] = [
       { name: "JW Marriott LA Live", locations: ["Near Convention Center", "Downtown"] },
       { name: "Shutters on the Beach", locations: ["Near Santa Monica", "Beach"] },
     ],
-    groundTransport: "Uber/Lyft recommended - $40-70 from LAX depending on destination",
     baseCost: 1750,
   },
   {
@@ -103,7 +95,6 @@ export const destinationTemplates: DestinationTemplate[] = [
       { name: "The Liberty Hotel", locations: ["Near Beacon Hill", "Cambridge"] },
       { name: "Marriott Copley Place", locations: ["Near Convention Center", "Back Bay"] },
     ],
-    groundTransport: "Blue Line or Uber - $2.90 train / $30-45 rideshare from BOS",
     baseCost: 1600,
   },
   {
@@ -115,7 +106,6 @@ export const destinationTemplates: DestinationTemplate[] = [
       { name: "Four Seasons Denver", locations: ["Near Cherry Creek", "Downtown"] },
       { name: "Grand Hyatt Denver", locations: ["Near Convention Center", "Downtown"] },
     ],
-    groundTransport: "A Line or Uber - $10.50 train / $55-70 rideshare from DEN",
     baseCost: 1400,
   },
   {
@@ -127,7 +117,6 @@ export const destinationTemplates: DestinationTemplate[] = [
       { name: "JW Marriott Brickell", locations: ["Near Brickell", "Downtown"] },
       { name: "Mandarin Oriental Miami", locations: ["Near Brickell Key", "Waterfront"] },
     ],
-    groundTransport: "Uber/Lyft recommended - $25-40 from MIA",
     baseCost: 1700,
   },
 ];

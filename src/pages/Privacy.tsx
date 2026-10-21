@@ -23,8 +23,8 @@ export default function Privacy() {
             your calendar.
           </li>
           <li>
-            <strong className="text-foreground">Trip and booking data.</strong> Flights,
-            hotels and ground transport you search for or book, plus traveler details
+            <strong className="text-foreground">Trip and booking data.</strong> Flights
+            and hotels you search for or book, plus traveler details
             required by airlines to issue a ticket.
           </li>
           <li>

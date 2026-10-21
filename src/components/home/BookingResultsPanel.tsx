@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { hotelUnavailableMessage, type HotelSearchFailure } from "@/services/duffelStays";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,6 @@ import { cn } from "@/lib/utils";
 import type { Flight } from "@/components/flights/FlightResults";
 import type { HotelOption } from "@/components/chats/booking/types";
 import { FlightBookingModal } from "@/components/booking/FlightBookingModal";
-import type { GroundTransportOption } from "@/services/mockGroundTransportService";
 
 export interface ParsedChips {
   fromCity?: string;
@@ -24,14 +24,15 @@ interface BookingResultsPanelProps {
   chips: ParsedChips;
   flights: Flight[];
   hotels: HotelOption[];
-  ground: GroundTransportOption[];
   onSelectFlight: (f: Flight) => void;
   onSelectHotel: (h: HotelOption) => void;
   onEditChip: () => void;
   /** Why live fares are missing, so the banner can say what actually happened. */
   flightNote?: "past_date" | "no_results" | "unreachable";
+  hotelNote?: HotelSearchFailure;
+  returnUnavailable?: boolean;
   onClose: () => void;
-  reasons: { flight?: string; hotel?: string; ground?: string };
+  reasons: { flight?: string; hotel?: string };
 }
 
 function WhyPicked({ text }: { text: string }) {
@@ -67,23 +68,30 @@ export function BookingResultsPanel({
   chips,
   flights,
   hotels,
-  ground,
   onSelectFlight,
   onSelectHotel,
   onEditChip,
   flightNote,
+  hotelNote,
+  returnUnavailable,
   onClose,
   reasons,
 }: BookingResultsPanelProps) {
+  // Only flights from the live airline feed are ever shown. Real Duffel offers
+  // have ids starting with "off_"; anything else was generated locally and
+  // describes a flight that may not exist. Filtering here, at the point of
+  // display, also covers conversations saved in the browser from before the
+  // generated fallback was removed.
+  const allFlights = flights;
+  flights = allFlights.filter((f) => f.id.startsWith("off_"));
+  const hidInvented = allFlights.length > 0 && flights.length === 0;
   const topFlight = flights[0];
   const topHotel = hotels[0];
-  const topGround = ground[0];
   const [bookingFlight, setBookingFlight] = useState<Flight | null>(null);
 
-  // Real Duffel offers have ids starting with "off_" and can be booked. If none
-  // do, these are estimated fares from the local fallback (live search couldn't
-  // be reached) — say so rather than passing them off as bookable live prices.
-  const flightsAreEstimates = flights.length > 0 && !flights.some((f) => f.id.startsWith("off_"));
+  // Why there's nothing to show, when there isn't. An older saved conversation
+  // carries no reason, so it gets the "couldn't reach" explanation.
+  const emptyReason = flightNote ?? (hidInvented ? "unreachable" : undefined);
 
   return (
     <motion.div
@@ -133,17 +141,11 @@ export function BookingResultsPanel({
           <Plane className="w-4 h-4 text-primary" />
           <h3 className="font-semibold">Flights</h3>
           <Badge variant="secondary" className="text-xs">{flights.length}</Badge>
-          {flightsAreEstimates && (
-            <Badge variant="outline" className="text-xs border-warning/40 text-warning ml-auto">Estimated fares</Badge>
-          )}
         </div>
-        {flightsAreEstimates && (
-          <div className="px-4 py-2 text-xs text-muted-foreground bg-warning/5 border-b border-border">
-            {flightNote === "past_date"
-              ? "That departure date has already passed, so live fares can't be searched. Pick a future date to see real, bookable flights — the fares below are estimates."
-              : flightNote === "no_results"
-                ? "No live fares came back for this route on these dates, so the fares below are estimates — they can't be booked. Try nearby dates or a different airport."
-                : "Couldn't reach live flight search, so these are approximate fares — times and prices may differ, and they can't be booked. Try again when you're back online."}
+        {returnUnavailable && flights.length > 0 && (
+          <div className="px-4 py-2 text-xs text-warning bg-warning/5 border-b border-border">
+            No airline is selling this as a round trip for your dates, so these are one-way fares for the
+            outbound flight only. The flight home is not included and would need booking separately.
           </div>
         )}
         <CardContent className="p-0 divide-y divide-border">
@@ -157,11 +159,20 @@ export function BookingResultsPanel({
                     {i === 0 && <Badge variant="secondary" className="text-xs">Top pick</Badge>}
                   </div>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {f.departureTime} → {f.arrivalTime} · {f.duration} · {f.stops === 0 ? "Nonstop" : `${f.stops} stop`} · {f.origin}→{f.destination}
+                    {f.departureTime} → {f.arrivalTime}{f.arriveDayOffset ? ` (+${f.arriveDayOffset} day${f.arriveDayOffset > 1 ? "s" : ""})` : ""} · {f.duration} · {f.stops === 0 ? "Nonstop" : `${f.stops} stop${f.stops > 1 ? "s" : ""}${f.stopCities?.length ? ` via ${f.stopCities.join(", ")}` : ""}`} · {f.origin}→{f.destination}
                   </p>
+                  {f.tripType === "round_trip" && (
+                    <p className="text-sm text-muted-foreground">
+                      Back {f.returnFlightNumber}: {f.returnDepartureTime} → {f.returnArrivalTime}{f.returnArriveDayOffset ? ` (+${f.returnArriveDayOffset} day${f.returnArriveDayOffset > 1 ? "s" : ""})` : ""} · {f.returnDuration} · {f.returnStops === 0 ? "Nonstop" : `${f.returnStops} stop${(f.returnStops ?? 0) > 1 ? "s" : ""}${f.returnStopCities?.length ? ` via ${f.returnStopCities.join(", ")}` : ""}`} · {f.returnOrigin}→{f.returnDestination}
+                      {f.returnDestination && f.returnDestination !== f.origin && (
+                        <span className="text-warning"> · returns to {f.returnDestination}, not {f.origin}</span>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-bold">${f.price}</p>
+                  <p className="text-[11px] text-muted-foreground">{f.tripType === "round_trip" ? "round trip" : "one way"}</p>
                   <div className="flex items-center gap-1.5 mt-1 justify-end">
                     <Button size="sm" variant={f.id.startsWith("off_") ? "outline" : "default"} onClick={() => onSelectFlight(f)}>Select</Button>
                     {/* Real Duffel offers can be booked directly. */}
@@ -175,12 +186,37 @@ export function BookingResultsPanel({
             </div>
           ))}
           {flights.length === 0 && (
-            <div className="p-6 text-sm text-muted-foreground text-center">No flights found.</div>
+            <div className="p-6 text-sm text-center space-y-1">
+              <p className="font-medium">
+                {emptyReason === "past_date"
+                  ? "That departure date has already passed"
+                  : emptyReason === "no_results"
+                    ? "No flights on sale for this route and date"
+                    : emptyReason === "unreachable"
+                      ? "Can't reach live flight search right now"
+                      : "No flights found"}
+              </p>
+              <p className="text-muted-foreground">
+                {emptyReason === "past_date"
+                  ? "Pick a future date to see real, bookable flights."
+                  : emptyReason === "no_results"
+                    ? "Try nearby dates or a different airport."
+                    : emptyReason === "unreachable"
+                      ? "Flyby only shows real flights from the airlines, so there's nothing to show until the connection is back. Some school and office networks block the flight provider — another network or a hotspot usually fixes it."
+                      : "Try different dates or airports."}
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Hotels and ground transport are intentionally NOT shown in this initial
+      {/* When there are no real hotels to offer, say so here rather than letting
+          the hotel step silently not appear. */}
+      {flights.length > 0 && hotels.length === 0 && hotelNote && hotelNote !== "day_trip" && (
+        <p className="text-xs text-muted-foreground px-1">{hotelUnavailableMessage(hotelNote)}</p>
+      )}
+
+      {/* Hotels are intentionally NOT shown in this initial
           panel. The trip flow is flight-first: selecting a flight opens the
           dedicated hotel step (HotelSelectionPage), then the confirm/refine step.
           Listing hotels here let people pick one before a flight and skip that

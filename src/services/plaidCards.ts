@@ -1,22 +1,25 @@
 /**
  * Connected-card expense capture (Plaid).
  *
- * The traveler links a corporate or personal card once. After that, charges are
- * pulled in, matched to whichever trip was running when they happened, and
- * filed as expenses automatically — so the expense report drafts itself.
+ * The traveler links a corporate or personal card once. After that, the
+ * backend pulls the card's charges, keeps the travel spend (flights, hotels,
+ * rides, fuel, parking, meals), matches each charge to the trip that was running
+ * when it happened, and offers those here to be filed as expenses — so the
+ * expense report drafts itself.
  *
- * Flyby never sees a card number: the traveler authenticates with their bank
- * inside Plaid Link, and the backend holds only an opaque access token.
+ * Flyby never sees a card number: the traveler signs in to their bank inside
+ * Plaid Link. The bank access token that comes back stays on the server — it is
+ * never sent to the browser.
  *
- * Plaid keys aren't in place yet. Every function here degrades quietly —
- * `getPlaidStatus()` reports `configured: false` and the UI explains that card
- * linking isn't live. Nothing needs to change here once the keys land.
+ * Every function degrades quietly: until Plaid keys are configured the backend
+ * reports `configured: false` and the UI explains that card linking isn't live.
  */
 
 import { authedFetch, backend } from "@/integrations/backend/client";
 
 /** An expense the backend built from a card charge. */
 export interface CapturedExpense {
+  /** Plaid's transaction id — the same charge always has the same id. */
   externalId: string;
   merchant: string;
   description: string;
@@ -33,60 +36,55 @@ export interface CapturedExpense {
   source: "plaid";
 }
 
-/** Trip window used to attribute a charge to a trip. */
-export interface TripWindow {
+/** A linked bank or card account. */
+export interface LinkedCard {
   id: string;
-  name: string;
-  /** ISO date */
-  start: string;
-  /** ISO date */
-  end: string;
+  institution: string;
+  linkedAt: string | null;
+  lastSyncedAt: string | null;
+  /** Plaid's error code from the last sync, e.g. ITEM_LOGIN_REQUIRED. */
+  lastError: string | null;
 }
 
-const LINK_STORAGE_KEY = "flyby.cardLink.v1";
-
-interface StoredLink {
-  accessToken: string;
-  itemId?: string;
-  cursor?: string | null;
-  linkedAt: string;
+export interface CardStatus {
+  configured: boolean;
+  connected: boolean;
+  cards: LinkedCard[];
 }
 
-/** The linked card for this browser, if any. */
-export function getStoredLink(): StoredLink | null {
-  try {
-    const raw = localStorage.getItem(LINK_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as StoredLink) : null;
-  } catch {
-    return null;
-  }
+export interface CardSync {
+  /** Charges to file as expenses. */
+  expenses: CapturedExpense[];
+  /** Ids of filed charges the bank has since withdrawn. */
+  removed: string[];
+  cards: LinkedCard[];
 }
 
-function storeLink(link: StoredLink) {
-  try {
-    localStorage.setItem(LINK_STORAGE_KEY, JSON.stringify(link));
-  } catch {
-    /* storage unavailable — linking still works for this session */
-  }
+// An earlier version kept the bank token in localStorage under this key. No
+// card was ever linked that way (Plaid wasn't configured), but make sure
+// nothing lingers.
+try {
+  localStorage.removeItem("flyby.cardLink.v1");
+} catch {
+  /* storage unavailable */
 }
 
-export function clearStoredLink() {
-  try {
-    localStorage.removeItem(LINK_STORAGE_KEY);
-  } catch {
-    /* ignore */
-  }
-}
+const json = (body: unknown): RequestInit => ({
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body ?? {}),
+});
 
-/** Whether card linking is available (i.e. Plaid keys are configured). */
-export async function getPlaidStatus(): Promise<{ configured: boolean }> {
-  if (!backend.getCurrentSession()) return { configured: false };
+/** Whether card linking is available, and which cards are linked. Null if Flyby couldn't be reached. */
+export async function getCardStatus(): Promise<CardStatus | null> {
+  if (!backend.getCurrentSession()) return null;
   try {
     const response = await authedFetch("/api/plaid/status");
-    if (!response.ok) return { configured: false };
-    return await response.json();
+    if (!response.ok) return null;
+    const body = await response.json();
+    return { configured: Boolean(body?.configured), connected: Boolean(body?.connected), cards: body?.cards ?? [] };
   } catch {
-    return { configured: false };
+    return null;
   }
 }
 
@@ -94,11 +92,7 @@ export async function getPlaidStatus(): Promise<{ configured: boolean }> {
 export async function createLinkToken(): Promise<{ linkToken: string | null; error?: string }> {
   if (!backend.getCurrentSession()) return { linkToken: null, error: "not_signed_in" };
   try {
-    const response = await authedFetch("/api/plaid/link-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
+    const response = await authedFetch("/api/plaid/link-token", json({}));
     if (!response.ok) return { linkToken: null, error: "request_failed" };
     return await response.json();
   } catch {
@@ -107,48 +101,80 @@ export async function createLinkToken(): Promise<{ linkToken: string | null; err
 }
 
 /**
- * Finish linking. `publicToken` comes from Plaid Link on success; the durable
- * access token it returns is stored so syncing can run later.
+ * Finish linking. `publicToken` comes from Plaid Link; the backend swaps it for
+ * the bank access token, keeps that, and starts pulling charges.
  */
-export async function completeLink(publicToken: string): Promise<boolean> {
+export async function completeLink(
+  publicToken: string,
+  institutionName?: string | null,
+): Promise<{ ok: boolean; error?: string; card?: LinkedCard }> {
   try {
-    const response = await authedFetch("/api/plaid/exchange", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ publicToken }),
-    });
-    if (!response.ok) return false;
+    const response = await authedFetch("/api/plaid/exchange", json({ publicToken, institutionName }));
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body?.connected) {
+      return { ok: false, error: body?.error || "Couldn't finish connecting that account." };
+    }
+    return { ok: true, card: body.card };
+  } catch {
+    return { ok: false, error: "Couldn't reach Flyby to finish connecting." };
+  }
+}
+
+/**
+ * Bring the linked cards up to date and get the travel charges not yet filed.
+ *
+ * The same charges keep coming back until `ackCardExpenses` confirms they were
+ * filed, so a save that fails part-way can't lose any. Null if Flyby couldn't
+ * be reached.
+ */
+export async function syncCardExpenses(): Promise<CardSync | null> {
+  if (!backend.getCurrentSession()) return null;
+  try {
+    const response = await authedFetch("/api/plaid/sync", json({}));
+    if (!response.ok) return null;
     const body = await response.json();
-    if (!body?.accessToken) return false;
-    storeLink({ accessToken: body.accessToken, itemId: body.itemId, cursor: null, linkedAt: new Date().toISOString() });
-    return true;
+    if (!body?.configured) return { expenses: [], removed: [], cards: [] };
+    return {
+      expenses: Array.isArray(body.expenses) ? body.expenses : [],
+      removed: Array.isArray(body.removed) ? body.removed : [],
+      cards: Array.isArray(body.cards) ? body.cards : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Confirm these charges were filed (and these withdrawn ones dealt with). */
+export async function ackCardExpenses(filed: string[], removed: string[] = []): Promise<boolean> {
+  if (filed.length === 0 && removed.length === 0) return true;
+  try {
+    const response = await authedFetch("/api/plaid/ack", json({ filed, removed }));
+    return response.ok;
   } catch {
     return false;
   }
 }
 
-/**
- * Pull charges since the last sync and return them already shaped as expenses,
- * attributed to whichever trip was running when each charge happened.
- *
- * Safe to call repeatedly — Plaid's cursor means only new activity comes back,
- * so the same charge is never imported twice.
- */
-export async function syncCardExpenses(trips: TripWindow[]): Promise<CapturedExpense[]> {
-  const link = getStoredLink();
-  if (!link?.accessToken) return [];
+/** Unlink a card. Flyby's access is revoked at Plaid; filed expenses stay. */
+export async function disconnectCard(id: string): Promise<{ ok: boolean; cards?: LinkedCard[] }> {
   try {
-    const response = await authedFetch("/api/plaid/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessToken: link.accessToken, cursor: link.cursor, trips }),
-    });
-    if (!response.ok) return [];
-    const body = await response.json();
-    // Advance the cursor so the next sync only fetches what's new.
-    storeLink({ ...link, cursor: body?.cursor ?? link.cursor });
-    return Array.isArray(body?.expenses) ? (body.expenses as CapturedExpense[]) : [];
+    const response = await authedFetch("/api/plaid/disconnect", json({ id }));
+    const body = await response.json().catch(() => ({}));
+    return { ok: response.ok && Boolean(body?.ok), cards: body?.cards };
   } catch {
-    return [];
+    return { ok: false };
   }
+}
+
+/** Plain-language explanation of a sync problem on a linked card. */
+export function describeCardError(code: string | null | undefined): string | null {
+  if (!code) return null;
+  if (code === "ITEM_LOGIN_REQUIRED" || code === "PENDING_EXPIRATION" || code === "ACCESS_NOT_GRANTED") {
+    return "Your bank needs you to sign in again. Disconnect this card and connect it again.";
+  }
+  if (code === "PRODUCT_NOT_READY") return "Your bank is still sending your history. Charges appear shortly.";
+  if (code === "INSTITUTION_DOWN" || code === "INSTITUTION_NOT_RESPONDING") {
+    return "Your bank isn't responding right now. Flyby will keep trying.";
+  }
+  return "The last update from your bank didn't go through. Flyby will keep trying.";
 }

@@ -5,7 +5,6 @@ export type ItineraryBlockType =
   | "hotel_checkout" 
   | "meeting" 
   | "meal" 
-  | "transport" 
   | "free_time"
   | "custom";
 
@@ -70,17 +69,6 @@ export interface MealBlock extends ItineraryBlockBase {
   reservationConfirmation?: string;
 }
 
-export interface TransportBlock extends ItineraryBlockBase {
-  type: "transport";
-  transportType: "uber" | "lyft" | "rental" | "shuttle" | "taxi" | "subway" | "walking";
-  provider?: string;
-  pickupLocation: string;
-  dropoffLocation: string;
-  confirmationNumber?: string;
-  estimatedCost?: number;
-  vehicleType?: string;
-}
-
 export interface FreeTimeBlock extends ItineraryBlockBase {
   type: "free_time";
   activity?: string;
@@ -100,7 +88,6 @@ export type ItineraryBlock =
   | HotelCheckoutBlock 
   | MeetingBlock 
   | MealBlock 
-  | TransportBlock 
   | FreeTimeBlock 
   | CustomBlock;
 
@@ -164,12 +151,6 @@ export const blockTypeConfig: Record<ItineraryBlockType, {
     icon: "UtensilsCrossed",
     color: "text-orange-500",
     bgColor: "bg-orange-500/10",
-  },
-  transport: {
-    label: "Transportation",
-    icon: "Car",
-    color: "text-purple-500",
-    bgColor: "bg-purple-500/10",
   },
   free_time: {
     label: "Free Time",

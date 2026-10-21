@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plane, MapPin, Hotel, Car, Calendar, Edit2, Check, AlertCircle } from "lucide-react";
+import { X, Plane, MapPin, Hotel, Calendar, Edit2, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,6 @@ interface TripData {
   purpose: string;
   airline?: string;
   hotel?: string;
-  groundTransport?: string;
   estimatedCost?: number;
   notes?: string;
 }
@@ -56,7 +55,6 @@ export function TripDetailSlideOver({
       purpose: trip.purpose,
       airline: trip.airline,
       hotel: trip.hotel,
-      groundTransport: trip.groundTransport,
       notes: trip.notes,
     });
     setIsEditing(true);
@@ -200,21 +198,6 @@ export function TripDetailSlideOver({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Ground Transport</Label>
-                      <Select
-                        value={editData.groundTransport || ""}
-                        onValueChange={(v) => setEditData({ ...editData, groundTransport: v })}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Select transport" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Uber">Uber</SelectItem>
-                          <SelectItem value="Lyft">Lyft</SelectItem>
-                          <SelectItem value="Rental Car">Rental Car</SelectItem>
-                          <SelectItem value="Public Transit">Public Transit</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
                       <Label>Notes</Label>
                       <Textarea
                         value={editData.notes || ""}
@@ -252,16 +235,6 @@ export function TripDetailSlideOver({
                           <div>
                             <p className="font-medium text-sm">{trip.hotel}</p>
                             <p className="text-xs text-muted-foreground">Hotel accommodation</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {trip.groundTransport && (
-                        <div className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
-                          <Car className="w-4 h-4 text-primary mt-0.5" />
-                          <div>
-                            <p className="font-medium text-sm">{trip.groundTransport}</p>
-                            <p className="text-xs text-muted-foreground">Ground transportation</p>
                           </div>
                         </div>
                       )}

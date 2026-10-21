@@ -14,7 +14,9 @@ import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { HotelDetailModal, type HotelInfo } from "@/components/trips/HotelDetailModal";
 import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
-import { getHotelsForDestination } from "@/services/mockHotelService";
+import { searchLiveHotels, hotelUnavailableMessage } from "@/services/duffelStays";
+import { HotelBookingModal } from "@/components/booking/HotelBookingModal";
+import { findAirports } from "@/data/globalAirports";
 import { ItineraryEditor } from "@/components/itinerary/ItineraryEditor";
 import { TripSlideEditor } from "@/components/trips/TripSlideEditor";
 import { toast } from "sonner";
@@ -40,10 +42,27 @@ interface TripData {
     departTime?: string;
     returnTime?: string;
     price?: number;
+    arrivalAirport?: string;
+    arriveDayOffset?: number;
+    /** The airline's confirmation code. Present only on a ticketed flight. */
+    bookingReference?: string;
+    tripType?: "one_way" | "round_trip";
+    returnFlightNumber?: string;
+    returnDepartTime?: string;
+    returnArrivalTime?: string;
+    returnArriveDayOffset?: number;
   };
   hotel?: {
     name?: string;
     location?: string;
+    /** True only once the hotel has confirmed a reservation. */
+    reserved?: boolean;
+    bookingReference?: string | null;
+    bookingId?: string;
+    totalPrice?: number;
+    nights?: number;
+    currency?: string;
+    dueAtAccommodation?: number;
     address?: string;
     checkIn?: string;
     checkOut?: string;
@@ -108,35 +127,57 @@ export default function TripDetail() {
     return Math.max(1, differenceInDays(new Date(trip.endDate), new Date(trip.startDate)));
   }, [trip]);
 
-  // Generate hotel options based on destination
-  const hotelOptions = useMemo(() => {
-    if (!trip) return [];
-    return getHotelsForDestination({ destination: trip.destination, nights });
-  }, [trip?.destination, nights]);
+  // Hotels for this trip come from the live supplier, searched when the picker
+  // is opened. Choosing one opens a real reservation — it is added to the trip
+  // only once the hotel confirms. (This used to list generated hotels and write
+  // the chosen one onto the trip as if it had been booked.)
+  const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([]);
+  const [searchingHotels, setSearchingHotels] = useState(false);
+  const [hotelToReserve, setHotelToReserve] = useState<HotelOption | null>(null);
+
+  const openHotelPicker = useCallback(async () => {
+    if (!trip || searchingHotels) return;
+    if (trip.hotel?.reserved) {
+      toast.info("This hotel is already reserved", {
+        description: `${trip.hotel.bookingReference ? `Confirmation ${trip.hotel.bookingReference}. ` : ""}To change it, cancel the reservation with the hotel first — reserving another here would leave you with two.`,
+      });
+      return;
+    }
+    const destinationCode =
+      (trip.flight?.arrivalAirport && /^[A-Z]{3}$/.test(trip.flight.arrivalAirport) ? trip.flight.arrivalAirport : null)
+      ?? findAirports(trip.destination.split(",")[0].trim())[0]?.code;
+    if (!destinationCode) {
+      toast.error("We couldn't work out where to search for hotels for this trip.");
+      return;
+    }
+    setSearchingHotels(true);
+    const loading = toast.loading("Searching live hotels…");
+    try {
+      const outcome = await searchLiveHotels({
+        destinationCode,
+        destinationCity: trip.destination.split(",")[0].trim(),
+        // Local calendar dates — slicing the ISO string would shift the day
+        // for anyone east of UTC.
+        checkIn: format(new Date(trip.startDate), "yyyy-MM-dd"),
+        checkOut: format(new Date(trip.endDate), "yyyy-MM-dd"),
+      });
+      if (!outcome.hotels) {
+        toast.error(hotelUnavailableMessage(outcome.reason));
+        return;
+      }
+      setHotelOptions(outcome.hotels);
+      setHotelPickerOpen(true);
+    } finally {
+      toast.dismiss(loading);
+      setSearchingHotels(false);
+    }
+  }, [trip, searchingHotels]);
 
   const handleSelectHotel = useCallback((hotel: HotelOption) => {
-    if (!trip) return;
-    const updatedHotel = {
-      name: hotel.name,
-      location: hotel.area,
-      address: hotel.area,
-      pricePerNight: hotel.pricePerNight,
-      rating: hotel.rating,
-      amenities: hotel.amenities,
-      images: hotel.images,
-      description: hotel.description,
-      reviewCount: hotel.reviewCount,
-    };
-    setTrip({ ...trip, hotel: updatedHotel, estimatedCost: trip.estimatedCost + hotel.totalPrice });
-    // Sync to localStorage
-    if (localTrips.find(t => t.id === trip.id)) {
-      updateTrip(trip.id, {
-        hotel: { name: hotel.name, location: hotel.area },
-      });
-    }
+    // Not added to the trip yet — that happens when the hotel confirms.
     setHotelPickerOpen(false);
-    toast.success(`${hotel.name} added to your trip`);
-  }, [trip, localTrips, updateTrip]);
+    setHotelToReserve(hotel);
+  }, []);
 
   const handleSelectCompany = useCallback((company: import("@/hooks/useCompanies").ClientCompany | null) => {
     if (!trip) return;
@@ -472,9 +513,28 @@ export default function TripDetail() {
                                   )}
                                   {trip.flight.departTime && (
                                     <p className="text-xs text-muted-foreground mt-1">
-                                      Depart: {trip.flight.departTime} • Return: {trip.flight.returnTime || "—"}
+                                      Departs: {trip.flight.departTime} • Arrives: {trip.flight.returnTime || "—"}
+                                      {trip.flight.arriveDayOffset ? ` (+${trip.flight.arriveDayOffset})` : ""}
                                     </p>
                                   )}
+                                  {trip.flight.tripType === "round_trip" && trip.flight.returnDepartTime && (
+                                    <p className="text-xs text-muted-foreground">
+                                      Return{trip.flight.returnFlightNumber ? ` ${trip.flight.returnFlightNumber}` : ""}: {trip.flight.returnDepartTime} → {trip.flight.returnArrivalTime || "—"}
+                                      {trip.flight.returnArriveDayOffset ? ` (+${trip.flight.returnArriveDayOffset})` : ""}
+                                    </p>
+                                  )}
+                                  {trip.flight.tripType === "one_way" && (
+                                    <p className="text-xs text-warning">One-way — no return flight on this ticket</p>
+                                  )}
+                                  {/* The airline's confirmation is what makes this a
+                                      booking. Without one, nothing was ticketed. */}
+                                  {trip.flight.bookingReference ? (
+                                    <p className="text-xs text-success mt-1 font-medium">
+                                      Ticketed · airline confirmation <span className="font-mono">{trip.flight.bookingReference}</span>
+                                    </p>
+                                  ) : trip.status !== "draft" ? (
+                                    <p className="text-xs text-muted-foreground mt-1">No airline confirmation on record for this trip</p>
+                                  ) : null}
                                   {trip.flight.price != null && (
                                     <p className="text-xs text-primary mt-1 font-medium">${trip.flight.price}</p>
                                   )}
@@ -499,7 +559,7 @@ export default function TripDetail() {
                         if (trip.hotel?.name) {
                           setHotelModalOpen(true);
                         } else {
-                          setHotelPickerOpen(true);
+                          void openHotelPicker();
                         }
                       }}
                     >
@@ -528,6 +588,13 @@ export default function TripDetail() {
                                   <>
                                     <p className="font-medium text-foreground truncate">{trip.hotel.name}</p>
                                     {trip.hotel.location && <p className="text-sm text-muted-foreground truncate">{trip.hotel.location}</p>}
+                                    {trip.hotel.reserved ? (
+                                      <p className="text-xs text-success mt-1 font-medium">
+                                        Reserved{trip.hotel.bookingReference ? <> · confirmation <span className="font-mono">{trip.hotel.bookingReference}</span></> : null}
+                                      </p>
+                                    ) : trip.hotel.reserved === false ? (
+                                      <p className="text-xs text-warning mt-1">Not reserved — chosen but not booked. Use Change to reserve a room.</p>
+                                    ) : null}
                                     {trip.hotel.rating && (
                                       <div className="flex items-center gap-1 mt-1">
                                         <span className="text-xs text-amber-500">★</span>
@@ -545,7 +612,7 @@ export default function TripDetail() {
                                       variant="outline"
                                       size="sm"
                                       className="gap-1.5"
-                                      onClick={(e) => { e.stopPropagation(); setHotelPickerOpen(true); }}
+                                      onClick={(e) => { e.stopPropagation(); void openHotelPicker(); }}
                                     >
                                       <Plus className="w-3.5 h-3.5" />
                                       Add Hotel
@@ -559,7 +626,7 @@ export default function TripDetail() {
                                     variant="ghost"
                                     size="sm"
                                     className="gap-1 text-xs h-auto py-1 px-2"
-                                    onClick={(e) => { e.stopPropagation(); setHotelPickerOpen(true); }}
+                                    onClick={(e) => { e.stopPropagation(); void openHotelPicker(); }}
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
                                     Change
@@ -682,7 +749,7 @@ export default function TripDetail() {
               hotel: trip.hotel,
             }}
             onSave={handleEditorSave}
-            onChangeHotel={() => setHotelPickerOpen(true)}
+            onChangeHotel={() => void openHotelPicker()}
             isSaving={isSaving}
           />
         )}
@@ -695,7 +762,7 @@ export default function TripDetail() {
             onClose={() => setHotelModalOpen(false)}
             onChangeHotel={() => {
               setHotelModalOpen(false);
-              setHotelPickerOpen(true);
+              void openHotelPicker();
             }}
             nights={nights}
           />
@@ -710,6 +777,48 @@ export default function TripDetail() {
           onSelect={handleSelectHotel}
           nights={nights}
           venueName={trip?.destination || "destination"}
+        />
+
+        {/* Reserve the chosen hotel for real */}
+        <HotelBookingModal
+          open={hotelToReserve !== null}
+          hotel={hotelToReserve}
+          onOpenChange={(open) => { if (!open) setHotelToReserve(null); }}
+          onBooked={(result) => {
+            if (!result.ok || !result.booking || !trip || !hotelToReserve) return;
+            const reserved = result.booking;
+            const hotel = {
+              name: reserved.hotelName || hotelToReserve.name,
+              location: hotelToReserve.area,
+              pricePerNight: hotelToReserve.pricePerNight,
+              totalPrice: reserved.totalPrice,
+              nights,
+              currency: reserved.currency,
+              dueAtAccommodation: hotelToReserve.dueAtAccommodation,
+              reserved: true,
+              bookingReference: reserved.reference,
+              bookingId: reserved.id,
+            };
+            setTrip({ ...trip, hotel: { ...hotel, images: hotelToReserve.images, rating: hotelToReserve.rating } });
+            if (localTrips.find(t => t.id === trip.id)) updateTrip(trip.id, { hotel });
+            try {
+              addExpense({
+                merchant: hotel.name,
+                description: `${nights} night${nights > 1 ? "s" : ""} in ${trip.destination}`,
+                date: trip.startDate,
+                amount: reserved.totalPrice,
+                category: "hotel",
+                status: "pending",
+                location: hotel.location || trip.destination,
+                paymentMethod: "Booked in Flyby",
+                reimbursable: true,
+                tripId: trip.id,
+                tripName: trip.destination,
+              });
+            } catch (expenseErr) {
+              console.warn("Hotel expense import failed (non-fatal):", expenseErr);
+            }
+          }}
         />
 
         {/* Add Expense Modal */}

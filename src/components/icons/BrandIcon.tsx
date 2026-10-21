@@ -1,5 +1,4 @@
 import { 
-  Car, 
   Plane, 
   Building2, 
   Utensils, 
@@ -23,7 +22,6 @@ export type ItineraryBlockIconType =
   | "hotel_checkout" 
   | "meeting" 
   | "meal" 
-  | "transport" 
   | "free_time" 
   | "custom";
 
@@ -34,7 +32,6 @@ const blockTypeIcons: Record<ItineraryBlockIconType, LucideIcon> = {
   hotel_checkout: DoorOpen,
   meeting: Users,
   meal: Utensils,
-  transport: Car,
   free_time: Coffee,
   custom: FileText,
 };
@@ -64,7 +61,6 @@ export function getBlockTypeLabel(type: ItineraryBlockIconType): string {
     hotel_checkout: "Hotel Check-out",
     meeting: "Meeting",
     meal: "Business Meal",
-    transport: "Transportation",
     free_time: "Free Time / Buffer",
     custom: "Other",
   };
@@ -73,11 +69,6 @@ export function getBlockTypeLabel(type: ItineraryBlockIconType): string {
 
 // Brand provider icons
 export type BrandProviderType = 
-  | "uber" 
-  | "lyft" 
-  | "hertz" 
-  | "enterprise" 
-  | "avis"
   | "delta"
   | "united"
   | "american"
@@ -91,7 +82,7 @@ export type BrandProviderType =
 
 interface BrandIconProps {
   provider: BrandProviderType | string;
-  type?: "rideshare" | "rental" | "airline" | "messaging" | "calendar";
+  type?: "airline" | "messaging" | "calendar";
   className?: string;
   size?: "sm" | "md" | "lg";
   showBackground?: boolean;
@@ -112,8 +103,6 @@ const containerSizeClasses = {
 
 // Fallback icons by type
 const fallbackIcons: Record<string, LucideIcon> = {
-  rideshare: Car,
-  rental: Car,
   airline: Plane,
   messaging: Users,
   calendar: Clock,

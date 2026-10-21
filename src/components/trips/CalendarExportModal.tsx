@@ -125,7 +125,7 @@ export function CalendarExportModal({
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-success" />
-                  Flight, hotel, and ground transport details
+                  Flight and hotel details
                 </li>
                 {conflicts.length > 0 && (
                   <li className="flex items-center gap-2 text-destructive">
@@ -201,8 +201,7 @@ function generatePrintableContent(
         </td>
         <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
           ${trip.flight ? `✈️ ${trip.flight.airline}` : '-'}<br>
-          ${trip.hotel ? `🏨 ${trip.hotel.name}` : '-'}<br>
-          ${trip.groundTransport ? `🚗 ${trip.groundTransport}` : '-'}
+          ${trip.hotel ? `🏨 ${trip.hotel.name}` : '-'}
         </td>
         <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">
           <strong>$${trip.estimatedCost.toLocaleString()}</strong>

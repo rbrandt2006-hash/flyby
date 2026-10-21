@@ -390,7 +390,10 @@ export function HotelSelectionPage({
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <MapPin className="w-4 h-4 shrink-0" />
                         <span>
-                          {detailHotel.area} • {detailHotel.distanceToVenue} to {venueName}
+                          {detailHotel.area}
+                          {detailHotel.distanceToVenue && (detailHotel.live
+                            ? ` • ${detailHotel.distanceToVenue}`
+                            : ` • ${detailHotel.distanceToVenue} to ${venueName}`)}
                         </span>
                       </div>
 
@@ -407,37 +410,54 @@ export function HotelSelectionPage({
                         ))}
                       </div>
 
-                      <div>
-                        <h3 className="font-semibold mb-2">About this hotel</h3>
-                        <p className="text-muted-foreground leading-relaxed">{detailHotel.description}</p>
-                      </div>
-
-                      <div>
-                        <h3 className="font-semibold mb-3">Room Types</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {detailHotel.roomTypes.map((room) => (
-                            <div key={room} className="px-3 py-1.5 rounded-lg bg-muted text-sm">
-                              {room}
-                            </div>
-                          ))}
+                      {detailHotel.description && (
+                        <div>
+                          <h3 className="font-semibold mb-2">About this hotel</h3>
+                          <p className="text-muted-foreground leading-relaxed">{detailHotel.description}</p>
                         </div>
-                      </div>
+                      )}
 
-                      <div>
-                        <h3 className="font-semibold mb-3">Amenities</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {detailHotel.amenities.map((amenity) => (
-                            <div key={amenity} className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 text-sm">
-                              {amenityIcons[amenity] || <Check className="w-4 h-4" />}
-                              <span>{amenity}</span>
-                            </div>
-                          ))}
+                      {/* Rooms and their prices come from the hotel when it's being reserved,
+                          so there's no list to show here for a live property — and an empty
+                          heading would imply one. */}
+                      {detailHotel.roomTypes.length > 0 && (
+                        <div>
+                          <h3 className="font-semibold mb-3">Room Types</h3>
+                          <div className="flex flex-wrap gap-2">
+                            {detailHotel.roomTypes.map((room) => (
+                              <div key={room} className="px-3 py-1.5 rounded-lg bg-muted text-sm">
+                                {room}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                        <p className="text-sm font-medium text-green-700 dark:text-green-300 mb-1">Cancellation Policy</p>
-                        <p className="text-sm text-green-600 dark:text-green-400">{detailHotel.cancellationPolicy}</p>
+                      {detailHotel.amenities.length > 0 && (
+                        <div>
+                          <h3 className="font-semibold mb-3">Amenities</h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {detailHotel.amenities.map((amenity) => (
+                              <div key={amenity} className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 text-sm">
+                                {amenityIcons[amenity] || <Check className="w-4 h-4" />}
+                                <span>{amenity}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Green means "free cancellation". A live hotel's terms depend on the
+                          rate, so it gets neutral styling until the traveler picks one. */}
+                      <div className={detailHotel.live
+                        ? "p-4 rounded-xl bg-muted/50 border border-border"
+                        : "p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"}>
+                        <p className={detailHotel.live
+                          ? "text-sm font-medium mb-1"
+                          : "text-sm font-medium text-green-700 dark:text-green-300 mb-1"}>Cancellation Policy</p>
+                        <p className={detailHotel.live
+                          ? "text-sm text-muted-foreground"
+                          : "text-sm text-green-600 dark:text-green-400"}>{detailHotel.cancellationPolicy}</p>
                       </div>
                     </div>
                   </div>

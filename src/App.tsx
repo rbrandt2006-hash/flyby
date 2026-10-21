@@ -23,6 +23,7 @@ import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import AuthCallback from "./pages/AuthCallback";
 import OAuthConsent from "./pages/OAuthConsent";
 
 function needsOnboarding(): boolean {
@@ -106,6 +107,9 @@ function AppRoutes() {
       {/* Public — a logged-out reviewer must be able to read these */}
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
+      {/* Google / Microsoft sign-in lands here — public, since it's how you get
+          signed in. Not under /auth: the dev server forwards /auth/* to the backend. */}
+      <Route path="/signed-in" element={<AuthCallback />} />
 
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<Dashboard />} />

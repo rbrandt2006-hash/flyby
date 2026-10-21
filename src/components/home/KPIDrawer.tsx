@@ -217,10 +217,6 @@ function UpcomingTripsContent() {
                 <Building2 className="w-4 h-4" />
                 <span>{trip.hotel.name} • {trip.hotel.area}</span>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin className="w-4 h-4" />
-                <span>{trip.ground}</span>
-              </div>
             </div>
 
             {trip.alerts.length > 0 && (

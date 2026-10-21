@@ -30,8 +30,11 @@ const defaultPreferences: TravelPreferences = {
   avoidsLayovers: false,
   costSensitive: false,
   flexibleTraveler: true,
-  preferredAirlines: ["United Airlines", "Delta Air Lines"],
-  preferredHotelBrands: ["Marriott", "Hilton"],
+  // Empty until the traveler chooses. These used to default to United, Delta,
+  // Marriott and Hilton, which then ranked as genuine preferences for anyone
+  // whose saved preferences hadn't loaded.
+  preferredAirlines: [],
+  preferredHotelBrands: [],
   preferredSeatType: "window",
   budgetPerDay: 300,
   lastUpdated: new Date().toISOString(),

@@ -15,9 +15,27 @@
  *    cache (or a seeded default) would be written back over real server data on
  *    a fresh browser, deleting it.
  * 5. **Guests stay local** — signed-out users keep working against the cache.
+ * 6. **A change is never lost by leaving the page.** This is the one that
+ *    matters most, because the app's most important write — recording a trip
+ *    that has just been paid for — is immediately followed by navigating away:
+ *
+ *      - every change is written to the local cache at the moment it is made,
+ *        not later in an effect that never runs if the component unmounts in
+ *        the same update;
+ *      - a save that is still waiting out its debounce when the component
+ *        unmounts is sent then, rather than cancelled;
+ *      - the next page waits for that save to land before it loads, so it
+ *        can't read the server's older copy and paint over the newer one;
+ *      - a change that still hasn't reached the server (the tab was closed,
+ *        the save failed) is marked, and pushed on the next load instead of
+ *        being replaced by the server copy.
+ *
+ *    Before this, booking a flight and landing on Trips could leave the new
+ *    trip in neither place: the save was cancelled on the way out, and the
+ *    Trips page then loaded a server copy that didn't have it.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { backend, authedFetch } from "@/integrations/backend/client";
 
 const SAVE_DEBOUNCE_MS = 600;
@@ -39,6 +57,97 @@ function writeCache<T>(key: string, value: T) {
   } catch {
     /* quota or private mode — the server copy is still authoritative */
   }
+}
+
+// ---------------------------------------------------------------------------
+// Unsaved-change tracking
+// ---------------------------------------------------------------------------
+
+/** Saves currently in flight, per endpoint. A fresh load waits for these. */
+const pendingSaves = new Map<string, Promise<void>>();
+
+const unsavedKey = (cacheKey: string) => `${cacheKey}::unsaved`;
+
+function currentUserId(): string | null {
+  return backend.getCurrentSession()?.user?.id ?? null;
+}
+
+/**
+ * Record that the cache holds a change the server doesn't have yet.
+ *
+ * The marker names the user it belongs to: the cache is shared by whoever signs
+ * in on this browser, and one person's unsaved trips must never be pushed into
+ * another person's account.
+ */
+function markUnsaved(cacheKey: string): string | null {
+  const userId = currentUserId();
+  if (!userId) return null;
+  const token = `${userId}|${Date.now()}|${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    localStorage.setItem(unsavedKey(cacheKey), token);
+  } catch {
+    /* storage unavailable — the in-memory flush on unmount still applies */
+  }
+  return token;
+}
+
+function readUnsavedToken(cacheKey: string): string | null {
+  try {
+    return localStorage.getItem(unsavedKey(cacheKey));
+  } catch {
+    return null;
+  }
+}
+
+/** Clear the marker — but only if nothing newer has been marked since. */
+function clearUnsaved(cacheKey: string, token: string | null) {
+  try {
+    if (token && localStorage.getItem(unsavedKey(cacheKey)) === token) {
+      localStorage.removeItem(unsavedKey(cacheKey));
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function hasUnsavedFor(cacheKey: string, userId: string | null): boolean {
+  const token = readUnsavedToken(cacheKey);
+  return Boolean(userId && token && token.startsWith(`${userId}|`));
+}
+
+/** Drop a marker left by a different user; the cache no longer holds their data. */
+function dropForeignMarker(cacheKey: string, userId: string | null) {
+  const token = readUnsavedToken(cacheKey);
+  if (token && !(userId && token.startsWith(`${userId}|`))) {
+    try {
+      localStorage.removeItem(unsavedKey(cacheKey));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/** Send a collection to the server, tracking the request so loads can wait on it. */
+function pushToServer<T>(endpoint: string, payloadKey: string, cacheKey: string, value: T): Promise<void> {
+  // Whatever is marked unsaved right now is what this request carries.
+  const token = readUnsavedToken(cacheKey);
+  const request: Promise<void> = authedFetch(`/api/${endpoint}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ [payloadKey]: value }),
+  })
+    .then((response) => {
+      if (response.ok) clearUnsaved(cacheKey, token);
+      else console.warn(`[sync] Could not save ${endpoint} (${response.status}); it will be retried.`);
+    })
+    .catch((err) => {
+      console.warn(`[sync] Could not save ${endpoint}:`, err);
+    })
+    .finally(() => {
+      if (pendingSaves.get(endpoint) === request) pendingSaves.delete(endpoint);
+    });
+  pendingSaves.set(endpoint, request);
+  return request;
 }
 
 interface Options<T> {
@@ -73,7 +182,7 @@ export function useBackendCollection<T>({
   isEmpty,
   transform,
 }: Options<T>): [T, React.Dispatch<React.SetStateAction<T>>, boolean] {
-  const [value, setValue] = useState<T>(() => readCache(cacheKey, initial));
+  const [value, setValueState] = useState<T>(() => readCache(cacheKey, initial));
   const [ready, setReady] = useState(false);
 
   // Guards a save from running before the first load has completed.
@@ -81,15 +190,82 @@ export function useBackendCollection<T>({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signedIn = Boolean(backend.getCurrentSession());
 
+  // The newest value, including updates React hasn't rendered yet — or never
+  // will, if the component unmounts in the same update that made them.
+  const latestRef = useRef<T>(value);
+  const mountedRef = useRef(true);
+  // This instance made a change that hasn't been sent to the server yet.
+  const ownUnsavedRef = useRef(false);
+  // Changes made before the first load finished; re-applied on top of what loads.
+  const queuedRef = useRef<Array<React.SetStateAction<T>>>([]);
+
+  /**
+   * The setter callers use. Same contract as `useState`'s, but the change is
+   * made durable here, synchronously: applied to the newest value, written to
+   * the cache and marked unsaved — before React has rendered anything. An
+   * effect is too late for that when the caller navigates away right after.
+   */
+  const setValue = useCallback<React.Dispatch<React.SetStateAction<T>>>((update) => {
+    // An update arriving after unmount (a late async result) is dropped: this
+    // instance's copy may be stale by now, and writing it would overwrite newer
+    // changes made on the page the traveler moved to.
+    if (!mountedRef.current) return;
+
+    const next = typeof update === "function"
+      ? (update as (previous: T) => T)(latestRef.current)
+      : update;
+    latestRef.current = next;
+
+    if (!loadedRef.current) {
+      queuedRef.current.push(update);
+    } else {
+      writeCache(cacheKey, next);
+      if (backend.getCurrentSession()) {
+        markUnsaved(cacheKey);
+        ownUnsavedRef.current = true;
+      }
+    }
+    setValueState(next);
+  }, [cacheKey]);
+
   // -- load -----------------------------------------------------------------
 
   useEffect(() => {
     let active = true;
 
-    const finish = (next?: T) => {
+    /**
+     * Settle the first load. `next` is what should become the value (undefined
+     * keeps the cached copy); `fromLocal` means it is a local copy that still
+     * has to be pushed, rather than something the server just told us.
+     */
+    const finish = (next?: T, fromLocal = false) => {
       if (!active) return;
-      if (next !== undefined) setValue(transform ? transform(next) : next);
+      let settled = next !== undefined ? (transform ? transform(next) : next) : latestRef.current;
+
+      // Anything the user did before the load finished goes on top.
+      const queued = queuedRef.current;
+      queuedRef.current = [];
+      const hadQueued = queued.length > 0;
+      // When nothing loaded, `settled` is already the newest local value and
+      // includes them; only a freshly loaded copy needs them re-applied.
+      if (hadQueued && next !== undefined) {
+        for (const update of queued) {
+          settled = typeof update === "function"
+            ? (update as (previous: T) => T)(settled)
+            : update;
+        }
+      }
+
+      latestRef.current = settled;
       loadedRef.current = true;
+      if (hadQueued || fromLocal) {
+        writeCache(cacheKey, settled);
+        if (backend.getCurrentSession()) {
+          markUnsaved(cacheKey);
+          ownUnsavedRef.current = true;
+        }
+      }
+      setValueState(settled);
       setReady(true);
     };
 
@@ -105,6 +281,14 @@ export function useBackendCollection<T>({
 
     (async () => {
       try {
+        // A save started by the page just left must land first. Otherwise this
+        // reads the server's older copy and paints over the newer local one.
+        const inFlight = pendingSaves.get(endpoint);
+        if (inFlight) await inFlight;
+        if (!active) return;
+
+        const userId = currentUserId();
+
         // authedFetch refreshes an expired token before the request and again
         // on a 401, so a stale-but-refreshable session loads instead of failing.
         const response = await authedFetch(`/api/${endpoint}`);
@@ -126,6 +310,15 @@ export function useBackendCollection<T>({
           finish();
           return;
         }
+
+        // This user's cache holds changes that never reached the server — the
+        // tab was closed mid-save, or a save failed. Keep them and push them:
+        // losing the record of a booking is far worse than a stale read.
+        if (hasUnsavedFor(cacheKey, userId)) {
+          finish(readCache<T>(cacheKey, incoming), true);
+          return;
+        }
+        dropForeignMarker(cacheKey, userId);
 
         const empty = isEmpty ? isEmpty(incoming) : false;
         if (empty && seed) {
@@ -161,19 +354,32 @@ export function useBackendCollection<T>({
 
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      void authedFetch(`/api/${endpoint}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [payloadKey]: value }),
-      }).catch((err) => {
-        console.warn(`[sync] Could not save ${endpoint}:`, err);
-      });
+      saveTimer.current = null;
+      ownUnsavedRef.current = false;
+      void pushToServer(endpoint, payloadKey, cacheKey, value);
     }, SAVE_DEBOUNCE_MS);
 
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = null;
     };
   }, [value, endpoint, payloadKey, cacheKey, signedIn]);
+
+  // -- leave ----------------------------------------------------------------
+
+  // When the component goes away with a change still unsent — its debounce
+  // hadn't fired, or the change was made in the very update that unmounted it —
+  // send it now. Cancelling it here is what used to lose a just-booked trip.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (ownUnsavedRef.current && backend.getCurrentSession()) {
+        ownUnsavedRef.current = false;
+        void pushToServer(endpoint, payloadKey, cacheKey, latestRef.current);
+      }
+    };
+  }, [endpoint, payloadKey, cacheKey]);
 
   return [value, setValue, ready];
 }

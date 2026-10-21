@@ -36,24 +36,14 @@ export interface SearchHotelResult {
   city?: string;
 }
 
-export interface SearchGroundResult {
-  id: string;
-  type: string;
-  provider: string;
-  price: number;
-  description: string;
-  tags: string[];
-}
-
 export interface SearchResults {
   flights: SearchFlightResult[];
   hotels: SearchHotelResult[];
-  ground: SearchGroundResult[];
 }
 
 export interface SearchParams {
   query: string;
-  type: "all" | "flights" | "hotels" | "ground";
+  type: "all" | "flights" | "hotels";
   city?: string;
   origin?: string;
   dest?: string;
@@ -68,7 +58,6 @@ export function useTravelSearch() {
   const [results, setResults] = useState<SearchResults>({
     flights: [],
     hotels: [],
-    ground: [],
   });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -86,7 +75,7 @@ export function useTravelSearch() {
 
     // Don't search if query is empty (unless searching all)
     if (!params.query.trim() && params.type !== "all") {
-      setResults({ flights: [], hotels: [], ground: [] });
+      setResults({ flights: [], hotels: [] });
       setError(null);
       return;
     }
@@ -131,7 +120,6 @@ export function useTravelSearch() {
         setResults({
           flights: searchResults.flights || [],
           hotels: searchResults.hotels || [],
-          ground: searchResults.ground || [],
         });
 
       } catch (err: any) {
@@ -141,7 +129,7 @@ export function useTravelSearch() {
         }
         console.error("Search error:", err);
         setError(err.message || "Search failed");
-        setResults({ flights: [], hotels: [], ground: [] });
+        setResults({ flights: [], hotels: [] });
       } finally {
         setIsSearching(false);
       }
@@ -149,7 +137,7 @@ export function useTravelSearch() {
   }, []);
 
   const clearResults = useCallback(() => {
-    setResults({ flights: [], hotels: [], ground: [] });
+    setResults({ flights: [], hotels: [] });
     setError(null);
   }, []);
 
