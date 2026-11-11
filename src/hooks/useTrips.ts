@@ -24,6 +24,14 @@ export interface TripAIReasoning {
   policyCompliance: { score: number; label: string; detail: string };
   riskLevel: { score: number; label: string; detail: string };
   summary: string;
+  /** Who wrote it: Gemini, or the built-in rules when Gemini was unavailable. */
+  engine?: "gemini" | "local";
+  assessedAt?: string;
+}
+
+/** True while a trip's assessment hasn't come back yet. */
+export function isReasoningPending(reasoning?: TripAIReasoning | null): boolean {
+  return reasoning?.costEfficiency?.label === "Pending";
 }
 
 export type ApprovalStatus = "none" | "pending" | "approved" | "rejected";
@@ -247,7 +255,12 @@ async function fetchTripReasoning(trip: LocalTrip): Promise<TripAIReasoning | nu
     });
     if (!response.ok) return null;
     const body = await response.json();
-    return (body?.reasoning as TripAIReasoning) ?? null;
+    if (!body?.reasoning) return null;
+    return {
+      ...(body.reasoning as TripAIReasoning),
+      engine: body.engine === "gemini" ? "gemini" : "local",
+      assessedAt: new Date().toISOString(),
+    };
   } catch {
     // Network hiccup: keep the placeholder reasoning already on the trip.
     return null;
@@ -273,12 +286,14 @@ export function useTrips() {
   useEffect(() => {
     if (!tripsReady) return;
     for (const trip of trips) {
-      if (trip.aiReasoning?.costEfficiency?.label !== "Pending") continue;
+      if (!isReasoningPending(trip.aiReasoning)) continue;
       void reasoningFor(trip).then((reasoning) => {
         if (!reasoning) return;
         setTrips((prev) =>
           prev.map((t) =>
-            t.id === trip.id && t.aiReasoning?.costEfficiency?.label === "Pending"
+            // Only the assessment this request was made for — not one the trip
+            // has since been re-assessed with.
+            t.id === trip.id && t.aiReasoning === trip.aiReasoning
               ? { ...t, aiReasoning: reasoning }
               : t,
           ),
@@ -395,6 +410,19 @@ export function useTrips() {
         trip.id === tripId
           ? { ...trip, ...updates, updatedAt: new Date().toISOString() }
           : trip
+      )
+    );
+  }, []);
+
+  /**
+   * Assess the trip again, e.g. after its dates, flight or hotel changed.
+   * Marking it pending hands it to the effect above, which asks for a fresh one.
+   */
+  const reassessTrip = useCallback((tripId: string) => {
+    reasoningRequests.delete(tripId);
+    setTrips((prev) =>
+      prev.map((trip) =>
+        trip.id === tripId ? { ...trip, aiReasoning: generateAIReasoning(trip.destination, trip.estimatedCost) } : trip
       )
     );
   }, []);
@@ -552,11 +580,14 @@ export function useTrips() {
     price: number;
   }) => {
     const now = new Date().toISOString();
+    reasoningRequests.delete(tripId);
     setTrips((prev) =>
       prev.map((trip) =>
         trip.id === tripId
           ? {
               ...trip,
+              // A new flight needs a new assessment.
+              aiReasoning: generateAIReasoning(trip.destination, newFlight.price),
               status: trip.status === "cancelled" ? "pending" : trip.status,
               flight: {
                 airline: newFlight.airline,
@@ -656,6 +687,7 @@ export function useTrips() {
     trips,
     createTrip,
     updateTrip,
+    reassessTrip,
     deleteTrip,
     addTimelineEvent,
     linkChatToTrip,

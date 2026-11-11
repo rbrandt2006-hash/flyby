@@ -24,6 +24,7 @@ import { AddExpenseModal } from "@/components/expenses/AddExpenseModal";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useTravelPolicy } from "@/hooks/useTravelPolicy";
 import { PolicyBadge } from "@/components/trips/PolicyBadge";
+import { AIReasoningPanel } from "@/components/trips/AIReasoningPanel";
 import type { HotelOption } from "@/components/chats/booking/types";
 
 type TabType = "overview" | "itinerary" | "expenses";
@@ -106,7 +107,7 @@ export default function TripDetail() {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { trips: localTrips, updateTrip } = useTrips();
+  const { trips: localTrips, updateTrip, reassessTrip } = useTrips();
   const { addExpense } = useExpenses();
   const { policy: travelPolicy } = useTravelPolicy();
 
@@ -121,6 +122,10 @@ export default function TripDetail() {
   const [hotelModalOpen, setHotelModalOpen] = useState(false);
   // Hotel picker (for selecting/changing hotel)
   const [hotelPickerOpen, setHotelPickerOpen] = useState(false);
+
+  // Read straight from the trip list (not the page's copy) so the assessment
+  // appears the moment it arrives.
+  const savedTrip = useMemo(() => localTrips.find((t) => t.id === tripId), [localTrips, tripId]);
 
   const nights = useMemo(() => {
     if (!trip) return 2;
@@ -288,6 +293,8 @@ export default function TripDetail() {
             location: editorData.hotel.location || "",
           } : null,
         });
+        // The old assessment was for the old plan.
+        reassessTrip(trip.id);
       }
 
       toast.success("Trip updated successfully", {
@@ -303,7 +310,7 @@ export default function TripDetail() {
     } finally {
       setIsSaving(false);
     }
-  }, [trip, localTrips, updateTrip, navigate]);
+  }, [trip, localTrips, updateTrip, reassessTrip, navigate]);
 
   // Convert trip hotel to HotelInfo for modal
   const hotelInfoForModal: HotelInfo | null = useMemo(() => {
@@ -441,6 +448,16 @@ export default function TripDetail() {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* AI assessment — only trips in the traveler's list have one */}
+                    {savedTrip && (
+                      <AIReasoningPanel
+                        destination={savedTrip.destination}
+                        reasoning={savedTrip.aiReasoning}
+                        defaultOpen
+                        onReassess={() => reassessTrip(savedTrip.id)}
+                      />
+                    )}
 
                     {/* Client / Company Card */}
                     <Card className="border border-border/50">
@@ -800,7 +817,10 @@ export default function TripDetail() {
               bookingId: reserved.id,
             };
             setTrip({ ...trip, hotel: { ...hotel, images: hotelToReserve.images, rating: hotelToReserve.rating } });
-            if (localTrips.find(t => t.id === trip.id)) updateTrip(trip.id, { hotel });
+            if (localTrips.find(t => t.id === trip.id)) {
+              updateTrip(trip.id, { hotel });
+              reassessTrip(trip.id);
+            }
             try {
               addExpense({
                 merchant: hotel.name,
