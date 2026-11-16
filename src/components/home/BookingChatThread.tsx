@@ -9,6 +9,8 @@ import { format } from "date-fns";
 import { BookingResultsPanel, type ParsedChips } from "@/components/home/BookingResultsPanel";
 import type { Flight } from "@/components/flights/FlightResults";
 import type { HotelOption } from "@/components/chats/booking/types";
+import type { ExternalBooking, HandoffSearch } from "@/services/airlineHandoff";
+import type { DateHint, FlightAdvice, RankingSummary } from "@/services/duffelFlights";
 
 export interface BookingResults {
   chips: ParsedChips;
@@ -31,6 +33,17 @@ export interface BookingResults {
    * fares are outbound only.
    */
   returnUnavailable?: boolean;
+  /**
+   * The search as the airline's own site needs it, for airlines Flyby can't
+   * sell. Absent on conversations saved before this existed.
+   */
+  handoff?: HandoffSearch;
+  /** Why the first flight is the pick — from Flyby AI when it made the call. */
+  advice?: FlightAdvice;
+  /** What the ranking required and found, for the notes above the list. */
+  ranking?: RankingSummary;
+  /** Set when Flyby suggested the dates and other dates cost meaningfully less. */
+  dateHint?: DateHint;
 }
 
 export type ChatMsg =
@@ -56,6 +69,9 @@ interface Props {
   onDeleteThread: (id: string) => void;
   onSelectFlight: (f: Flight) => void;
   onSelectHotel: (h: HotelOption) => void;
+  onAddExternalBooking: (search: HandoffSearch, booking: ExternalBooking) => void | Promise<void>;
+  /** Search the trip again on the cheaper dates a hint pointed to. */
+  onUseDates: (hint: DateHint) => void;
 }
 
 export function BookingChatThread({
@@ -69,6 +85,8 @@ export function BookingChatThread({
   onDeleteThread,
   onSelectFlight,
   onSelectHotel,
+  onAddExternalBooking,
+  onUseDates,
 }: Props) {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -192,6 +210,13 @@ export function BookingChatThread({
                     flightNote={m.results.flightNote}
                     hotelNote={m.results.hotelNote}
                     returnUnavailable={m.results.returnUnavailable}
+                    handoff={m.results.handoff}
+                    advice={m.results.advice}
+                    ranking={m.results.ranking}
+                    // Only the newest results can be acted on; older ones are history.
+                    dateHint={m.id === messages[messages.length - 1]?.id ? m.results.dateHint : undefined}
+                    onUseDates={onUseDates}
+                    onAddExternalBooking={onAddExternalBooking}
                     reasons={m.results.reasons}
                     onSelectFlight={onSelectFlight}
                     onSelectHotel={onSelectHotel}

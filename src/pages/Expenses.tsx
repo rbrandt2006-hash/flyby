@@ -127,7 +127,8 @@ export default function Expenses() {
         if (known.has(charge.externalId)) continue; // filed before; the confirmation was lost
         // Paid for while booking in Flyby: already filed from the booking itself.
         const fromBooking = (charge.category === "flight" || charge.category === "hotel") && current.some((e) =>
-          e.paymentMethod === "Booked in Flyby" && e.tripId === charge.tripId &&
+          // ...or on the airline's own site and added to the trip afterwards.
+          e.paymentMethod?.startsWith("Booked ") && e.tripId === charge.tripId &&
           e.category === charge.category && Math.abs(e.amount - charge.amount) <= 1);
         if (fromBooking) continue;
         const trip = tripsRef.current.find((t) => t.id === charge.tripId);

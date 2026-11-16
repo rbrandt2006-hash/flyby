@@ -25,6 +25,8 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import AuthCallback from "./pages/AuthCallback";
 import OAuthConsent from "./pages/OAuthConsent";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 function needsOnboarding(): boolean {
   try {
@@ -110,6 +112,10 @@ function AppRoutes() {
       {/* Google / Microsoft sign-in lands here — public, since it's how you get
           signed in. Not under /auth: the dev server forwards /auth/* to the backend. */}
       <Route path="/signed-in" element={<AuthCallback />} />
+      {/* Password reset — public, since someone who can't sign in is who needs
+          it. The reset email's link lands on /reset-password with its token. */}
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<Dashboard />} />

@@ -170,6 +170,15 @@ export default function GetStarted() {
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+            {mode === "signin" && (
+              <button
+                type="button"
+                onClick={() => navigate("/forgot-password")}
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                Forgot password?
+              </button>
+            )}
           </div>
 
           <Button type="submit" className="w-full gap-2" size="lg" disabled={loading}>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { TripAgentState } from "@/hooks/useTripAgent";
 import { canAutoResolve } from "@/services/tripAgent";
+import type { TripProposal } from "@/services/calendarTrips";
 import type { LocalTrip } from "@/hooks/useTrips";
 
 /**
@@ -22,7 +23,8 @@ import type { LocalTrip } from "@/hooks/useTrips";
 interface TripAgentPanelProps {
   agent: TripAgentState;
   trips: LocalTrip[];
-  onBookMeeting: (query: string) => void;
+  /** Plan the trip for a meeting — opens the normal planner with it filled in. */
+  onBookMeeting: (proposal: TripProposal) => void;
   onRebookTrip: (trip: LocalTrip) => void;
   onOpenExpenses: () => void;
 }
@@ -77,15 +79,14 @@ export function TripAgentPanel({
           )}
 
           {/* A meeting that still needs travel booked */}
-          {agent.unbooked.slice(0, 4).map(({ event, summary, destination }) => (
+          {agent.unbooked.slice(0, 4).map(({ summary, proposal }) => (
             <Row
-              key={`unbooked-${event.id}`}
+              key={`unbooked-${proposal.key}`}
               icon={<CalendarClock className="w-4 h-4 text-primary" />}
               text={summary}
-              actionLabel="Book it"
-              onAction={() =>
-                onBookMeeting(`Trip to ${destination} from ${usDate(event.startDate)} to ${usDate(event.endDate)}`)
-              }
+              note={proposalNote(proposal)}
+              actionLabel="Plan trip"
+              onAction={() => onBookMeeting(proposal)}
             />
           ))}
 
@@ -93,6 +94,10 @@ export function TripAgentPanel({
           {agent.drifts.slice(0, 4).map((drift) => {
             const trip = tripById(drift.trip.id);
             const fixable = canAutoResolve(drift);
+            const replan = agent.replans[drift.trip.id];
+            // A ticket can't be changed from here, so a moved meeting is
+            // planned again for its new days rather than "rebooked".
+            const ticketed = Boolean(trip?.flight?.bookingReference);
             return (
               <Row
                 key={`drift-${drift.trip.id}`}
@@ -102,9 +107,17 @@ export function TripAgentPanel({
                     : <AlertTriangle className="w-4 h-4 text-destructive" />
                 }
                 text={drift.summary}
-                actionLabel={fixable ? "Rebook" : undefined}
-                onAction={fixable && trip ? () => onRebookTrip(trip) : undefined}
-                note={fixable ? undefined : "Needs a decision — the meeting is gone, so the trip may need cancelling."}
+                actionLabel={fixable ? (replan ? "Plan new dates" : "Rebook") : undefined}
+                onAction={
+                  fixable && replan ? () => onBookMeeting(replan)
+                    : fixable && trip ? () => onRebookTrip(trip)
+                      : undefined
+                }
+                note={
+                  !fixable ? "Needs a decision — the meeting is gone, so the trip may need cancelling."
+                    : replan ? `${replan.plan}.${ticketed ? " Your existing ticket isn't changed by this — change or cancel it with the airline." : ""}`
+                      : undefined
+                }
               />
             );
           })}
@@ -126,15 +139,17 @@ export function TripAgentPanel({
 }
 
 /**
- * "2026-10-12" → "10/12/2026" for the booking query.
- *
- * Both parsers read this form the same way. The AI parser handles ISO dates,
- * but the built-in fallback (used when the AI is unavailable) misreads them —
- * "2026-10-12" came out as February 2014 — which would search a past date.
+ * What Flyby would do about a meeting, and what it's going on: the travel days,
+ * then anything the traveler should know before trusting it.
  */
-function usDate(iso: string): string {
-  const m = (iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[2]}/${m[3]}/${m[1]}` : iso;
+function proposalNote(proposal: TripProposal): string {
+  const parts = [`${proposal.plan}.`];
+  if (proposal.arriveBy) parts.push("Flights are picked to land in time for it.");
+  if (proposal.cityInferred) {
+    parts.push(`The event doesn't name a city — Flyby AI read this as ${proposal.destinationCity}. Check before booking.`);
+  }
+  if (proposal.existingTravel) parts.push(proposal.existingTravel);
+  return parts.join(" ");
 }
 
 function Row({

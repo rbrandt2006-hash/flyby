@@ -19,9 +19,18 @@ export type CalendarProvider = "outlook" | "google" | null;
 export interface UnifiedCalendarEvent {
   id: string;
   title: string;
-  /** YYYY-MM-DD */
+  /**
+   * YYYY-MM-DD, the days the event is on as the traveler sees them: in their
+   * own time zone, and with an all-day event ending on its last day rather than
+   * the day after.
+   */
   startDate: string;
   endDate: string;
+  /** The exact start and end instants of a timed meeting (ISO), when known. */
+  start?: string;
+  end?: string;
+  /** True for an all-day event — it has days, not times. */
+  allDay?: boolean;
   location: string;
   description: string;
   attendees: string[];
@@ -113,8 +122,7 @@ export async function fetchUpcomingEvents(): Promise<UnifiedCalendarEvent[]> {
     return rows.map((e) => ({
       id: e.id,
       title: e.title,
-      startDate: e.startDate,
-      endDate: e.endDate,
+      ...eventDays(e),
       location: e.location,
       description: e.description,
       attendees: e.attendees,
@@ -122,6 +130,39 @@ export async function fetchUpcomingEvents(): Promise<UnifiedCalendarEvent[]> {
     }));
   }
   return [];
+}
+
+const localDay = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * The days an event is on, from its exact times when the backend sends them.
+ *
+ * Two things the plain date fields get wrong. Both providers give an all-day
+ * event an end date of the day *after* it finishes, so a one-day offsite read
+ * as two days. And Outlook's times arrive in UTC, where a 6 PM meeting in
+ * California is already tomorrow. Reading the instants in the traveler's own
+ * zone fixes both; without them (an older backend) the dates are used as sent.
+ */
+export function eventDays(e: { startDate: string; endDate: string; start?: string; end?: string; allDay?: boolean }) {
+  if (e.allDay && e.start) {
+    const first = e.start.slice(0, 10);
+    let last = (e.end || e.start).slice(0, 10);
+    if (last > first) {
+      const [y, m, d] = last.split("-").map(Number);
+      last = localDay(new Date(y, m - 1, d - 1));
+    }
+    return { startDate: first, endDate: last < first ? first : last, start: e.start, end: e.end, allDay: true };
+  }
+  const begins = e.start ? new Date(e.start) : null;
+  const finishes = e.end ? new Date(e.end) : null;
+  if (begins && !Number.isNaN(begins.getTime())) {
+    const ends = finishes && !Number.isNaN(finishes.getTime()) ? finishes : begins;
+    // A meeting that ends at midnight ends on the day it was on.
+    const lastMoment = ends.getTime() > begins.getTime() ? new Date(ends.getTime() - 1) : ends;
+    return { startDate: localDay(begins), endDate: localDay(lastMoment), start: e.start, end: e.end, allDay: false };
+  }
+  return { startDate: e.startDate, endDate: e.endDate };
 }
 
 /**
@@ -136,8 +177,7 @@ function normalizeOutlook(e: OutlookCalendarEvent): UnifiedCalendarEvent {
   return {
     id: e.id,
     title: e.title,
-    startDate: e.startDate,
-    endDate: e.endDate,
+    ...eventDays(e),
     location: e.location,
     description: e.description,
     attendees: e.attendees,

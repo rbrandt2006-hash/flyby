@@ -38,8 +38,26 @@ export interface ParsedTravelRequest {
   interpretation: string; // Human-readable summary
   maxBudget?: number; // total USD budget cap, when the request gave one
   preferNonstop?: boolean; // true when the request asked for nonstop/direct
+  /** 0 for "nonstop only", 1 for "one stop at most". */
+  maxStops?: number;
+  /** When they want to fly out / back — "morning flight", "evening return". */
+  departWindow?: TimeWindow;
+  returnWindow?: TimeWindow;
+  /** Destination-local "YYYY-MM-DDTHH:MM" they must be there by ("3pm board meeting Tuesday"). */
+  arriveBy?: string;
+  /** Destination-local time their commitment ends ("done by 2pm"). */
+  leaveAfter?: string;
+  /** True for "no red-eyes"; false for "a red-eye is fine". */
+  avoidRedEye?: boolean;
+  /** An airline asked for by name, for this trip. */
+  airline?: string;
+  /** What they're going for, in a few words — "3 PM board meeting". */
+  commitment?: string;
   source?: "ai" | "heuristic"; // which parser produced this result
 }
+
+export type TimeWindow = "early_morning" | "morning" | "afternoon" | "evening" | "night";
+const TIME_WINDOWS: TimeWindow[] = ["early_morning", "morning", "afternoon", "evening", "night"];
 
 /** The structured primitives the backend's Gemini parser returns. */
 interface SearchPrimitives {
@@ -56,6 +74,15 @@ interface SearchPrimitives {
   maxBudget: number | null;
   preferNonstop: boolean;
   interpretation: string;
+  // Absent from an older backend.
+  maxStops?: number | null;
+  departWindow?: string | null;
+  returnWindow?: string | null;
+  arriveBy?: string | null;
+  leaveAfter?: string | null;
+  avoidRedEye?: boolean | null;
+  airline?: string | null;
+  commitment?: string | null;
 }
 
 export interface ClarificationRequest {
@@ -774,6 +801,14 @@ function buildFromPrimitives(primitives: SearchPrimitives, input: string): Parse
     interpretation: primitives.interpretation || base.interpretation,
     maxBudget: primitives.maxBudget ?? undefined,
     preferNonstop: primitives.preferNonstop,
+    maxStops: typeof primitives.maxStops === "number" ? primitives.maxStops : undefined,
+    departWindow: TIME_WINDOWS.find((w) => w === primitives.departWindow),
+    returnWindow: TIME_WINDOWS.find((w) => w === primitives.returnWindow),
+    arriveBy: primitives.arriveBy || undefined,
+    leaveAfter: primitives.leaveAfter || undefined,
+    avoidRedEye: typeof primitives.avoidRedEye === "boolean" ? primitives.avoidRedEye : undefined,
+    airline: primitives.airline || undefined,
+    commitment: primitives.commitment || undefined,
     source: "ai",
   };
 }
@@ -828,4 +863,90 @@ export async function parseTravelRequestSmart(input: string): Promise<ParsedTrav
  */
 export function parseTravelRequestCached(input: string): ParsedTravelRequest {
   return parseCache.get(input.trim()) ?? parseTravelRequest(input);
+}
+
+/**
+ * The same request, moved by a number of days ("day after").
+ *
+ * Returns the text of the moved request, to search with in place of the
+ * original. Its parse is stored up front as the original's with only the dates
+ * changed, so the airports, passengers, cabin and trip type the first search
+ * resolved carry over exactly instead of being re-read from new wording. The
+ * text is also written the way a traveler would type it ("San Francisco to
+ * Newark December 9 to December 11"), so the plain parser can still read the
+ * new dates from it if that stored parse is gone (after a reload).
+ *
+ * `searched` is what the last search actually ran with — the dates it used
+ * stand in when the request never named any.
+ */
+export function shiftTravelRequest(
+  originalInput: string,
+  searched: { origin: string; destination: string; departureDate: string; returnDate?: string },
+  days: number,
+  purpose?: string,
+): string | null {
+  const original = parseTravelRequestCached(originalInput);
+  const departure = parseISODate(searched.departureDate);
+  if (!departure) return null;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const oneWay = original.tripType === "oneway";
+  const back = original.dates?.return ?? parseISODate(searched.returnDate ?? null)
+    ?? new Date(departure.getTime() + 3 * DAY_MS);
+  const move = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
+  const newDeparture = move(departure);
+  const newReturn = move(back);
+
+  const long = (d: Date) => d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  const dateText = oneWay ? `${long(newDeparture)} one way` : `${long(newDeparture)} to ${long(newReturn)}`;
+  // Name the origin only if the request did; otherwise it came from the
+  // traveler's home airport and still should.
+  const from = original.origin?.airports[0]?.city;
+  const to = original.destination?.airports[0]?.city || searched.destination;
+  const text = `${from ? `${from} to ${to}` : `Trip to ${to}`} ${dateText}${purpose ? ` for ${purpose}` : ""}`;
+
+  parseCache.set(text.trim(), {
+    ...original,
+    // A time to be there by belonged to the old day. Moving the trip by hand
+    // says the plan changed, so it isn't held to it.
+    arriveBy: undefined,
+    leaveAfter: undefined,
+    dates: {
+      flexible: false,
+      ...original.dates,
+      departure: newDeparture,
+      return: newReturn,
+      raw: dateText,
+    },
+  });
+  return text;
+}
+
+/**
+ * Fix the travel days of an already-parsed request.
+ *
+ * A trip planned from the calendar has exact days, worked out from the meeting
+ * (see services/calendarTrips.ts). They are set on the parse rather than
+ * trusted to survive being written into a sentence and read back — and because
+ * everything downstream reads the cached parse, they hold through picking a
+ * flight and the hotel step too.
+ */
+export function pinTravelDates(input: string, departISO: string, returnISO: string): void {
+  const departure = parseISODate(departISO);
+  const back = parseISODate(returnISO);
+  if (!departure || !back) return;
+  const parsed = parseTravelRequestCached(input);
+  parseCache.set(input.trim(), {
+    ...parsed,
+    // There and back, even on one day: "from the 15th to the 15th" reads like a
+    // one-way to a parser, and a same-day trip with no flight home isn't one.
+    tripType: "roundtrip",
+    dates: {
+      flexible: false,
+      raw: parsed.dates?.raw ?? "",
+      ...parsed.dates,
+      departure,
+      return: back,
+      duration: Math.max(1, Math.round((back.getTime() - departure.getTime()) / 86400000)),
+    },
+  });
 }

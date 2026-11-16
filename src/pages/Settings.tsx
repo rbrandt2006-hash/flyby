@@ -16,6 +16,7 @@ import { useTravelPreferences } from "@/hooks/useTravelPreferences";
 import { HomeAirportPicker } from "@/components/settings/HomeAirportPicker";
 import { SignInMethods } from "@/components/settings/SignInMethods";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
+import { EmailNotificationsStatus } from "@/components/settings/EmailNotificationsStatus";
 import { FunctionalToggle } from "@/components/settings/FunctionalToggle";
 import { cn } from "@/lib/utils";
 import { backend } from "@/integrations/backend/client";
@@ -297,6 +298,7 @@ export default function Settings() {
     toggleFlightDisruptions,
     toggleExpenseApprovals,
     toggleWeeklySummary,
+    toggleSignInAlerts,
     toggleAutoMatchExpenses,
   } = useNotificationSettings();
   
@@ -880,11 +882,22 @@ export default function Settings() {
                 <Bell className="w-4 h-4" />
                 Notifications
               </h4>
+              <EmailNotificationsStatus address={user?.email} />
               <div className="space-y-1">
+                <FunctionalToggle
+                  id="notify-sign-in"
+                  label="Sign-in alerts"
+                  description="Email me whenever my account is signed in to. Password and security changes are always emailed."
+                  checked={notificationSettings.notifySignIn}
+                  onCheckedChange={toggleSignInAlerts}
+                  isSaving={notifSaving}
+                  isLoading={notifLoading}
+                />
+                <Separator />
                 <FunctionalToggle
                   id="notify-trip-updates"
                   label="Trip updates"
-                  description="Booking confirmations and changes"
+                  description="Email me when a trip is added or cancelled. Confirmations for flights and hotels booked in Flyby are always emailed."
                   checked={notificationSettings.notifyTripUpdates}
                   onCheckedChange={toggleTripUpdates}
                   isSaving={notifSaving}

@@ -28,6 +28,14 @@ export interface AgentTrip {
   status: string;
   /** The calendar event this trip was created for, when it came from one. */
   sourceCalendarEventId?: string | null;
+  /** Every meeting the trip covers, when it covers more than one. */
+  sourceCalendarEventIds?: string[] | null;
+  /**
+   * The days those meetings were on when the trip was planned. A trip's own
+   * dates can't be compared with the meeting's — Flyby flies people in the day
+   * before a morning meeting — so this is what a moved meeting is checked against.
+   */
+  sourceCalendarSnapshot?: Array<{ id: string; start: string; end: string }> | null;
 }
 
 /** The minimum a calendar event must expose. */
@@ -73,12 +81,47 @@ export function detectItineraryDrift(
   const drifts: ItineraryDrift[] = [];
 
   for (const trip of trips) {
-    if (!trip.sourceCalendarEventId) continue;
+    const sourceIds = trip.sourceCalendarEventIds?.length
+      ? trip.sourceCalendarEventIds
+      : trip.sourceCalendarEventId ? [trip.sourceCalendarEventId] : [];
+    if (sourceIds.length === 0) continue;
     if (trip.status === "cancelled" || trip.status === "archived") continue;
 
-    const event = byId.get(trip.sourceCalendarEventId);
     const bookedStart = day(trip.startDate);
     const bookedEnd = day(trip.endDate);
+
+    // Planned around known meeting days: report the first meeting that is gone,
+    // called off, or no longer on the days it was.
+    if (trip.sourceCalendarSnapshot?.length) {
+      for (const planned of trip.sourceCalendarSnapshot) {
+        const now = byId.get(planned.id);
+        if (!now) {
+          drifts.push({
+            trip, reason: "event_deleted", bookedStart, bookedEnd,
+            summary: `A meeting behind the ${trip.destination} trip was removed from the calendar.`,
+          });
+          break;
+        }
+        if (now.cancelled) {
+          drifts.push({
+            trip, reason: "event_cancelled", bookedStart, bookedEnd,
+            summary: `"${now.title}" was cancelled — the ${trip.destination} trip may no longer be needed.`,
+          });
+          break;
+        }
+        if (day(now.startDate) !== day(planned.start) || day(now.endDate) !== day(planned.end)) {
+          drifts.push({
+            trip, reason: "dates_changed", bookedStart, bookedEnd,
+            neededStart: day(now.startDate), neededEnd: day(now.endDate),
+            summary: `"${now.title}" moved from ${day(planned.start)} to ${day(now.startDate)} — the ${trip.destination} trip was planned for the old date.`,
+          });
+          break;
+        }
+      }
+      continue;
+    }
+
+    const event = byId.get(sourceIds[0]);
 
     if (!event) {
       drifts.push({

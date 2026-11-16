@@ -21,6 +21,14 @@ export interface GoogleCalendarEvent {
   location: string;
   description: string;
   attendees: string[];
+  /**
+   * The exact start and end, when the backend provides them: an ISO instant
+   * for a timed meeting, a bare date for an all-day one (whose `end` is the day
+   * after it finishes). Absent from an older backend.
+   */
+  start?: string;
+  end?: string;
+  allDay?: boolean;
 }
 
 const TOKEN_KEY = "flyby.googleCalendar.v1";

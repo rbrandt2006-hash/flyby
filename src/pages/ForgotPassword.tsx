@@ -37,7 +37,9 @@ export default function ForgotPassword() {
 
     try {
       const { error } = await backend.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        // Under the app's own base path: on GitHub Pages the app lives at
+        // /flyby/, and a link to the bare origin would miss it.
+        redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}reset-password`,
       });
 
       // Always show success message to not reveal if email exists

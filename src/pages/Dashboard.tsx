@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2, Trash2, CreditCard } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2, Trash2, CreditCard, CalendarClock } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
@@ -20,7 +20,9 @@ import { useTravelPreferences } from "@/hooks/useTravelPreferences";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { parsePurpose } from "@/services/tripTemplates";
-import { parseTravelRequest, parseTravelRequestSmart, parseTravelRequestCached } from "@/services/travelSearchParser";
+import { parseTravelRequest, parseTravelRequestSmart, parseTravelRequestCached, pinTravelDates, shiftTravelRequest } from "@/services/travelSearchParser";
+import { takePlannerPrefill, proposalQuery, type CalendarTripContext, type TripProposal } from "@/services/calendarTrips";
+import { useTripAgent } from "@/hooks/useTripAgent";
 import { searchRealFlights, searchRealFlightsDetailed } from "@/services/duffelFlights";
 import { FlightBookingModal } from "@/components/booking/FlightBookingModal";
 import { FlightResults, type Flight } from "@/components/flights/FlightResults";
@@ -28,9 +30,11 @@ import { HotelSelectionPage } from "@/components/trips/HotelSelectionPage";
 import { searchLiveHotels, hotelUnavailableMessage, type HotelSearchFailure } from "@/services/duffelStays";
 import { HotelBookingModal, type HotelGuestDefaults } from "@/components/booking/HotelBookingModal";
 import { useTravelPolicy } from "@/hooks/useTravelPolicy";
-import type { BookingResult } from "@/services/duffelFlights";
+import type { BookingResult, DateHint, DateOption, FlightAdvice, FlightSearchContext, RankingSummary } from "@/services/duffelFlights";
+import { UNITED, bookedOnSite, type ExternalBooking, type HandoffSearch } from "@/services/airlineHandoff";
 import type { LocalTripHotel } from "@/hooks/useTrips";
 import { BookingChatThread, type ChatMsg, type ChatThreadMeta, type BookingResults } from "@/components/home/BookingChatThread";
+import { DateHintRow, PickAdvice } from "@/components/home/BookingResultsPanel";
 import type { HotelOption } from "@/components/chats/booking/types";
 import { RefineModal } from "@/components/home/RefineModal";
 import { KPIDrawer, type KPIType } from "@/components/home/KPIDrawer";
@@ -145,12 +149,24 @@ const generateTripPlan = async (
   prompt: string,
   /** The traveler's default departure airport from Settings, e.g. "SAN". */
   homeAirportCode?: string | null,
+  options: {
+    /** The meeting this trip is for, when it was planned from the calendar. */
+    calendar?: CalendarTripContext | null;
+    /** Preferences learned on this device, for when none are saved to the account. */
+    hints?: Pick<FlightSearchContext, "preferredAirlines" | "avoidLayovers">;
+  } = {},
 ): Promise<TripPlan | { needsDestination: true; flights?: never }> => {
-  await new Promise(r => setTimeout(r, 850));
+  const calendar = options.calendar ?? null;
 
   // AI-first parse (Gemini) with the heuristic as an automatic fallback; the
   // result is cached so the synchronous follow-up sites reuse it.
-  const parsed = await parseTravelRequestSmart(prompt);
+  let parsed = await parseTravelRequestSmart(prompt);
+  if (calendar) {
+    // The travel days were worked out from the meeting itself; hold the parse
+    // to them rather than to however the sentence happened to read.
+    pinTravelDates(prompt, calendar.departDate, calendar.returnDate);
+    parsed = parseTravelRequestCached(prompt);
+  }
   const destAirport = parsed.destination?.airports[0];
   if (!destAirport) return { needsDestination: true };
 
@@ -165,7 +181,7 @@ const generateTripPlan = async (
   const originAirport = parsed.origin?.airports[0]
     || savedHome
     || { code: DEFAULT_HOME.code, city: DEFAULT_HOME.city } as any;
-  const purpose = parsePurpose(prompt);
+  const purpose = calendar?.title || parsePurpose(prompt);
 
   const now = new Date();
   const startDate = parsed.dates?.departure || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -192,6 +208,9 @@ const generateTripPlan = async (
 
   let flightNote: "past_date" | "no_results" | "unreachable" | undefined;
   let realFlights: Flight[] | null = null;
+  let ranking: RankingSummary | undefined;
+  let advice: FlightAdvice | undefined;
+  let dateOptions: DateOption[] | undefined;
   let returnUnavailable = false;
   let liveHotels: HotelOption[] = [];
   let hotelNote: HotelSearchFailure | undefined;
@@ -199,6 +218,14 @@ const generateTripPlan = async (
   // priced into the same fare — searching only the outbound used to "book" a
   // two-week trip with no flight back.
   const returnDate = parsed.tripType === "oneway" ? undefined : toISODate(endDate);
+  // With no dates given, the ones Flyby suggests are a guess — and the week it
+  // guesses can be an expensive one. So the same trip one and two weeks later
+  // is priced at the same time, to be able to say when waiting saves real money.
+  const laterBy = (days: number) => {
+    const shift = (d: Date) => toISODate(new Date(d.getFullYear(), d.getMonth(), d.getDate() + days));
+    return { departureDate: shift(startDate), returnDate: returnDate ? shift(endDate) : undefined };
+  };
+  const alsoCheck = datesAssumed && !calendar ? [laterBy(7), laterBy(14)] : undefined;
   if (departureIsPast) {
     flightNote = "past_date";
   } else {
@@ -210,6 +237,28 @@ const generateTripPlan = async (
         returnDate,
         passengers,
         cabinClass,
+        // What the traveler asked for and what the trip requires, for the
+        // ranking. A meeting from the calendar outranks anything in the wording.
+        context: {
+          advise: true,
+          requestText: calendar ? `${calendar.meetingLabel} in ${calendar.destinationCity}` : prompt,
+          // Only a purpose the traveler actually gave. The default label
+          // ("business meeting") is a display fallback, not a fact — passed
+          // along, it had the advisor reasoning about a meeting nobody mentioned.
+          purpose: calendar || purpose !== parsePurpose("") ? purpose : undefined,
+          commitment: calendar?.meetingLabel ?? parsed.commitment,
+          maxBudget: parsed.maxBudget,
+          preferNonstop: parsed.preferNonstop,
+          maxStops: parsed.maxStops,
+          departWindow: parsed.departWindow,
+          returnWindow: calendar ? calendar.returnWindow : parsed.returnWindow,
+          arriveBy: calendar ? calendar.arriveBy : parsed.arriveBy,
+          leaveAfter: calendar ? calendar.leaveAfter : parsed.leaveAfter,
+          avoidRedEye: parsed.avoidRedEye,
+          airline: parsed.airline,
+          alsoCheck,
+          ...options.hints,
+        },
       }),
       searchLiveHotels({
         destinationCode: destCode,
@@ -220,6 +269,9 @@ const generateTripPlan = async (
       }),
     ]);
     realFlights = outcome.flights;
+    ranking = outcome.ranking;
+    advice = outcome.advice;
+    dateOptions = outcome.dateOptions;
     if (!realFlights) flightNote = outcome.reason ?? "unreachable";
     returnUnavailable = Boolean(outcome.returnUnavailable);
     liveHotels = stay.hotels ?? [];
@@ -248,9 +300,15 @@ const generateTripPlan = async (
     },
     hotel: { name: "", location: "" },
     estimatedCost: flights[0]?.price ?? 0,
-    confidenceLevel: Math.min(98, 92 + Math.floor(Math.random() * 4)),
+    // How fully the request pinned the trip down — not a measurement of
+    // anything else. Lower when the dates were assumed, or when the best
+    // flight still misses something that was asked for.
+    confidenceLevel: flights[0]?.ranking?.eligible === false ? 70 : datesAssumed ? 85 : 95,
     originalPrompt: prompt,
     _flights: flights,
+    _ranking: ranking,
+    _advice: advice,
+    _dateOptions: dateOptions,
     _flightNote: flightNote,
     _returnDate: returnDate,
     _returnUnavailable: returnUnavailable,
@@ -261,7 +319,7 @@ const generateTripPlan = async (
     _originCity: originAirport.city,
     _destCode: destCode,
     _destCity: destAirport.city,
-  } as TripPlan & { _flights: Flight[]; _flightNote?: "past_date" | "no_results" | "unreachable"; _returnDate?: string; _returnUnavailable: boolean; _liveHotels: HotelOption[]; _hotelNote?: HotelSearchFailure; _parsed: ReturnType<typeof parseTravelRequest>; _originCode: string; _originCity: string; _destCode: string; _destCity: string };
+  } as TripPlan & { _flights: Flight[]; _ranking?: RankingSummary; _advice?: FlightAdvice; _dateOptions?: DateOption[]; _flightNote?: "past_date" | "no_results" | "unreachable"; _returnDate?: string; _returnUnavailable: boolean; _liveHotels: HotelOption[]; _hotelNote?: HotelSearchFailure; _parsed: ReturnType<typeof parseTravelRequest>; _originCode: string; _originCity: string; _destCode: string; _destCity: string };
 };
 
 // Derive a short conversation title from the first user message + destination chip
@@ -292,7 +350,7 @@ const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 // Anything that doesn't match here is treated as a possible carrier name so a
 // live airline search can be attempted for ANY airline (not a fixed list).
 const FOLLOWUP_INTENT_RE =
-  /\b(nonstop|non-stop|direct|fastest|shortest|quickest|less time|shorter|fewer stops|fewest stops|less stops|reduce stops|cheap|cheaper|less expensive|lower price|budget|day after|next day|tomorrow|push .*day|shift .*day|different hotel|other hotel|another hotel|new hotel|swap hotel)\b/i;
+  /\b(nonstop|non-stop|direct|fastest|shortest|quickest|less time|shorter|fewer stops|fewest stops|less stops|reduce stops|cheap|cheaper|less expensive|lower price|budget|day after|next day|tomorrow|day before|day earlier|previous day|a day sooner|weeks? later|week after|next week|following week|week earlier|week before|previous week|push .*(day|week)|shift .*(day|week)|different hotel|other hotel|another hotel|new hotel|swap hotel)\b/i;
 
 // Strip filler words so "show me any Lufthansa flights please" -> "lufthansa".
 // The remaining phrase is used as a carrier filter (matched against airline
@@ -308,6 +366,45 @@ function cleanAirlineQuery(text: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+}
+
+// "Day after" / "day before" change the dates, so they need a new live search —
+// the fares and flights on screen belong to the old dates and can't be relabelled.
+const DATE_SHIFT_RE = /day after|next day|tomorrow|day before|day earlier|previous day|a day sooner|weeks? later|week after|next week|following week|week earlier|week before|previous week|(push|shift).*(day|week)/i;
+const DATE_SHIFT_EARLIER_RE = /day before|day earlier|previous day|a day sooner|week earlier|week before|previous week|(push|shift).*(earlier|back|sooner)/i;
+
+/** How many days a "day after" / "two weeks later" follow-up moves the trip. */
+function shiftDaysFor(text: string): number {
+  const size = /\b(two|2)\s+weeks?\b/i.test(text) ? 14 : /week/i.test(text) ? 7 : 1;
+  return DATE_SHIFT_EARLIER_RE.test(text) ? -size : size;
+}
+
+/** "one day later", "two weeks earlier", "10 days later". */
+function shiftWords(days: number): string {
+  const size = Math.abs(days);
+  const amount = size === 1 ? "one day" : size === 7 ? "one week" : size === 14 ? "two weeks" : `${size} days`;
+  return `${amount} ${days < 0 ? "earlier" : "later"}`;
+}
+
+/**
+ * Other dates worth telling the traveler about: the cheapest of the ones priced
+ * alongside the search, if it beats the pick by enough to matter ($40 and 10%).
+ * A few dollars either way isn't a reason to move a trip.
+ */
+function cheaperDates(options: DateOption[] | undefined, pick: Flight | undefined, shownStart: Date): DateHint | undefined {
+  if (!options?.length || !pick) return undefined;
+  const best = [...options].sort((a, b) => a.price - b.price)[0];
+  const saving = pick.price - best.price;
+  if (saving < 40 || saving < pick.price * 0.1) return undefined;
+  const day = (iso: string) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
+  const out = day(best.departureDate);
+  const back = best.returnDate ? day(best.returnDate) : null;
+  const days = Math.round((out.getTime() - new Date(shownStart.getFullYear(), shownStart.getMonth(), shownStart.getDate()).getTime()) / 86400000);
+  if (!days) return undefined;
+  const label = !back ? format(out, "MMM d")
+    : out.getMonth() === back.getMonth() ? `${format(out, "MMM d")} – ${format(back, "d")}`
+      : `${format(out, "MMM d")} – ${format(back, "MMM d")}`;
+  return { option: best, days, saving, label };
 }
 
 // True when the follow-up is a sort/filter intent rather than an airline name.
@@ -338,12 +435,6 @@ function applyFollowUp(text: string, prev: BookingResults): { results: BookingRe
     results.flights = [...prev.flights].sort((a, b) => a.price - b.price);
     results.hotels = [...prev.hotels].sort((a, b) => a.pricePerNight - b.pricePerNight);
     note = "Sorted by lowest price across flights and hotels.";
-  } else if (/day after|next day|tomorrow|push.*day|shift.*day/.test(t)) {
-    const shift = (label?: string) => label ? `${label} (+1 day)` : label;
-    results.chips = { ...prev.chips, dateLabel: shift(prev.chips.dateLabel) };
-    // Re-roll prices slightly to feel different
-    results.flights = prev.flights.map(f => ({ ...f, price: Math.max(120, f.price + Math.round((Math.random() - 0.3) * 80)) }));
-    note = "Shifted the trip one day later. Here are updated options.";
   } else if (/different hotel|other hotel|another hotel|new hotel|swap hotel/.test(t)) {
     results.hotels = [...prev.hotels.slice(1), prev.hotels[0]].filter(Boolean);
     note = "Here are different hotel options near your destination.";
@@ -386,9 +477,16 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { demoMode } = useDemoMode();
-  const { createTrip, deleteTrip, updateTrip } = useTrips();
+  const { trips: savedTrips, createTrip, deleteTrip, updateTrip } = useTrips();
   const { policy: travelPolicy } = useTravelPolicy();
-  const { addExpense } = useExpenses();
+  const { expenses: savedExpenses, addExpense } = useExpenses();
+  // The calendar agent: meetings that need a trip are offered right where
+  // trips are planned, not only on the Trips page.
+  const calendarAgent = useTripAgent(savedTrips, savedExpenses);
+  // The meeting the trip being planned is for, when it came from the calendar.
+  // Carried onto the saved trip so Flyby knows it's covered, and can tell when
+  // the meeting moves. Cleared by any search the traveler types themselves.
+  const calendarLinkRef = useRef<CalendarTripContext | null>(null);
   const { autoPlan, autoBook } = useBookingMode();
   // Set when autonomous mode has assembled a trip that should now be booked.
   // Booking reads the finished plan from state, so it is triggered from an
@@ -506,11 +604,15 @@ export default function Dashboard() {
     if ("needsDestination" in result) return null;
     const anyResult = result as TripPlan & {
       _flights?: Flight[];
+      _ranking?: RankingSummary;
+      _advice?: FlightAdvice;
+      _dateOptions?: DateOption[];
       _flightNote?: "past_date" | "no_results" | "unreachable";
       _returnUnavailable?: boolean;
       _liveHotels?: HotelOption[];
       _hotelNote?: HotelSearchFailure;
       _parsed?: ReturnType<typeof parseTravelRequest>;
+      _returnDate?: string;
       _originCode?: string; _originCity?: string;
       _destCode?: string; _destCity?: string;
     };
@@ -606,7 +708,11 @@ export default function Dashboard() {
         bestPerAirline.push(f);
       }
     }
-    const flights = [...bestPerAirline, ...moreOptions];
+    // When the backend ranked the search (fare rules, connection times, the
+    // meeting to be on time for, Gemini's final call), its order is the order.
+    // The ranking above is what an older backend's cheapest-first list gets.
+    const serverRanked = Boolean(anyResult._ranking);
+    const flights = serverRanked ? rawFlights : [...bestPerAirline, ...moreOptions];
 
     const anchor = parsed?.locationAnchor;
     // Always show the full formatted date range (e.g. "Jul 10 – Jul 14") instead
@@ -620,7 +726,11 @@ export default function Dashboard() {
     const topHotel = hotels[0];
 
     const reasons: { flight?: string; hotel?: string } = {};
-    if (topFlight) {
+    const advice = serverRanked && anyResult._advice?.pickId === topFlight?.id ? anyResult._advice : undefined;
+    if (advice) {
+      reasons.flight = [advice.headline.replace(/\.$/, "") + ".", ...advice.why, advice.tradeoff ? `Worth knowing: ${advice.tradeoff}` : ""]
+        .filter(Boolean).join(" ");
+    } else if (topFlight) {
       const stopsWord = (n: number) => (n === 0 ? "nonstop" : `${n} stop${n > 1 ? "s" : ""}`);
       const stopsLabel = isRoundTrip(topFlight)
         ? (totalStops(topFlight) === 0
@@ -685,6 +795,20 @@ export default function Dashboard() {
       flightNote: anyResult._flightNote,
       hotelNote: anyResult._hotelNote,
       returnUnavailable: anyResult._returnUnavailable,
+      advice,
+      ranking: anyResult._ranking,
+      dateHint: cheaperDates(anyResult._dateOptions, topFlight, anyResult.startDate),
+      handoff: anyResult._originCode && anyResult._destCode
+        ? {
+            origin: anyResult._originCode,
+            destination: anyResult._destCode,
+            departureDate: format(anyResult.startDate, "yyyy-MM-dd"),
+            returnDate: anyResult._returnDate,
+            passengers: parsed?.passengers || 1,
+            destinationLabel: anyResult.destination,
+            purpose: anyResult.purpose,
+          }
+        : undefined,
     };
   };
 
@@ -766,7 +890,14 @@ export default function Dashboard() {
     if (activeThreadId === id) handleNewTrip();
   };
 
-  const runInitialPlan = async (text: string) => {
+  /** Preferences learned on this device, for the ranking to use when none are saved. */
+  const rankingHints = (): Pick<FlightSearchContext, "preferredAirlines" | "avoidLayovers"> => ({
+    preferredAirlines: preferences.preferredAirlines?.length ? preferences.preferredAirlines : undefined,
+    avoidLayovers: preferences.avoidsLayovers || undefined,
+  });
+
+  const runInitialPlan = async (text: string, calendar: CalendarTripContext | null = null) => {
+    calendarLinkRef.current = calendar;
     setError(null); setInputError(null); setNeedsDestination(false); setFlightResults([]);
     setPlanResult(null);
     setSelectedFlightFromResults(null);
@@ -776,7 +907,7 @@ export default function Dashboard() {
     setIsPlanning(true); setIsThinking(true);
     startNewThread(text);
     try {
-      const result = await generateTripPlan(text, savedTravelPrefs.homeAirport);
+      const result = await generateTripPlan(text, savedTravelPrefs.homeAirport, { calendar, hints: rankingHints() });
       if ("needsDestination" in result) {
         setNeedsDestination(true);
         pushAssistantText("I couldn't find a destination in that request — can you try again with a city or airport?");
@@ -824,6 +955,73 @@ export default function Dashboard() {
     }
   };
 
+  /**
+   * Search the same trip again on dates moved by `days`, and show what comes
+   * back. Everything shown afterwards is what the airlines returned for the new
+   * dates. Used by "day after" / "a week later" and by the cheaper-dates button.
+   */
+  const moveTrip = async (days: number, options: { autoSelect?: boolean } = {}): Promise<boolean> => {
+    const searched = searchContextRef.current;
+    const purpose = parsePurpose(tripInput);
+    const moved = searched && shiftTravelRequest(
+      tripInput, searched, days,
+      // Keep a purpose the request named; the default needs no mention.
+      purpose !== parsePurpose("") ? purpose : undefined,
+    );
+    if (!searched || !moved) {
+      // A conversation reopened from history no longer has its search.
+      pushAssistantText("I can't move the dates on this saved search. Start a new trip with the dates you want and I'll search them live.");
+      return false;
+    }
+    // Still for the same meeting if there was one, but no longer held to
+    // its clock time: the traveler is choosing the days themselves now.
+    const result = await generateTripPlan(moved, savedTravelPrefs.homeAirport, { hints: rankingHints() });
+    const built = "needsDestination" in result ? null : buildResultsFromPlan(result);
+    if (!built || "needsDestination" in result) {
+      pushAssistantText("I couldn't search the new dates. Start a new trip with the dates you want.");
+      return false;
+    }
+    // From here on the trip is the moved one: picking a flight, the hotel
+    // step and airline follow-ups all read these.
+    setTripInput(moved);
+    searchContextRef.current = {
+      ...searched,
+      departureDate: format(result.startDate, "yyyy-MM-dd"),
+      returnDate: (result as TripPlan & { _returnDate?: string })._returnDate,
+    };
+    // In automatic mode the itinerary was already assembled once; assemble it
+    // again for the new dates rather than dropping back to a list.
+    const planned = Boolean(options.autoSelect) && applyAutoSelection(result, built);
+    if (planned && autoBook) setPendingAutoBook(true);
+    pushAssistantResults(
+      built,
+      built.flights.length > 0
+        ? `Moved the trip ${shiftWords(days)}, to ${built.chips.dateLabel}. These are live fares for the new dates.`
+        : `Moved the trip ${shiftWords(days)}, to ${built.chips.dateLabel}.`,
+    );
+    return true;
+  };
+
+  /** The traveler took the cheaper dates Flyby pointed out. */
+  const handleUseDates = async (hint: DateHint) => {
+    if (isThinking) return;
+    setPlanResult(null);
+    setPendingPlanResult(null);
+    setShowHotelStep(false);
+    setSelectedFlightFromResults(null);
+    setMessages(prev => [
+      ...prev,
+      { id: newMsgId(), role: "user", text: `Use ${hint.label} instead` },
+      { id: newMsgId(), role: "assistant", kind: "loading" },
+    ]);
+    setIsThinking(true);
+    try {
+      await moveTrip(hint.days, { autoSelect: autoPlan });
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
   const handleSendFollowUp = async (text: string) => {
     setMessages(prev => [
       ...prev,
@@ -832,6 +1030,13 @@ export default function Dashboard() {
     ]);
     setIsThinking(true);
     try {
+      // "Day after": search the same trip again, one day later. Everything
+      // shown afterwards is what the airlines returned for the new dates.
+      if (DATE_SHIFT_RE.test(text) && lastResults) {
+        await moveTrip(shiftDaysFor(text));
+        return;
+      }
+
       // Airline follow-up ("show me Lufthansa", "any Turkish flights"): anything
       // that isn't a sort/filter intent is treated as a carrier name and sent to
       // a live Duffel search filtered to that airline — works for ANY airline,
@@ -858,7 +1063,7 @@ export default function Dashboard() {
         pushAssistantResults(results, note);
       } else {
         // No prior results — treat as a fresh search
-        const result = await generateTripPlan(text, savedTravelPrefs.homeAirport);
+        const result = await generateTripPlan(text, savedTravelPrefs.homeAirport, { hints: rankingHints() });
         if ("needsDestination" in result) {
           pushAssistantText("I couldn't find a destination — try a city or airport.");
         } else {
@@ -900,13 +1105,13 @@ export default function Dashboard() {
   useEffect(() => {
     if (travelPrefsLoading || prefillConsumedRef.current) return;
     prefillConsumedRef.current = true;
-    let prefill: string | null = null;
-    try { prefill = sessionStorage.getItem("flyby_prefill_query"); } catch { /* ignore */ }
+    // A request left by another page — a meeting from the calendar arrives
+    // with its travel days and meeting time attached.
+    const prefill = takePlannerPrefill();
     if (prefill) {
-      try { sessionStorage.removeItem("flyby_prefill_query"); } catch { /* ignore */ }
-      setTripInput(prefill);
+      setTripInput(prefill.query);
       // Run on next tick so other state is settled
-      setTimeout(() => { runInitialPlanRef.current(prefill!); }, 50);
+      setTimeout(() => { runInitialPlanRef.current(prefill.query, prefill.calendar ?? null); }, 50);
     }
   }, [travelPrefsLoading]);
 
@@ -941,7 +1146,7 @@ export default function Dashboard() {
       datesAssumed: !parsed.dates?.departure,
       datesConfirmed: !!parsed.dates?.departure,
       needsDateClarification: false,
-      purpose: parsePurpose(tripInput),
+      purpose: calendarLinkRef.current?.title || parsePurpose(tripInput),
       flight: { airline: flight.airline, departTime: flight.departureTime, returnTime: flight.arrivalTime, from: flight.origin, to: flight.destination },
       hotel: { name: "", location: "" },
       estimatedCost: flight.price,
@@ -983,6 +1188,13 @@ export default function Dashboard() {
   const applyAutoSelection = (result: TripPlan, built: BookingResults): boolean => {
     const flight = built.flights[0];
     if (!flight) return false;
+    // Nothing meets what was asked for (no flight lands before the meeting,
+    // say). Picking one automatically would walk the traveler to payment for a
+    // flight that doesn't work — show the options and the reason instead.
+    if (flight.ranking && !flight.ranking.eligible) return false;
+    // The same when no flight at all could meet it: the list is then only the
+    // closest misses, and choosing between those is the traveler's call.
+    if (built.ranking?.unmet?.length) return false;
     const hotel = built.hotels[0];
     const nights = built.nights;
 
@@ -1180,6 +1392,105 @@ export default function Dashboard() {
    * It's passed in after a real payment so the flight expense reflects what was
    * charged rather than the quoted fare — those can differ by taxes/fees.
    */
+  /** Plan the trip for a meeting on the calendar, with its days and time attached. */
+  const planFromCalendar = (proposal: TripProposal) => {
+    const query = proposalQuery(proposal);
+    setTripInput(query);
+    void runInitialPlan(query, proposal);
+  };
+
+  /** What ties a saved trip to the calendar meeting it was planned for, if any. */
+  const calendarLinkFields = () => {
+    const link = calendarLinkRef.current;
+    if (!link) return {};
+    return {
+      sourceCalendarEventId: link.eventIds[0],
+      sourceCalendarEventTitle: link.title,
+      sourceCalendarEventIds: link.eventIds,
+      sourceCalendarSnapshot: link.snapshot,
+    };
+  };
+
+  /**
+   * Save a flight the traveler booked on the airline's own site (United).
+   *
+   * Flyby didn't book or charge this — the traveler did, and is telling us the
+   * confirmation code and what they paid. It is saved as a confirmed trip,
+   * marked with where it was booked, and the fare is filed as an expense.
+   * Throws when the trip can't be saved, so the form stays open with the
+   * details still in it.
+   */
+  const handleAddExternalBooking = async (search: HandoffSearch, booking: ExternalBooking) => {
+    const site = UNITED.site;
+    const atNoon = (isoDate: string) => new Date(`${isoDate}T12:00:00`);
+    const start = atNoon(booking.departureDate);
+    const end = atNoon(booking.returnDate || booking.departureDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new Error("Those dates couldn't be read. Check them and try again.");
+    }
+    const created = createTrip({
+      destination: search.destinationLabel,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      purpose: search.purpose || "Business trip",
+      flight: {
+        airline: booking.airline,
+        departTime: booking.departTime || "",
+        returnTime: booking.arrivalTime || "",
+        flightNumber: booking.flightNumber,
+        departureAirport: booking.departureAirport,
+        arrivalAirport: booking.arrivalAirport,
+        arrivalTime: booking.arrivalTime,
+        stops: booking.stops,
+        price: booking.totalPaid,
+        tripType: booking.returnDate ? "round_trip" : "one_way",
+        returnFlightNumber: booking.returnFlightNumber,
+        returnDepartTime: booking.returnDepartTime,
+        returnArrivalTime: booking.returnArrivalTime,
+        bookingReference: booking.confirmationCode,
+        bookedVia: site,
+      },
+      hotel: null,
+      estimatedCost: booking.totalPaid,
+      booked: true,
+      ...calendarLinkFields(),
+    });
+    if (!created || !created.id) {
+      throw new Error("The trip couldn't be saved. Your United booking isn't affected — try again.");
+    }
+
+    try {
+      addExpense({
+        merchant: booking.airline,
+        description: `Flight${booking.flightNumber ? ` ${booking.flightNumber}` : ""} to ${search.destinationLabel}`,
+        date: start.toISOString(),
+        amount: booking.totalPaid,
+        category: "flight",
+        status: "pending",
+        location: search.destinationLabel,
+        paymentMethod: bookedOnSite(site),
+        reimbursable: true,
+        tripId: created.id,
+        tripName: search.destinationLabel,
+        tripDates: `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`,
+      });
+    } catch (expenseErr) {
+      console.warn("Expense import failed (non-fatal):", expenseErr);
+    }
+
+    setPlanResult(null);
+    setPendingPlanResult(null);
+    setShowHotelStep(false);
+    setSelectedFlightFromResults(null);
+    setFlightResults([]);
+    clearBookingFlow();
+    setTripInput("");
+    toast.success(`United booking added — confirmation ${booking.confirmationCode}`, {
+      description: `Saved to your trips with a $${booking.totalPaid.toFixed(2)} flight expense. No hotel is included.`,
+    });
+    navigate("/trips");
+  };
+
   /**
    * Record a trip whose flight has just been paid for and ticketed.
    *
@@ -1273,6 +1584,7 @@ export default function Dashboard() {
         hotel: tripHotel,
         estimatedCost: planResult.estimatedCost, confidenceLevel: planResult.confidenceLevel,
         booked: Boolean(booking.order),
+        ...calendarLinkFields(),
       });
       if (!created || !created.id) {
         throw new Error("Trip could not be saved. Please try again.");
@@ -1616,6 +1928,41 @@ export default function Dashboard() {
               <p className="mt-4 text-center text-xs text-muted-foreground">
                 Search by destination, dates, or trip type — e.g. "NYC next Monday" or "hotel in Austin under $200".
               </p>
+
+              {/* Meetings on the connected calendar that need a trip. One click
+                  plans it: the travel days are already worked out from the
+                  meeting, and flights are ranked to land in time for it. */}
+              {calendarAgent.unbooked.length > 0 && (
+                <div className="mt-6 rounded-xl border border-primary/20 bg-primary/[0.03] p-4 text-left">
+                  <p className="flex items-center gap-2 text-sm font-semibold">
+                    <CalendarClock className="w-4 h-4 text-primary" />
+                    From your calendar
+                    <span className="ml-auto text-xs font-normal text-muted-foreground truncate max-w-[50%]">
+                      {calendarAgent.account}
+                    </span>
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {calendarAgent.unbooked.slice(0, 3).map(({ proposal }) => (
+                      <div key={proposal.key} className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 p-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm">
+                            <span className="font-medium">{proposal.meetingLabel}</span>
+                            <span className="text-muted-foreground"> · {proposal.destinationCity}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {proposal.plan}.
+                            {proposal.cityInferred && ` The event doesn't name a city — Flyby AI read this as ${proposal.destinationCity}.`}
+                            {proposal.existingTravel && ` ${proposal.existingTravel}`}
+                          </p>
+                        </div>
+                        <Button size="sm" variant="outline" className="shrink-0" disabled={isPlanning} onClick={() => planFromCalendar(proposal)}>
+                          Plan trip
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
           </ScrollReveal>
         </>
@@ -1647,6 +1994,8 @@ export default function Dashboard() {
           onSelectThread={handleSelectThread}
           onDeleteThread={handleDeleteThread}
           onSelectFlight={(f) => handleSelectFlight(f)}
+          onAddExternalBooking={handleAddExternalBooking}
+          onUseDates={handleUseDates}
           onSelectHotel={(h) => {
             const cur = lastResults;
             const top = cur?.flights[0];
@@ -1663,7 +2012,7 @@ export default function Dashboard() {
               datesAssumed: !parsed.dates?.departure,
               datesConfirmed: !!parsed.dates?.departure,
               needsDateClarification: false,
-              purpose: parsePurpose(tripInput),
+              purpose: calendarLinkRef.current?.title || parsePurpose(tripInput),
               flight: { airline: top.airline, departTime: top.departureTime, returnTime: top.arrivalTime },
               hotel: { name: h.name, location: h.area },
               estimatedCost: top.price + h.totalPrice,
@@ -1763,6 +2112,61 @@ export default function Dashboard() {
                       })()}
                     </div>
                   </div>
+                  {/* Why this flight, and what it was chosen over. Without this
+                      the card is a price with no way to judge it — the traveler
+                      can't tell the cheapest of 600 fares from a bad pick. */}
+                  {(() => {
+                    const f = selectedFlightFromResults;
+                    const results = lastResults;
+                    if (!f || !results) return null;
+                    const advice = results.advice && results.advice.pickId === f.id ? results.advice : null;
+                    const facts = f.ranking;
+                    if (!advice && !facts) return null;
+                    const considered = results.ranking?.considered ?? 0;
+                    const others = results.flights.filter((x) => x.id !== f.id && x.id.startsWith("off_")).slice(0, 2);
+                    const describe = (x: Flight) =>
+                      `${x.airline} · ${x.departureTime}${x.tripType === "round_trip" && x.returnDepartureTime ? `, back ${x.returnDepartureTime}` : ""}`;
+                    return (
+                      <div className="space-y-2">
+                        {advice ? (
+                          <div className="-mt-3"><PickAdvice advice={advice} /></div>
+                        ) : facts && (facts.pluses.length > 0 || facts.notes.length > 0 || facts.issues.length > 0) ? (
+                          <div className="rounded-lg border border-border/60 p-3 text-xs space-y-1">
+                            <p className="font-medium text-sm">About the flight you chose</p>
+                            {facts.issues.map((line) => <p key={line} className="text-destructive">{line}</p>)}
+                            {facts.pluses.length > 0 && <p className="text-muted-foreground">{facts.pluses.join(" · ")}</p>}
+                            {facts.notes.length > 0 && <p className="text-muted-foreground">Worth knowing: {facts.notes.slice(0, 2).join("; ")}</p>}
+                          </div>
+                        ) : null}
+                        {(considered > 0 || others.length > 0) && (
+                          <div className="px-1 text-xs text-muted-foreground space-y-1">
+                            {considered > 0 && (
+                              <p>
+                                Chosen from {considered.toLocaleString()} real fares for these dates
+                                {results.ranking?.requirements.length ? ` · ranked for: ${results.ranking.requirements.join(" · ")}` : ""}.
+                              </p>
+                            )}
+                            {(results.ranking?.notes ?? []).map((note) => <p key={note} className="text-warning">{note}</p>)}
+                            {others.map((x) => {
+                              const gap = x.price - f.price;
+                              const why = x.ranking?.issues[0] ?? x.ranking?.notes.find((n) => !n.includes("more than the cheapest")) ?? "";
+                              return (
+                                <p key={x.id}>
+                                  <span className="text-foreground/80">Also considered:</span> {describe(x)} · ${x.price.toLocaleString()}
+                                  {gap > 0 ? ` (${"$"}${gap.toLocaleString()} more)` : gap < 0 ? ` (${"$"}${Math.abs(gap).toLocaleString()} less)` : " (same price)"}
+                                  {why ? ` — ${why}` : ""}
+                                </p>
+                              );
+                            })}
+                            {others.length > 0 && <p>Use Refine to switch to any of them.</p>}
+                          </div>
+                        )}
+                        {results.dateHint && (
+                          <DateHintRow hint={results.dateHint} shownDates={results.chips.dateLabel} onUse={handleUseDates} busy={isThinking || isBooking} />
+                        )}
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
                     <Building2 className="w-5 h-5 text-primary" />
                     <div className="flex-1 min-w-0">

@@ -9,6 +9,8 @@ export interface NotificationSettings {
   notifyExpenseApprovals: boolean;
   notifyWeeklySummary: boolean;
   autoMatchExpenses: boolean;
+  /** Email me when my account is signed in to. */
+  notifySignIn: boolean;
 }
 
 const defaultSettings: NotificationSettings = {
@@ -17,6 +19,7 @@ const defaultSettings: NotificationSettings = {
   notifyExpenseApprovals: true,
   notifyWeeklySummary: true,
   autoMatchExpenses: true,
+  notifySignIn: true,
 };
 
 export function useNotificationSettings() {
@@ -39,7 +42,7 @@ export function useNotificationSettings() {
       const { data, error: fetchError } = await backend
         .from("profiles")
         .select(
-          "notify_trip_updates, notify_flight_disruptions, notify_expense_approvals, notify_weekly_summary, auto_match_expenses"
+          "notify_trip_updates, notify_flight_disruptions, notify_expense_approvals, notify_weekly_summary, auto_match_expenses, notify_sign_in"
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -55,6 +58,7 @@ export function useNotificationSettings() {
           notifyExpenseApprovals: data.notify_expense_approvals ?? true,
           notifyWeeklySummary: data.notify_weekly_summary ?? true,
           autoMatchExpenses: data.auto_match_expenses ?? true,
+          notifySignIn: (data as { notify_sign_in?: boolean | null }).notify_sign_in ?? true,
         });
       }
     } catch (err: any) {
@@ -95,6 +99,7 @@ export function useNotificationSettings() {
         notifyExpenseApprovals: "notify_expense_approvals",
         notifyWeeklySummary: "notify_weekly_summary",
         autoMatchExpenses: "auto_match_expenses",
+        notifySignIn: "notify_sign_in",
       };
 
       try {
@@ -147,6 +152,11 @@ export function useNotificationSettings() {
     [updateSetting]
   );
 
+  const toggleSignInAlerts = useCallback(
+    (value: boolean) => updateSetting("notifySignIn", value),
+    [updateSetting]
+  );
+
   return {
     settings,
     isLoading,
@@ -158,5 +168,6 @@ export function useNotificationSettings() {
     toggleExpenseApprovals,
     toggleWeeklySummary,
     toggleAutoMatchExpenses,
+    toggleSignInAlerts,
   };
 }

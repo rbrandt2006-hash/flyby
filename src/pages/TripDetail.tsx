@@ -47,6 +47,8 @@ interface TripData {
     arriveDayOffset?: number;
     /** The airline's confirmation code. Present only on a ticketed flight. */
     bookingReference?: string;
+    /** The airline site the traveler booked on themselves, e.g. "united.com". */
+    bookedVia?: string;
     tripType?: "one_way" | "round_trip";
     returnFlightNumber?: string;
     returnDepartTime?: string;
@@ -545,7 +547,14 @@ export default function TripDetail() {
                                   )}
                                   {/* The airline's confirmation is what makes this a
                                       booking. Without one, nothing was ticketed. */}
-                                  {trip.flight.bookingReference ? (
+                                  {trip.flight.bookingReference && trip.flight.bookedVia ? (
+                                    // Booked by the traveler on the airline's site. Flyby
+                                    // has their word for it, not a ticket of its own.
+                                    <p className="text-xs text-success mt-1 font-medium">
+                                      Booked on {trip.flight.bookedVia} · confirmation <span className="font-mono">{trip.flight.bookingReference}</span>
+                                      <span className="block font-normal text-muted-foreground">Added by you. Changes and cancellations are made on {trip.flight.bookedVia}.</span>
+                                    </p>
+                                  ) : trip.flight.bookingReference ? (
                                     <p className="text-xs text-success mt-1 font-medium">
                                       Ticketed · airline confirmation <span className="font-mono">{trip.flight.bookingReference}</span>
                                     </p>

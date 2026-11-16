@@ -46,6 +46,27 @@ export interface Flight {
   returnDestination?: string;
   /** The airline won't ticket this fare without passport details. */
   identityDocumentsRequired?: boolean;
+  /** The airline's name for the fare — "Basic Economy", "Main Cabin". */
+  fareBrand?: string;
+  /** Whether the ticket can be changed / refunded. Undefined when the airline didn't say. */
+  changeable?: boolean;
+  refundable?: boolean;
+  /** What Flyby's ranking found for this flight, when the search was ranked. */
+  ranking?: FlightRanking;
+}
+
+/** How one flight fared in the ranking — every line is a fact about that flight. */
+export interface FlightRanking {
+  /** False when it breaks something the traveler or the trip requires. */
+  eligible: boolean;
+  /** "Best overall", "Cheapest", "Fastest". */
+  badges: string[];
+  /** Requirements it fails — "Lands 3:10 PM — too late to be there by 3:00 PM". */
+  issues: string[];
+  /** Drawbacks — "Red-eye — departs 11:52 PM…", "Tight 40-minute connection in ORD". */
+  notes: string[];
+  /** What's good about it — "Nonstop both ways", "Changes allowed (Main Cabin)". */
+  pluses: string[];
 }
 
 interface FlightResultsProps {

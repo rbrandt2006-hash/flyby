@@ -18,6 +18,7 @@ import { TripConfirmationModal } from "@/components/trips/TripConfirmationModal"
 import { RebookTripModal } from "@/components/trips/RebookTripModal";
 import { TripAgentPanel } from "@/components/trips/TripAgentPanel";
 import { useTripAgent } from "@/hooks/useTripAgent";
+import { proposalQuery, stashPlannerPrefill } from "@/services/calendarTrips";
 import { useExpenses } from "@/hooks/useExpenses";
 import { UndoConfirmationToast, useUndoConfirmation } from "@/components/trips/UndoConfirmationToast";
 import { ManagerApprovalPanel } from "@/components/trips/ManagerApprovalPanel";
@@ -1004,9 +1005,10 @@ export default function Trips() {
       <TripAgentPanel
         agent={agent}
         trips={visibleLocalTrips}
-        onBookMeeting={(query) => {
-          // Reuse the normal planning flow rather than a second booking path.
-          try { sessionStorage.setItem("flyby_prefill_query", query); } catch { /* ignore */ }
+        onBookMeeting={(proposal) => {
+          // Reuse the normal planning flow rather than a second booking path;
+          // the meeting goes with it, so the trip stays linked to it.
+          stashPlannerPrefill(proposalQuery(proposal), proposal);
           navigate("/");
         }}
         onRebookTrip={(trip) => handleRebookClick(trip)}
