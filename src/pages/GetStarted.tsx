@@ -156,7 +156,7 @@ export default function GetStarted() {
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {emailMode === "work" ? "We'll enable business mode and link your company." : "Solo traveler mode — perfect for personal trips."}
+                  {emailMode === "work" ? "Business mode. Join your company with its code in Settings once you're in." : "Solo traveler mode — perfect for personal trips."}
                 </p>
               </div>
             </>

@@ -530,9 +530,12 @@ const auth = {
     }
 
     const newAccount = Boolean(result.body?.new_account);
-    writeStoredSession(result.body as BackendSession);
+    // Calendar access granted while signing in. Kept out of the stored
+    // session: the caller hands it to the calendar layer, which stores it.
+    const { calendar = null, ...session } = (result.body ?? {}) as BackendSession & { calendar?: unknown };
+    writeStoredSession(session as BackendSession);
     emit("SIGNED_IN", currentSession);
-    return { data: { user: currentSession!.user, session: currentSession }, newAccount, error: null };
+    return { data: { user: currentSession!.user, session: currentSession }, newAccount, calendar, error: null };
   },
 
   async signInWithPassword({ email, password }: { email: string; password: string }) {

@@ -17,6 +17,9 @@ import { HomeAirportPicker } from "@/components/settings/HomeAirportPicker";
 import { SignInMethods } from "@/components/settings/SignInMethods";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { EmailNotificationsStatus } from "@/components/settings/EmailNotificationsStatus";
+import { CompanyPortalCard } from "@/components/company/CompanyPortalCard";
+import { useUserRole } from "@/hooks/useUserRole";
+import { openConsole } from "@/services/consoleHandoff";
 import { FunctionalToggle } from "@/components/settings/FunctionalToggle";
 import { cn } from "@/lib/utils";
 import { backend } from "@/integrations/backend/client";
@@ -184,6 +187,7 @@ const mealOptions = [
 
 export default function Settings() {
   const { user, signOut } = useAuth();
+  const { isAdmin } = useUserRole();
   const { profile, updateAvatarUrl } = useUserProfileContext();
   const location = useLocation();
   const navigate = useNavigate();
@@ -504,26 +508,33 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* Company Info */}
+            {/* Company: the verified portal they're in, or how to join or set one up */}
             <Separator className="my-6" />
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="font-medium">Acme Corporation</p>
-                  <p className="text-sm text-muted-foreground">Enterprise Plan</p>
+            <div className="space-y-3" id="company">
+              <h4 className="font-medium flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                Company
+              </h4>
+              <CompanyPortalCard />
+              {/* Flyby's own admins approve portals on the backend console. */}
+              {isAdmin && (
+                <div className="flex flex-col gap-3 rounded-xl border border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Flyby console</p>
+                    <p className="text-sm text-muted-foreground">
+                      Approve company portals and manage accounts. Opens signed in as you.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl shrink-0"
+                    onClick={() => openConsole().catch((error: Error) => toast.error(error.message))}
+                  >
+                    Open console
+                    <ExternalLink className="w-4 h-4 ml-2" aria-hidden="true" />
+                  </Button>
                 </div>
-                <Badge variant="secondary">Admin</Badge>
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Department</p>
-                  <p className="font-medium">Sales & Marketing</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Manager</p>
-                  <p className="font-medium">Sarah Johnson</p>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="pt-4">

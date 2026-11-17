@@ -26,6 +26,7 @@ import Terms from "./pages/Terms";
 import AuthCallback from "./pages/AuthCallback";
 import OAuthConsent from "./pages/OAuthConsent";
 import ForgotPassword from "./pages/ForgotPassword";
+import CompanyDashboard from "./pages/CompanyDashboard";
 import ResetPassword from "./pages/ResetPassword";
 
 function needsOnboarding(): boolean {
@@ -122,6 +123,8 @@ function AppRoutes() {
         <Route path="/trips" element={<Trips />} />
         <Route path="/trips/:tripId" element={<TripDetail />} />
         <Route path="/team" element={<Team />} />
+        {/* Everyone can open it; only a company admin sees the dashboard. */}
+        <Route path="/company" element={<CompanyDashboard />} />
         <Route path="/expenses" element={<Expenses />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/integrations/:provider" element={<IntegrationManage />} />

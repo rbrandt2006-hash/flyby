@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { backend } from "@/integrations/backend/client";
+import { connectCalendarFromSignIn, type SignInCalendar } from "@/services/calendarSync";
 import flybyLogo from "@/assets/flybyLogo";
 
 /**
@@ -34,11 +35,13 @@ export default function AuthCallback() {
     }
 
     (async () => {
-      const { error: signInError, newAccount } = await backend.auth.signInWithOAuthCode(code);
+      const { error: signInError, newAccount, calendar } = await backend.auth.signInWithOAuthCode(code);
       if (signInError) {
         setError(signInError.message);
         return;
       }
+      // The calendar of the account they signed in with, connected in the same step.
+      connectCalendarFromSignIn(calendar as SignInCalendar | null);
       let next = "/";
       try {
         next = sessionStorage.getItem("flyby_oauth_next") || "/";

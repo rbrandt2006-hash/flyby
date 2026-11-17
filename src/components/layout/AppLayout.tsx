@@ -7,10 +7,14 @@ import flybyLogo from "@/assets/flybyLogo";
 import { GlobalSearchDropdown } from "./GlobalSearchDropdown";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useCompanyPortal } from "@/hooks/useCompanyPortal";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { Switch } from "@/components/ui/switch";
+import { ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { openConsole } from "@/services/consoleHandoff";
 
-const navItems = [
+const baseNavItems = [
   { label: "Home", path: "/" },
   { label: "Trips", path: "/trips" },
   { label: "Team", path: "/team" },
@@ -21,6 +25,11 @@ const navItems = [
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { isAdmin } = useUserRole();
+  // A company admin gets the company dashboard in the main navigation.
+  const { isCompanyAdmin } = useCompanyPortal();
+  const navItems = isCompanyAdmin
+    ? [...baseNavItems.slice(0, 4), { label: "Company", path: "/company" }, baseNavItems[4]]
+    : baseNavItems;
   const { demoMode, toggleDemoMode } = useDemoMode();
   useSessionTimeout({ isAdmin });
 
@@ -99,8 +108,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 </div>
               </nav>
 
-              {/* Right: Demo toggle + Search */}
+              {/* Right: Console (Flyby admins) + Demo toggle + Search */}
               <div className="flex items-center gap-3 shrink-0">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => openConsole().catch((error: Error) => toast.error(error.message))}
+                    title="Open the Flyby console, signed in as you, to approve company portals"
+                    className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Console
+                    <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                  </button>
+                )}
                 <label
                   className="hidden md:flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer select-none"
                   title="Toggle demo data on or off"

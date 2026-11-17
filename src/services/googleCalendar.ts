@@ -57,6 +57,16 @@ function storeTokens(tokens: StoredTokens) {
   }
 }
 
+/** Keep a calendar connection granted while signing in with Google. */
+export function adoptGoogleTokens(tokens: { accessToken: string; refreshToken?: string | null; email?: string | null }) {
+  storeTokens({
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken || undefined,
+    email: tokens.email ?? null,
+    connectedAt: new Date().toISOString(),
+  });
+}
+
 export function clearGoogleTokens() {
   try {
     localStorage.removeItem(TOKEN_KEY);

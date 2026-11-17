@@ -10,8 +10,32 @@ import {
   fetchOutlookEvents, isOutlookConnected, getOutlookEmail, getOutlookSyncError,
   type OutlookCalendarEvent,
 } from "@/services/outlookCalendar";
-import { fetchGoogleEvents, getStoredGoogleTokens, clearGoogleTokens } from "@/services/googleCalendar";
-import { clearOutlookTokens } from "@/services/outlookCalendar";
+import { adoptGoogleTokens, fetchGoogleEvents, getStoredGoogleTokens, clearGoogleTokens } from "@/services/googleCalendar";
+import { adoptOutlookTokens, clearOutlookTokens } from "@/services/outlookCalendar";
+
+/** The calendar access a Google or Microsoft sign-in granted, as the backend hands it over. */
+export interface SignInCalendar {
+  provider: "google" | "outlook";
+  accessToken: string;
+  refreshToken?: string | null;
+  email?: string | null;
+}
+
+/**
+ * Connect the calendar of the account the traveler just signed in with.
+ *
+ * Signing in with Google or Microsoft asks for calendar access in the same
+ * step, so there is no separate "Connect calendar" to remember. It takes the
+ * single calendar slot (see `connectCalendar`), replacing whichever calendar
+ * this browser had before.
+ */
+export function connectCalendarFromSignIn(calendar: SignInCalendar | null | undefined): boolean {
+  if (!calendar?.accessToken || (calendar.provider !== "google" && calendar.provider !== "outlook")) return false;
+  connectCalendar(calendar.provider);
+  if (calendar.provider === "google") adoptGoogleTokens(calendar);
+  else adoptOutlookTokens(calendar);
+  return true;
+}
 import { disconnectCalendar as clearLegacyCalendarState } from "@/services/mockCalendarService";
 
 export type CalendarProvider = "outlook" | "google" | null;

@@ -72,6 +72,17 @@ function storeTokens(tokens: StoredTokens) {
   }
 }
 
+/** Keep a calendar connection granted while signing in with Microsoft. */
+export function adoptOutlookTokens(tokens: { accessToken: string; refreshToken?: string | null; email?: string | null }) {
+  storeTokens({
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken || undefined,
+    email: tokens.email ?? null,
+    connectedAt: new Date().toISOString(),
+  });
+  lastError = null;
+}
+
 export function clearOutlookTokens() {
   try {
     localStorage.removeItem(TOKEN_KEY);

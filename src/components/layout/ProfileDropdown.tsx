@@ -29,7 +29,6 @@ import {
   Moon,
   Monitor,
 } from "lucide-react";
-import { SwitchWorkspaceModal } from "./SwitchWorkspaceModal";
 import { cn } from "@/lib/utils";
 
 export function ProfileDropdown() {
@@ -39,7 +38,6 @@ export function ProfileDropdown() {
   const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -206,7 +204,7 @@ export function ProfileDropdown() {
                     <span>Team Management</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   className="px-4 py-2.5 cursor-pointer focus:bg-primary/5 data-[highlighted]:bg-primary/5"
                   onClick={() => handleNavigateToSection("integrations")}
                 >
@@ -215,12 +213,13 @@ export function ProfileDropdown() {
                 </DropdownMenuItem>
               </>
             )}
-            <DropdownMenuItem 
-              className="px-4 py-2.5 cursor-pointer focus:bg-primary/5 data-[highlighted]:bg-primary/5"
-              onClick={() => setWorkspaceModalOpen(true)}
-            >
-              <Building2 className="w-4 h-4 mr-3 text-muted-foreground" />
-              <span>Switch Workspace</span>
+            {/* The company portal: dashboard for its admins; membership, joining
+                or setting one up for everyone else. */}
+            <DropdownMenuItem asChild className="px-4 py-2.5 cursor-pointer focus:bg-primary/5 data-[highlighted]:bg-primary/5">
+              <Link to="/company" className="flex items-center">
+                <Building2 className="w-4 h-4 mr-3 text-muted-foreground" />
+                <span>Company</span>
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>
 
@@ -243,12 +242,6 @@ export function ProfileDropdown() {
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {/* Workspace Switcher Modal */}
-      <SwitchWorkspaceModal 
-        open={workspaceModalOpen} 
-        onOpenChange={setWorkspaceModalOpen} 
-      />
     </>
   );
 }
