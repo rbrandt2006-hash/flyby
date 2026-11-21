@@ -3,7 +3,7 @@ import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { authedFetch, backend } from "@/integrations/backend/client";
+import { appBaseUrl, authedFetch, backend } from "@/integrations/backend/client";
 import { toast } from "sonner";
 
 /**
@@ -59,7 +59,7 @@ export function SignInMethods({ onChangePassword }: { onChangePassword: () => vo
       const response = await authedFetch("/auth/v1/authorize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider }),
+        body: JSON.stringify({ provider, return_to: appBaseUrl() }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body?.url) {

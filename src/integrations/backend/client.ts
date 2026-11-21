@@ -202,6 +202,16 @@ export function isUnauthenticated(error: unknown): boolean {
   return code === "unauthenticated" || status === 401;
 }
 
+/**
+ * Where this copy of the app lives, e.g. "https://flybyai.net",
+ * "https://rbrandt2006-hash.github.io/flyby" or "http://localhost:8080".
+ * Sent when starting a Google/Microsoft sign-in or calendar connect so the
+ * backend brings the browser back to this same site.
+ */
+export function appBaseUrl(): string {
+  return `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/+$/, "");
+}
+
 /** The URL of a backend path — for callers that need to fetch directly. */
 export function backendUrl(path: string): string {
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
@@ -495,7 +505,8 @@ const auth = {
    * one-time code — never with tokens in the address bar.
    */
   oauthSignInUrl(provider: "google" | "microsoft") {
-    return backendUrl(`/auth/v1/authorize?provider=${provider}&flow=app`);
+    const returnTo = encodeURIComponent(appBaseUrl());
+    return backendUrl(`/auth/v1/authorize?provider=${provider}&flow=app&return_to=${returnTo}`);
   },
 
   /** Which sign-in providers the backend has set up. */

@@ -1,6 +1,8 @@
 # Builds the Flyby frontend and deploys it to GitHub Pages on every push to main.
 #
-# The site is served at https://rbrandt2006-hash.github.io/flyby/
+# The site is served at https://rbrandt2006-hash.github.io/flyby/ and, once the
+# custom domain is switched on in Settings -> Pages, at https://flybyai.net/
+# (GitHub then sends the old github.io address there automatically).
 #
 # IMPORTANT — the backend:
 #   The built site is static; it can't run the Flask backend. It calls whatever
@@ -44,6 +46,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Find where Pages serves the site
+        # Tells the build its base path: "/flyby" on rbrandt2006-hash.github.io,
+        # "" once a custom domain (flybyai.net) is set in Settings -> Pages.
+        # So switching domains needs no code change, just a re-run of this
+        # workflow right after saving the custom domain.
+        id: pages
+        uses: actions/configure-pages@v5
+
       - name: Build
         env:
           # Backend the deployed site talks to: the AWS EC2 deployment behind
@@ -52,6 +62,10 @@ jobs:
           # NOTE: this origin must also be listed in index.html's CSP
           # connect-src, or the browser will block every API call.
           VITE_API_URL: ${{ vars.VITE_API_URL || 'https://hungerheros.opencodingsociety.com' }}
+          # Path the site is served from, worked out by the step above:
+          # "/flyby/" on rbrandt2006-hash.github.io, "/" on flybyai.net.
+          # A VITE_BASE repository variable overrides it if ever needed.
+          VITE_BASE: ${{ vars.VITE_BASE || format('{0}/', steps.pages.outputs.base_path) }}
         run: npm run build
 
       - name: Add SPA fallback

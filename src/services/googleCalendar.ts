@@ -11,7 +11,7 @@
  * connect. Nothing here changes once the keys land.
  */
 
-import { authedFetch, backend } from "@/integrations/backend/client";
+import { appBaseUrl, authedFetch, backend } from "@/integrations/backend/client";
 
 export interface GoogleCalendarEvent {
   id: string;
@@ -102,7 +102,8 @@ export async function getGoogleAuthUrl(): Promise<{ authUrl: string | null; erro
     const response = await authedFetch("/api/google/auth-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: "{}",
+      // Come back to this same site (GitHub Pages, flybyai.net or localhost).
+      body: JSON.stringify({ returnTo: appBaseUrl() }),
     });
     if (!response.ok) return { authUrl: null, error: "request_failed" };
     return await response.json();
