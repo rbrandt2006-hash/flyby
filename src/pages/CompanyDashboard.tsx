@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -13,8 +14,8 @@ import {
 import { CompanyPortalCard } from "@/components/company/CompanyPortalCard";
 import { announceCompanyChange, useCompanyPortal } from "@/hooks/useCompanyPortal";
 import {
-  CompanyError, getMember, listMembers, removeMember, rotateJoinCode, setMemberRole,
-  type CompanyMember, type MemberExpense, type MemberTrip, type Portal,
+  CompanyError, decideApproval, getMember, listApprovals, listMembers, removeMember, rotateJoinCode, setMemberRole,
+  type ApprovalItem, type CompanyMember, type MemberExpense, type MemberTrip, type Portal,
 } from "@/services/companyPortal";
 
 /** $388.80, $1,200 — cents only when there are some. */
@@ -73,9 +74,16 @@ function AdminDashboard() {
   const [openMember, setOpenMember] = useState<CompanyMember | null>(null);
   const [rotateOpen, setRotateOpen] = useState(false);
   const [rotating, setRotating] = useState(false);
+  // Expenses members sent to the company's admins. Loaded beside the members;
+  // if it can't load, the rest of the dashboard still shows.
+  const [approvals, setApprovals] = useState<{ waiting: ApprovalItem[]; decided: ApprovalItem[] } | null>(null);
+  const [approvalsError, setApprovalsError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
+    const approvalsCall = listApprovals()
+      .then((result) => { setApprovals(result); setApprovalsError(null); })
+      .catch((err) => setApprovalsError(err instanceof CompanyError ? err.message : "Couldn't load expense approvals."));
     try {
       const result = await listMembers();
       setPortal(result.portal);
@@ -83,6 +91,7 @@ function AdminDashboard() {
     } catch (err) {
       setError(err instanceof CompanyError ? err.message : "Couldn't load your company.");
     } finally {
+      await approvalsCall;
       setLoading(false);
     }
   }, []);
@@ -164,10 +173,24 @@ function AdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat label="Members" value={String(members.length)} />
         <Stat label="Traveling now" value={String(totals.traveling)} hint={totals.upcoming ? `${totals.upcoming} with a trip coming up` : undefined} />
-        <Stat label="Expenses to review" value={String(totals.pending)} attention={totals.pending > 0} />
+        <Stat
+          label="Expenses to review"
+          value={String(totals.pending)}
+          attention={totals.pending > 0}
+          hint={approvals && approvals.waiting.some((a) => a.sentToYou)
+            ? `${approvals.waiting.filter((a) => a.sentToYou).length} sent to you`
+            : undefined}
+        />
         <Stat label="Total spend" value={money(totals.spend)} numeric />
       </div>
 
+      {/* Expenses sent for approval */}
+      <ApprovalsCard
+        approvals={approvals}
+        error={approvalsError}
+        selfId={members.find((m) => m.isSelf)?.id ?? null}
+        onChanged={() => { void load(); }}
+      />
       {/* Members */}
       <Card className="overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2">
@@ -300,6 +323,158 @@ function Stat({ label, value, hint, attention, numeric }: { label: string; value
         <p className={`text-2xl font-semibold mt-1 ${numeric ? "tabular-nums" : ""} ${attention ? "text-warning" : ""}`}>{value}</p>
         {hint && <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>}
       </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Expenses members sent to the company's admins. Any admin can approve one or
+ * send it back with a note; those sent to you are listed first. Nobody decides
+ * on their own, so an admin's own request shows as waiting on someone else.
+ */
+function ApprovalsCard({ approvals, error, selfId, onChanged }: {
+  approvals: { waiting: ApprovalItem[]; decided: ApprovalItem[] } | null;
+  error: string | null;
+  selfId: string | null;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [returning, setReturning] = useState<ApprovalItem | null>(null);
+  const [returnNote, setReturnNote] = useState("");
+
+  const label = (item: ApprovalItem) =>
+    `${item.member?.name ?? "Someone"}'s ${item.expense.merchant || item.expense.description || "expense"}`;
+
+  const decide = async (item: ApprovalItem, decision: "approve" | "return", note = "") => {
+    setBusy(item.id);
+    try {
+      await decideApproval(item.id, decision, note);
+      toast.success(decision === "approve" ? `Approved ${label(item)}` : `Sent back ${label(item)}`);
+      setReturning(null);
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof CompanyError ? err.message : "Couldn't save your decision. Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const waiting = approvals?.waiting ?? [];
+  const decided = approvals?.decided ?? [];
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <Receipt className="w-4 h-4 text-muted-foreground" />
+        <h2 className="font-semibold">Expense approvals</h2>
+        {waiting.length > 0 && (
+          <Badge variant="outline" className="border-warning/40 text-warning">{waiting.length} waiting</Badge>
+        )}
+      </div>
+
+      {error ? (
+        <p className="px-5 py-5 text-sm text-muted-foreground">{error}</p>
+      ) : !approvals ? (
+        <div className="px-5 py-5"><Skeleton className="h-12 w-full" /></div>
+      ) : waiting.length === 0 ? (
+        <p className="px-5 py-5 text-sm text-muted-foreground">
+          Nothing waiting. When someone in your company sends an expense to an admin from their Expenses page,
+          it shows up here.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {waiting.map((item) => {
+            const own = !!selfId && item.member?.id === selfId;
+            return (
+              <li key={item.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm">
+                    <span className="font-medium">{own ? "Your expense" : item.member?.name}</span>
+                    <span className="text-muted-foreground"> · {item.expense.merchant || item.expense.description}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {[
+                      item.expense.date ? dayRange(item.expense.date.slice(0, 10)) : "",
+                      item.expense.tripName,
+                      own ? `Waiting for ${item.approverName}` : item.sentToYou ? "Sent to you" : `Sent to ${item.approverName}`,
+                    ].filter(Boolean).join(" · ")}
+                  </p>
+                  {item.note && <p className="text-sm mt-1.5">"{item.note}"</p>}
+                </div>
+                <div className="flex items-center gap-2 sm:justify-end">
+                  <span className="font-semibold tabular-nums mr-1">{money(item.expense.amount)}</span>
+                  {!own && (
+                    <>
+                      <Button size="sm" variant="outline" disabled={busy === item.id}
+                        onClick={() => { setReturning(item); setReturnNote(""); }}>
+                        Send back
+                      </Button>
+                      <Button size="sm" disabled={busy === item.id} onClick={() => void decide(item, "approve")}>
+                        {busy === item.id && !returning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Approve"}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {decided.length > 0 && (
+        <details className="border-t border-border group">
+          <summary className="px-5 py-3 text-sm text-muted-foreground cursor-pointer hover:text-foreground">
+            Recently decided ({decided.length})
+          </summary>
+          <ul className="divide-y divide-border border-t border-border">
+            {decided.map((item) => (
+              <li key={item.id} className="px-5 py-3 flex items-center gap-3 text-sm">
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium">{item.member?.name}</span>
+                  <span className="text-muted-foreground"> · {item.expense.merchant || item.expense.description}</span>
+                  <p className="text-xs text-muted-foreground">
+                    {item.decision === "approved" ? "Approved" : "Sent back"} by {item.decidedByName}
+                    {item.decisionNote ? ` · "${item.decisionNote}"` : ""}
+                  </p>
+                </div>
+                <Badge variant="outline" className={item.decision === "approved" ? "text-success border-success/30" : "text-warning border-warning/40"}>
+                  {item.decision === "approved" ? "Approved" : "Sent back"}
+                </Badge>
+                <span className="tabular-nums w-20 text-right">{money(item.expense.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      <AlertDialog open={!!returning} onOpenChange={(open) => { if (!open) setReturning(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send back {returning ? label(returning) : "this expense"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {returning ? `${money(returning.expense.amount)}. ` : ""}It goes back to them as pending with your note, and they
+              can send it again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={returnNote}
+            onChange={(e) => setReturnNote(e.target.value)}
+            placeholder="What needs to change? For example: attach the receipt."
+            rows={3}
+            maxLength={1000}
+            aria-label="Note for the traveler"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!!busy}
+              onClick={(e) => { e.preventDefault(); if (returning) void decide(returning, "return", returnNote); }}
+            >
+              {busy && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />} Send back
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

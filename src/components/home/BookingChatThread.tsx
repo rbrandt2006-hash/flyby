@@ -72,6 +72,11 @@ interface Props {
   onAddExternalBooking: (search: HandoffSearch, booking: ExternalBooking) => void | Promise<void>;
   /** Search the trip again on the cheaper dates a hint pointed to. */
   onUseDates: (hint: DateHint) => void;
+  /**
+   * Fill the parent's height (the chat window) instead of sizing to the page:
+   * the messages take the space between the header and the input.
+   */
+  fill?: boolean;
 }
 
 export function BookingChatThread({
@@ -87,6 +92,7 @@ export function BookingChatThread({
   onSelectHotel,
   onAddExternalBooking,
   onUseDates,
+  fill = false,
 }: Props) {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -111,9 +117,9 @@ export function BookingChatThread({
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className={fill ? "flex h-full min-h-0 flex-col" : "max-w-3xl mx-auto"}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className={cn("flex items-center justify-between", fill ? "mb-3 shrink-0" : "mb-4")}>
         <Button variant="outline" size="sm" onClick={onNewTrip} className="gap-1.5">
           <Plus className="w-3.5 h-3.5" />
           New trip
@@ -174,7 +180,10 @@ export function BookingChatThread({
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm min-h-[400px] max-h-[70vh] overflow-y-auto p-5 space-y-5"
+        className={cn(
+          "rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm overflow-y-auto p-5 space-y-5",
+          fill ? "min-h-0 flex-1" : "min-h-[400px] max-h-[70vh]",
+        )}
       >
         <AnimatePresence initial={false}>
           {messages.map((m) => (
@@ -234,7 +243,7 @@ export function BookingChatThread({
       {/* Input */}
       <form
         onSubmit={handleSubmit}
-        className="mt-3 relative rounded-2xl border-2 border-border bg-card shadow-sm focus-within:border-primary/30 transition-all"
+        className="mt-3 shrink-0 relative rounded-2xl border-2 border-border bg-card shadow-sm focus-within:border-primary/30 transition-all"
       >
         <textarea
           ref={inputRef}

@@ -284,7 +284,8 @@ export default function Trips() {
         `Trip to ${trip.destination} from ${usDate(trip.startDate)} to ${usDate(trip.endDate)}`,
       );
     } catch { /* ignore */ }
-    navigate("/");
+    // The home page picks the request up and opens its trip planner chat.
+    navigate("/dashboard");
   };
 
   const handleConfirmDraftTrip = (tripId: string) => {
@@ -295,8 +296,9 @@ export default function Trips() {
   // flights and hotels are live and payment is real. The separate wizard this
   // used to open listed generated hotels and saved a "confirmed" trip without
   // charging for or reserving anything.
+  // The planner is the chat window on the home page; ?chat=new opens it.
   const handleNewTrip = () => {
-    navigate("/");
+    navigate("/dashboard?chat=new");
   };
 
   const handleCalendarConnected = async () => {
@@ -847,15 +849,8 @@ export default function Trips() {
             <CalendarDays className="w-4 h-4 mr-2" />
             View Calendar
           </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => setCalendarDialogOpen(true)}
-            className="transition-smooth hover:border-primary/30"
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            Sync Calendar
-          </Button>
-          <Button 
+          {/* Sync Calendar moved to the Calendar card on the home page. */}
+          <Button
             onClick={handleNewTrip}
             className="hover:opacity-90 text-white font-medium transition-smooth"
             style={{ backgroundColor: '#9aafe6' }}
@@ -867,12 +862,13 @@ export default function Trips() {
       </div>
 
       {/* Dialogs */}
-      <CalendarSyncDialog 
-        open={calendarDialogOpen} 
+      {/* Opened by "Connect Google Calendar" in the empty state below. The
+          everyday Sync calendar button is on the home page's Calendar card. */}
+      <CalendarSyncDialog
+        open={calendarDialogOpen}
         onOpenChange={setCalendarDialogOpen}
         onConnected={handleCalendarConnected}
       />
-
       <NewTripWizard
         open={bookingDialogOpen}
         onOpenChange={setBookingDialogOpen}
@@ -1009,7 +1005,7 @@ export default function Trips() {
           // Reuse the normal planning flow rather than a second booking path;
           // the meeting goes with it, so the trip stays linked to it.
           stashPlannerPrefill(proposalQuery(proposal), proposal);
-          navigate("/");
+          navigate("/dashboard");
         }}
         onRebookTrip={(trip) => handleRebookClick(trip)}
         onOpenExpenses={() => navigate("/expenses")}

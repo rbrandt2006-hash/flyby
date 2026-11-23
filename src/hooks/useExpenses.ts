@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useBackendCollection } from "./useBackendCollection";
+import type { ExpenseApproval } from "@/services/companyPortal";
 
 export interface Expense {
   id: string;
@@ -17,6 +18,13 @@ export interface Expense {
   tripDates?: string;
   supervisorSentAt?: string;
   supervisorName?: string;
+  /** The company admin it was sent to, when sent through the company portal. */
+  supervisorId?: string;
+  /**
+   * The request sent to a company admin, and their decision. Kept by the
+   * backend: uploading the expense list never changes it.
+   */
+  approval?: ExpenseApproval;
   disputeReason?: string;
   disputeDescription?: string;
   disputeFiledAt?: string;

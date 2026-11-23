@@ -50,6 +50,9 @@ export function ExpenseDetailModal({
   const CategoryIcon = categoryIcons[expense.category] || Briefcase;
   const status = statusConfig[expense.status] || statusConfig.pending;
   const canUndoSubmission = expense.status === "submitted" && expense.supervisorSentAt;
+  // A company admin's decision, when it was sent through the company portal.
+  const decision = expense.approval?.decision ?? null;
+  const decidedOn = expense.approval?.decidedAt ? new Date(expense.approval.decidedAt).toLocaleString() : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -119,6 +122,26 @@ export function ExpenseDetailModal({
                 Sent to {expense.supervisorName || "supervisor"}: {new Date(expense.supervisorSentAt).toLocaleString()}
               </div>
             )}
+            {decision === "approved" && (
+              <div className="p-3 rounded-lg bg-success/5 border border-success/20">
+                <p className="text-sm font-medium text-success">Approved by {expense.approval?.decidedByName || "your manager"}</p>
+                {expense.approval?.decisionNote && (
+                  <p className="text-sm text-muted-foreground mt-0.5">"{expense.approval.decisionNote}"</p>
+                )}
+                {decidedOn && <p className="text-xs text-muted-foreground mt-1">{decidedOn}</p>}
+              </div>
+            )}
+            {decision === "returned" && (
+              <div className="p-3 rounded-lg bg-warning/5 border border-warning/20">
+                <p className="text-sm font-medium">Sent back by {expense.approval?.decidedByName || "your manager"}</p>
+                {expense.approval?.decisionNote && (
+                  <p className="text-sm text-muted-foreground mt-0.5">"{expense.approval.decisionNote}"</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  {decidedOn ? `${decidedOn} · ` : ""}Change what's needed, then send it again.
+                </p>
+              </div>
+            )}
             {expense.disputeFiledAt && (
               <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/20">
                 <p className="text-sm font-medium text-destructive">Dispute filed</p>
@@ -131,7 +154,7 @@ export function ExpenseDetailModal({
 
           <Separator />
           <div className="space-y-3 pt-2">
-            {canUndoSubmission && onUndoSubmission ? (
+            {decision === "approved" ? null : canUndoSubmission && onUndoSubmission ? (
               <Button variant="outline" className="w-full rounded-xl text-warning hover:text-warning" onClick={onUndoSubmission}>
                 <Undo2 className="w-4 h-4 mr-2" />Unsend from supervisor
               </Button>

@@ -23,6 +23,7 @@ import { ExpenseViewDrawer } from "@/components/expenses/ExpenseViewDrawer";
 import { type DemoExpense } from "@/components/expenses/demoExpenseData";
 import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useChats } from "@/hooks/useChats";
+import { CompanyError, unsendExpense, type SentExpense } from "@/services/companyPortal";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { useUserProfileContext } from "@/contexts/UserProfileContext";
 import {
@@ -73,15 +74,13 @@ export default function Expenses() {
     addExpense,
     updateExpense,
     deleteExpense,
-    sendToSupervisor, 
-    toggleReimbursable, 
-    fileDispute, 
-    linkChatToExpense, 
-    totalPending, 
+    toggleReimbursable,
+    fileDispute,
+    totalPending,
     totalApproved,
     totalDisputed,
   } = useExpenses();
-  const { getOrCreateExpenseChat, sendMessage, sendExpenseSystemMessage, postExpenseUpdate, supervisorMap, findChatByExpenseId } = useChats();
+  const { postExpenseUpdate, findChatByExpenseId } = useChats();
   
   // Connected cards. The server pulls each card's charges, keeps the travel
   // spend made during a trip, and offers those here; they're filed as expenses
@@ -369,71 +368,57 @@ export default function Expenses() {
 
   const handleAddExpense = (expenseData: Omit<Expense, "id">, submitNow: boolean) => {
     // Saved to the backend; the list re-renders from that single source.
-    addExpense(expenseData);
-    toast.success(submitNow ? "Expense submitted for approval" : "Expense added successfully");
+    // "Submit now" means sending it to a manager, so it's saved as pending and
+    // the Send to supervisor step opens for it: it only counts as submitted
+    // once it's really with someone.
+    const created = addExpense(submitNow ? { ...expenseData, status: "pending" } : expenseData);
     setIsAddExpenseOpen(false);
-  };
-
-  const handleSendToSupervisor = (supervisorName: string, note: string) => {
-    if (!selectedExpense) return;
-    
-    const supervisor = supervisorMap[supervisorName];
-    const supervisorId = supervisor?.id || "1";
-    
-    const expenseMetadata = {
-      merchant: selectedExpense.merchant,
-      amount: selectedExpense.amount,
-      category: selectedExpense.category,
-      description: selectedExpense.description,
-      date: selectedExpense.date,
-      submitterName: "Julia",
-      submittedAt: new Date().toISOString(),
-    };
-    
-    const chat = getOrCreateExpenseChat(supervisorId, supervisorName, selectedExpense.id, expenseMetadata);
-    
-    const categoryLabel = selectedExpense.category.charAt(0).toUpperCase() + selectedExpense.category.slice(1);
-    const systemMessage = `Julia submitted an expense for approval:\n\n**${selectedExpense.merchant}** – $${selectedExpense.amount.toFixed(2)} (${categoryLabel})\n${selectedExpense.description}`;
-    
-    sendExpenseSystemMessage(chat.id, selectedExpense.id, "expense_submission", systemMessage);
-    
-    if (note.trim()) {
-      setTimeout(() => {
-        sendMessage(chat.id, note, "current", false);
-      }, 300);
+    if (submitNow) {
+      setSelectedExpense(created);
+      setIsSendSupervisorOpen(true);
+    } else {
+      toast.success("Expense added successfully");
     }
-    
-    sendToSupervisor(selectedExpense.id, supervisorName);
-    linkChatToExpense(selectedExpense.id, chat.id);
-    
-    setTimeout(() => {
-      if (selectedExpense.amount > 500 || selectedExpense.status === "flagged") {
-        sendMessage(chat.id, "Thanks for sending. Can you clarify the business purpose for this expense?", supervisorId, false);
-      } else {
-        postExpenseUpdate(chat.id, selectedExpense.id, "approved", supervisorName);
-        updateExpense(selectedExpense.id, { status: "approved" });
-      }
-    }, 2500);
-    
-    toast.success(`Expense sent to ${supervisorName} – Check Chats for updates`);
-    setSelectedExpense({ ...selectedExpense, status: "submitted", supervisorSentAt: new Date().toISOString(), supervisorName });
-    setIsSendSupervisorOpen(false);
   };
 
-  const handleUndoSubmission = () => {
+  /** Apply what the backend recorded when the expense was sent or taken back. */
+  const applyApprovalState = (expense: Expense, saved: SentExpense) => {
+    const fields: Partial<Expense> = {
+      status: saved.status as Expense["status"],
+      supervisorSentAt: saved.supervisorSentAt,
+      supervisorName: saved.supervisorName,
+      supervisorId: saved.supervisorId,
+      approval: saved.approval,
+    };
+    updateExpense(expense.id, fields);
+    setSelectedExpense({ ...expense, ...fields });
+  };
+
+  // Sent to an admin of the traveler's company through the backend, which
+  // records it where only that company's admins can approve it or send it back.
+  const handleExpenseSent = (saved: SentExpense) => {
     if (!selectedExpense) return;
-    updateExpense(selectedExpense.id, {
-      status: "pending",
-      supervisorSentAt: undefined,
-      supervisorName: undefined,
-    });
-    setSelectedExpense({
-      ...selectedExpense,
-      status: "pending",
-      supervisorSentAt: undefined,
-      supervisorName: undefined,
-    });
-    toast.success("Submission undone — expense is back to pending");
+    applyApprovalState(selectedExpense, saved);
+  };
+
+  const handleUndoSubmission = async () => {
+    if (!selectedExpense) return;
+    const expense = selectedExpense;
+    try {
+      const { expense: saved } = await unsendExpense(expense.id);
+      applyApprovalState(expense, saved);
+      toast.success("Taken back — the expense is pending again");
+    } catch (err) {
+      if (err instanceof CompanyError && (err.code === "expense_not_found" || err.code === "401")) {
+        // Never reached the server (signed out, or saved on this device only):
+        // undo it here, as before.
+        updateExpense(expense.id, { status: "pending", supervisorSentAt: undefined, supervisorName: undefined });
+        setSelectedExpense({ ...expense, status: "pending", supervisorSentAt: undefined, supervisorName: undefined });
+        toast.success("Submission undone — expense is back to pending");
+        return;
+      }
+      toast.error(err instanceof CompanyError ? err.message : "Couldn't take the expense back. Please try again.");
+    }
   };
 
   const handleToggleReimbursable = () => {
@@ -763,7 +748,7 @@ export default function Expenses() {
       <AddExpenseModal open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen} onSave={handleAddExpense} />
       {selectedExpense && (
         <>
-          <SendToSupervisorModal open={isSendSupervisorOpen} onOpenChange={setIsSendSupervisorOpen} expenseMerchant={selectedExpense.merchant} expenseAmount={selectedExpense.amount} onSend={handleSendToSupervisor} />
+          <SendToSupervisorModal open={isSendSupervisorOpen} onOpenChange={setIsSendSupervisorOpen} expenseId={selectedExpense.id} expenseMerchant={selectedExpense.merchant} expenseAmount={selectedExpense.amount} onSent={handleExpenseSent} />
           <DisputeModal open={isDisputeOpen} onOpenChange={setIsDisputeOpen} expenseMerchant={selectedExpense.merchant} expenseAmount={selectedExpense.amount} onSubmit={handleFileDispute} />
         </>
       )}

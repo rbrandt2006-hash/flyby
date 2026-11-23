@@ -42,20 +42,22 @@ export default function AuthCallback() {
       }
       // The calendar of the account they signed in with, connected in the same step.
       connectCalendarFromSignIn(calendar as SignInCalendar | null);
-      let next = "/";
+      // The app's home; "/" itself is the landing page.
+      const home = "/dashboard";
+      let next = home;
       try {
-        next = sessionStorage.getItem("flyby_oauth_next") || "/";
+        next = sessionStorage.getItem("flyby_oauth_next") || home;
         sessionStorage.removeItem("flyby_oauth_next");
       } catch { /* ignore */ }
       if (newAccount) {
         try {
           localStorage.setItem("flyby_pending_onboarding", "true");
-          if (next !== "/") localStorage.setItem("flyby_post_onboarding_next", next);
+          if (next !== home) localStorage.setItem("flyby_post_onboarding_next", next);
         } catch { /* ignore */ }
         navigate("/onboarding", { replace: true });
         return;
       }
-      navigate(next.startsWith("/") && !next.startsWith("//") ? next : "/", { replace: true });
+      navigate(next.startsWith("/") && !next.startsWith("//") ? next : home, { replace: true });
     })();
   }, [navigate]);
 

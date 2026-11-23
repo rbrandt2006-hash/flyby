@@ -21,7 +21,7 @@ export default function GetStarted() {
   const nextParam = new URLSearchParams(window.location.search).get("next");
   const safeNext =
     nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : null;
-  const postAuthTarget = safeNext ?? "/";
+  const postAuthTarget = safeNext ?? "/dashboard";
 
   const [mode, setMode] = useState<Mode>("signup");
   const [emailMode, setEmailMode] = useState<EmailMode>("work");

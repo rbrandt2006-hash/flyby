@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,7 +27,6 @@ import Terms from "./pages/Terms";
 import AuthCallback from "./pages/AuthCallback";
 import OAuthConsent from "./pages/OAuthConsent";
 import ForgotPassword from "./pages/ForgotPassword";
-import CompanyDashboard from "./pages/CompanyDashboard";
 import ResetPassword from "./pages/ResetPassword";
 
 function needsOnboarding(): boolean {
@@ -51,6 +51,34 @@ function FullScreenSpinner() {
       <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
     </div>
   );
+}
+
+// The site root (flybyai.net/, github.io/flyby/) is the marketing landing page
+// from landing/ in this repo, not the app. The app answers every other address,
+// and its home is /dashboard.
+const LANDING_URL = import.meta.env.BASE_URL;
+
+function trimPath(p: string): string {
+  return p.replace(/\/index\.html$/, "/").replace(/\/+$/, "");
+}
+
+// True when the server handed out the app itself for the root address (a build
+// or dev setup without the landing page). Sending someone to the root again
+// would only reload the app, so in that case "/" means the sign-in page.
+const appLoadedAtRoot = trimPath(window.location.pathname) === trimPath(LANDING_URL);
+
+/** "/" inside the app: the dashboard when signed in, otherwise the landing page. */
+function RootRoute() {
+  const { user } = useAuth();
+  const leaveForLanding = !user && !appLoadedAtRoot;
+
+  useEffect(() => {
+    if (leaveForLanding) window.location.replace(LANDING_URL);
+  }, [leaveForLanding]);
+
+  if (user) return <Navigate to="/dashboard" replace />;
+  if (appLoadedAtRoot) return <Navigate to="/get-started" replace />;
+  return <FullScreenSpinner />;
 }
 
 /**
@@ -81,7 +109,7 @@ function AdminLayout() {
 
   if (loading || roleLoading) return <FullScreenSpinner />;
   if (!user) return <Navigate to="/get-started" replace />;
-  if (!isAdmin) return <Navigate to="/" replace />;
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   return (
     <UserProfileProvider>
@@ -104,7 +132,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
-      <Route path="/get-started" element={user ? <Navigate to={safeNext ?? "/"} replace /> : <GetStarted />} />
+      {/* What the landing page's "Log in to product" button opens. */}
+      <Route path="/get-started" element={user ? <Navigate to={safeNext ?? "/dashboard"} replace /> : <GetStarted />} />
       <Route path="/onboarding" element={user ? <Onboarding /> : <Navigate to="/get-started" replace />} />
       <Route path="/auth" element={<Navigate to="/get-started" replace />} />
       {/* Public — a logged-out reviewer must be able to read these */}
@@ -118,13 +147,16 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
+      <Route path="/" element={<RootRoute />} />
+
       <Route element={<ProtectedLayout />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/trips" element={<Trips />} />
         <Route path="/trips/:tripId" element={<TripDetail />} />
+        {/* Team and Company are one page: Travel and Company tabs. */}
         <Route path="/team" element={<Team />} />
-        {/* Everyone can open it; only a company admin sees the dashboard. */}
-        <Route path="/company" element={<CompanyDashboard />} />
+        {/* Old address (emails, links): the same page on its Company tab. */}
+        <Route path="/company" element={<Navigate to="/team?tab=company" replace />} />
         <Route path="/expenses" element={<Expenses />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/integrations/:provider" element={<IntegrationManage />} />

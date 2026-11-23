@@ -156,3 +156,88 @@ export const removeMember = (id: string) =>
   call<{ removed: string }>(`/members/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 export const rotateJoinCode = () => call<{ portal: Portal }>("/code", { method: "POST", body: "{}" });
+
+// ---------------------------------------------------------------------------
+// Expense approval
+// ---------------------------------------------------------------------------
+// A member sends an expense to one of their company's admins; any admin of the
+// company can approve it or send it back with a note. The request is kept on
+// the expense by the backend, which alone can change it.
+
+/** An admin of the caller's company, who expenses can be sent to. */
+export interface Approver {
+  id: string;
+  name: string;
+  email: string | null;
+  jobTitle: string | null;
+}
+
+export interface ApproversResult {
+  /** Null when the caller isn't in a company portal. */
+  portal: { id: string; name: string } | null;
+  role: CompanyRole | null;
+  /** The company's admins, not including the caller. */
+  approvers: Approver[];
+}
+
+/** The approval request on an expense, as the backend records it. */
+export interface ExpenseApproval {
+  approverId: string;
+  approverName: string;
+  companyId: string;
+  sentAt: string;
+  note: string | null;
+  includeReceipt?: boolean;
+  decision: "approved" | "returned" | null;
+  decidedAt: string | null;
+  decidedById: string | null;
+  decidedByName: string | null;
+  decisionNote: string | null;
+}
+
+/** An expense as the backend returns it after a send or unsend. */
+export interface SentExpense {
+  id: string;
+  status: string;
+  supervisorSentAt?: string;
+  supervisorName?: string;
+  supervisorId?: string;
+  approval?: ExpenseApproval;
+}
+
+/** One request in a company admin's approvals queue. */
+export interface ApprovalItem {
+  /** The backend's id for the expense, used to decide on it. */
+  id: string;
+  expense: MemberExpense;
+  member: { id: string; name: string; email: string | null } | null;
+  approverId: string;
+  approverName: string;
+  sentToYou: boolean;
+  sentAt: string | null;
+  note: string | null;
+  includeReceipt: boolean;
+  decision: "approved" | "returned" | null;
+  decidedAt: string | null;
+  decidedByName: string | null;
+  decisionNote: string | null;
+}
+
+export const listApprovers = () => call<ApproversResult>("/approvers");
+
+export const sendExpenseForApproval = (expenseId: string, approverId: string, note: string, includeReceipt: boolean) =>
+  call<{ expense: SentExpense }>(`/expenses/${encodeURIComponent(expenseId)}/send`, {
+    method: "POST",
+    body: JSON.stringify({ approverId, note, includeReceipt }),
+  });
+
+export const unsendExpense = (expenseId: string) =>
+  call<{ expense: SentExpense }>(`/expenses/${encodeURIComponent(expenseId)}/unsend`, { method: "POST", body: "{}" });
+
+export const listApprovals = () => call<{ waiting: ApprovalItem[]; decided: ApprovalItem[] }>("/approvals");
+
+export const decideApproval = (id: string, decision: "approve" | "return", note = "") =>
+  call<{ approval: ApprovalItem }>(`/approvals/${encodeURIComponent(id)}`, {
+    method: "POST",
+    body: JSON.stringify({ decision, note }),
+  });

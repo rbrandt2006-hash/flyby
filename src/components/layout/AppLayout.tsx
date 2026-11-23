@@ -7,7 +7,6 @@ import flybyLogo from "@/assets/flybyLogo";
 import { GlobalSearchDropdown } from "./GlobalSearchDropdown";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useCompanyPortal } from "@/hooks/useCompanyPortal";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { Switch } from "@/components/ui/switch";
 import { ExternalLink } from "lucide-react";
@@ -15,7 +14,8 @@ import { toast } from "sonner";
 import { openConsole } from "@/services/consoleHandoff";
 
 const baseNavItems = [
-  { label: "Home", path: "/" },
+  // The app's home. "/" is the public landing page, not part of the app.
+  { label: "Home", path: "/dashboard" },
   { label: "Trips", path: "/trips" },
   { label: "Team", path: "/team" },
   { label: "Expenses", path: "/expenses" },
@@ -25,11 +25,8 @@ const baseNavItems = [
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { isAdmin } = useUserRole();
-  // A company admin gets the company dashboard in the main navigation.
-  const { isCompanyAdmin } = useCompanyPortal();
-  const navItems = isCompanyAdmin
-    ? [...baseNavItems.slice(0, 4), { label: "Company", path: "/company" }, baseNavItems[4]]
-    : baseNavItems;
+  // The company dashboard is the Company tab of the Team page, not its own item.
+  const navItems = baseNavItems;
   const { demoMode, toggleDemoMode } = useDemoMode();
   useSessionTimeout({ isAdmin });
 
@@ -62,7 +59,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <div className="max-w-[90rem] mx-auto px-6 lg:px-10">
             <div className="flex items-center justify-between h-16">
               {/* Left: Logo */}
-              <Link to="/" className="flex items-center shrink-0">
+              <Link to="/dashboard" className="flex items-center shrink-0">
                 <motion.img
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}

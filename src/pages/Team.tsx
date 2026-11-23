@@ -1,6 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search, Users, UserPlus, ShieldAlert, Clock, MapPinned, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CompanyDashboard from "@/pages/CompanyDashboard";
+import { useCompanyPortal } from "@/hooks/useCompanyPortal";
+import { listApprovals } from "@/services/companyPortal";
 import { Button } from "@/components/ui/button";
 import { type TeamMember } from "@/components/team/TeamMemberCard";
 import { TeamMemberRow } from "@/components/team/TeamMemberRow";
@@ -49,7 +54,65 @@ function getMemberStatus(member: TeamMember): "traveling" | "upcoming" | "return
 
 type Filter = "all" | "traveling" | "office";
 
-export default function Team() {
+/**
+ * Team and Company in one page, as two tabs:
+ *   Travel   where everyone in your company is traveling (everyone sees it)
+ *   Company  the company dashboard for its admins — join code, expense
+ *            approvals, members — or your own membership card otherwise
+ *
+ * The tab is in the address (/team?tab=company), and /company still works: it
+ * opens this page on the Company tab, so emails and older links land right.
+ */
+export default function TeamPage() {
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") === "company" ? "company" : "travel";
+  const { isCompanyAdmin } = useCompanyPortal();
+
+  // Admins see on the tab itself when expenses are waiting for them.
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => {
+    if (!isCompanyAdmin) { setWaiting(0); return; }
+    let active = true;
+    listApprovals()
+      .then((r) => { if (active) setWaiting(r.waiting.filter((a) => a.sentToYou).length); })
+      .catch(() => { /* the Company tab shows its own error */ });
+    return () => { active = false; };
+  }, [isCompanyAdmin, tab]);
+
+  const changeTab = (value: string) => {
+    const next = new URLSearchParams(params);
+    if (value === "company") next.set("tab", "company");
+    else next.delete("tab");
+    setParams(next, { replace: true });
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      <Tabs value={tab} onValueChange={changeTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="travel">Travel</TabsTrigger>
+          <TabsTrigger value="company" className="gap-2">
+            Company
+            {waiting > 0 && (
+              <span className="rounded-full bg-warning/15 text-warning px-1.5 text-[11px] font-semibold tabular-nums">
+                {waiting}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="travel" className="mt-0">
+          <TeamTravel />
+        </TabsContent>
+        <TabsContent value="company" className="mt-0">
+          <CompanyDashboard />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+/** Where everyone in your company is traveling (the Team page as it was). */
+function TeamTravel() {
   const { demoMode } = useDemoMode();
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);

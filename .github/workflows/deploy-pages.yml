@@ -68,11 +68,22 @@ jobs:
           VITE_BASE: ${{ vars.VITE_BASE || format('{0}/', steps.pages.outputs.base_path) }}
         run: npm run build
 
-      - name: Add SPA fallback
-        # GitHub Pages has no server-side routing, so a direct hit or refresh on
-        # a client route (e.g. /flyby/trips) would 404. Serving index.html as
-        # 404.html lets the app boot and React Router take over.
-        run: cp dist/index.html dist/404.html
+      - name: Check the landing page and the app are both in place
+        # The build itself (vite.config.ts, landing page plugin) writes:
+        #   index.html  the landing page from landing/: what flybyai.net/ shows
+        #   404.html    the React app. GitHub Pages has no server-side routing,
+        #               so every other address (/get-started, /dashboard,
+        #               /trips ...) gets 404.html and React Router takes over.
+        # Don't copy index.html over 404.html here: that would replace the app
+        # with the landing page on every address. Stop the deploy instead if
+        # the app page is missing.
+        run: |
+          grep -q 'id="root"' dist/404.html || { echo "dist/404.html is not the app"; exit 1; }
+          if grep -q 'id="root"' dist/index.html; then
+            echo "Root page: the app (no landing/index.html in this build)"
+          else
+            echo "Root page: the landing page"
+          fi
 
       - name: Disable Jekyll
         # Stop Pages' Jekyll from ignoring files that start with an underscore.

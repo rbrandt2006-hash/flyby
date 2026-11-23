@@ -1,11 +1,11 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2, Trash2, CreditCard, CalendarClock } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2, Trash2, CreditCard, CalendarClock, CalendarDays } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
@@ -34,6 +34,8 @@ import type { BookingResult, DateHint, DateOption, FlightAdvice, FlightSearchCon
 import { UNITED, bookedOnSite, type ExternalBooking, type HandoffSearch } from "@/services/airlineHandoff";
 import type { LocalTripHotel } from "@/hooks/useTrips";
 import { BookingChatThread, type ChatMsg, type ChatThreadMeta, type BookingResults } from "@/components/home/BookingChatThread";
+import { ChatDock } from "@/components/home/ChatDock";
+import { CalendarSyncDialog } from "@/components/calendar/CalendarSyncDialog";
 import { DateHintRow, PickAdvice } from "@/components/home/BookingResultsPanel";
 import type { HotelOption } from "@/components/chats/booking/types";
 import { RefineModal } from "@/components/home/RefineModal";
@@ -530,6 +532,32 @@ export default function Dashboard() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const [lastResults, setLastResults] = useState<BookingResults | null>(null);
+
+  // ─── The planner lives in a chat window behind a button (ChatDock) ───
+  // Closed by default, so the page leads with trips and the calendar. Open on
+  // arrival only when a booking was in progress (an itinerary restored from
+  // this tab, e.g. after a card's 3-D Secure redirect).
+  const [chatOpen, setChatOpen] = useState(() => !!planResult);
+  // Anything that starts or moves a plan along opens it: a search, "Plan trip"
+  // on a calendar meeting, a trip handed over from another page, picking a
+  // flight and hotel, or a search that failed. Each fires only when that value
+  // changes, so closing the window mid-search keeps it closed.
+  useEffect(() => { if (activeThreadId) setChatOpen(true); }, [activeThreadId]);
+  useEffect(() => { if (planResult) setChatOpen(true); }, [planResult]);
+  useEffect(() => { if (isPlanning) setChatOpen(true); }, [isPlanning]);
+  useEffect(() => { if (error) setChatOpen(true); }, [error]);
+  // /dashboard?chat=new — e.g. "New Trip" on the Trips page — opens it straight away.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("chat") === null) return;
+    setChatOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("chat");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  // "Sync calendar" on the home page's Calendar card (moved here from Trips).
+  const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
   // The resolved parameters of the current search, so a follow-up like
   // "show me Emirates" can re-query live Duffel inventory for that carrier.
   const searchContextRef = useRef<{
@@ -1810,224 +1838,97 @@ export default function Dashboard() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
   };
 
+  // A failed search, shown inside the chat window above the conversation or
+  // the itinerary.
+  const plannerError = (
+    <AnimatePresence>
+      {error && (
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+          <Card className="border-destructive bg-destructive/10 max-w-3xl mx-auto">
+            <CardContent className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-2 text-destructive"><AlertCircle className="w-5 h-5" /><span>{error}</span></div>
+              <Button variant="ghost" size="sm" onClick={() => setError(null)}><X className="w-4 h-4" /></Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
-    <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-6xl mx-auto space-y-10 pb-20 md:pb-0">
+    <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-6xl mx-auto space-y-10 pb-36 md:pb-24">
 
-      {/* ─── HERO + COMMAND BAR (only when no active conversation) ─── */}
-      {!activeThreadId && (
-        <>
-          <motion.div variants={itemVariants} className="text-center pt-4 md:pt-8 space-y-3">
-            <motion.h1
-              className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground tracking-tight leading-tight"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-            >
-              Corporate travel, without the chaos.
-            </motion.h1>
-          </motion.div>
+      {/* ─── PAGE HEADER ─── */}
+      <motion.div variants={itemVariants} className="pt-2 md:pt-4">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+          Corporate travel, without the chaos.
+        </h1>
+      </motion.div>
 
-          <ScrollReveal delay={0.1}>
-            <motion.div
-              className="relative mx-auto max-w-3xl"
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3, duration: 0.5 }}
-            >
-              <motion.p
-                className="text-sm text-muted-foreground text-center mb-3"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35, duration: 0.5 }}
-              >
-                Your AI-powered travel command center.
-              </motion.p>
+      {/* ─── CALENDAR (moved here from the Trips page) ─── */}
+      <ScrollReveal delay={0.05}>
+        <Card className="border border-border/50 shadow-sm overflow-hidden">
+          <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <CalendarClock className="w-4 h-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-semibold text-base">Calendar</h2>
+                <p className="text-sm text-muted-foreground">
+                  {calendarAgent.connected ? (
+                    <>Watching <span className="text-foreground">{calendarAgent.account || "your calendar"}</span> for meetings that need travel booked.</>
+                  ) : (
+                    "Connect one calendar and Flyby will spot meetings that need travel booked."
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/trips?view=calendar")}>
+                <CalendarDays className="w-4 h-4" />
+                View calendar
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => setCalendarDialogOpen(true)}>
+                <Calendar className="w-4 h-4" />
+                Sync calendar
+              </Button>
+            </div>
+          </div>
 
-              {(showLearnedBadge || preferenceLabels.length > 0) && (
-                <div className="flex justify-center mb-3">
-                  <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} />
-                </div>
-              )}
-
-              <form
-                onSubmit={(e) => { e.preventDefault(); handlePlanTrip(); }}
-                className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl"
-              >
-                <div className="flex items-center gap-3 px-5 py-4">
-                  <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
-                  <motion.input
-                    type="text"
-                    placeholder="Search anywhere: Paris, Texas, Tokyo, Japan, or ‘NYC to London April 10–20’"
-                    value={tripInput}
-                    onChange={e => { setTripInput(e.target.value); if (inputError) setInputError(null); }}
-                    whileFocus={{ scale: 1.005 }}
-                    transition={{ duration: 0.15 }}
-                    disabled={voiceRecording.state !== 'idle'}
-                    className="flex-1 bg-transparent text-base md:text-lg outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
-                  />
-
-                  {/* Voice recording UI hidden until reliably wired. Keep state so confirm/edit handlers don't crash. */}
-
-                  <Button
-                    type="submit"
-                    variant="cta"
-                    size="default"
-                    className="shrink-0 rounded-xl gap-2"
-                    disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
-                  >
-                    {isPlanning ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Searching flights…</span></>
-                    ) : (
-                      <><Sparkles className="w-4 h-4" /><span>Plan trip</span></>
-                    )}
-                  </Button>
-                </div>
-              </form>
-
-              <AnimatePresence>
-                {voiceRecording.state === 'ready' && (
-                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                    className="mt-3 p-4 bg-card rounded-xl border border-border shadow-sm space-y-3"
-                  >
-                    <p className="text-sm text-muted-foreground">Use this request?</p>
-                    <p className="text-sm font-medium text-foreground">"{voiceRecording.transcript}"</p>
-                    <div className="flex gap-2">
-                      <Button variant="default" size="sm" onClick={handleConfirmVoice} className="gap-1"><Check className="w-3 h-3" />Confirm</Button>
-                      <Button variant="outline" size="sm" onClick={handleEditVoice} className="gap-1"><Edit2 className="w-3 h-3" />Edit</Button>
-                      <Button variant="ghost" size="sm" onClick={voiceRecording.cancelRecording}>Cancel</Button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <AnimatePresence>
-                {inputError && (
-                  <motion.p initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mt-2 text-sm text-destructive flex items-center gap-1 justify-center">
-                    <AlertCircle className="w-4 h-4" />{inputError}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-
-              {/* Example query suggestions (shown when no chat history yet, or always in non-demo) */}
-              {(!demoMode || threadList.length === 0) && (
-                <div className="mt-5 flex flex-wrap gap-2 justify-center">
-                  {exampleQueries.map(q => (
-                    <button
-                      key={q}
-                      type="button"
-                      onClick={() => { setTripInput(q); }}
-                      className="text-xs px-3 py-1.5 rounded-full border border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-secondary transition-colors"
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Quick access: history when conversations exist */}
-              <p className="mt-4 text-center text-xs text-muted-foreground">
-                Search by destination, dates, or trip type — e.g. "NYC next Monday" or "hotel in Austin under $200".
+          {/* Meetings on the connected calendar that need a trip. One click
+              plans it: the travel days are already worked out from the
+              meeting, and flights are ranked to land in time for it. */}
+          {calendarAgent.unbooked.length > 0 && (
+            <div className="border-t border-border/50 px-5 pb-5 pt-4">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <CalendarClock className="w-4 h-4 text-primary" />
+                Meetings that need a trip
               </p>
-
-              {/* Meetings on the connected calendar that need a trip. One click
-                  plans it: the travel days are already worked out from the
-                  meeting, and flights are ranked to land in time for it. */}
-              {calendarAgent.unbooked.length > 0 && (
-                <div className="mt-6 rounded-xl border border-primary/20 bg-primary/[0.03] p-4 text-left">
-                  <p className="flex items-center gap-2 text-sm font-semibold">
-                    <CalendarClock className="w-4 h-4 text-primary" />
-                    From your calendar
-                    <span className="ml-auto text-xs font-normal text-muted-foreground truncate max-w-[50%]">
-                      {calendarAgent.account}
-                    </span>
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    {calendarAgent.unbooked.slice(0, 3).map(({ proposal }) => (
-                      <div key={proposal.key} className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 p-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm">
-                            <span className="font-medium">{proposal.meetingLabel}</span>
-                            <span className="text-muted-foreground"> · {proposal.destinationCity}</span>
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {proposal.plan}.
-                            {proposal.cityInferred && ` The event doesn't name a city — Flyby AI read this as ${proposal.destinationCity}.`}
-                            {proposal.existingTravel && ` ${proposal.existingTravel}`}
-                          </p>
-                        </div>
-                        <Button size="sm" variant="outline" className="shrink-0" disabled={isPlanning} onClick={() => planFromCalendar(proposal)}>
-                          Plan trip
-                        </Button>
-                      </div>
-                    ))}
+              <div className="mt-3 space-y-2">
+                {calendarAgent.unbooked.slice(0, 3).map(({ proposal }) => (
+                  <div key={proposal.key} className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm">
+                        <span className="font-medium">{proposal.meetingLabel}</span>
+                        <span className="text-muted-foreground"> · {proposal.destinationCity}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {proposal.plan}.
+                        {proposal.cityInferred && ` The event doesn't name a city — Flyby AI read this as ${proposal.destinationCity}.`}
+                        {proposal.existingTravel && ` ${proposal.existingTravel}`}
+                      </p>
+                    </div>
+                    <Button size="sm" variant="outline" className="shrink-0" disabled={isPlanning} onClick={() => planFromCalendar(proposal)}>
+                      Plan trip
+                    </Button>
                   </div>
-                </div>
-              )}
-            </motion.div>
-          </ScrollReveal>
-        </>
-      )}
-
-      {/* ─── ERROR BANNER ─── */}
-      <AnimatePresence>
-        {error && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <Card className="border-destructive bg-destructive/10 max-w-3xl mx-auto">
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-2 text-destructive"><AlertCircle className="w-5 h-5" /><span>{error}</span></div>
-                <Button variant="ghost" size="sm" onClick={() => setError(null)}><X className="w-4 h-4" /></Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ─── CHAT THREAD (results live here as assistant messages) ─── */}
-      {activeThreadId && !planResult && (
-        <BookingChatThread
-          messages={messages}
-          isThinking={isThinking}
-          threads={threadList}
-          activeThreadId={activeThreadId}
-          onSend={handleSendFollowUp}
-          onNewTrip={handleNewTrip}
-          onSelectThread={handleSelectThread}
-          onDeleteThread={handleDeleteThread}
-          onSelectFlight={(f) => handleSelectFlight(f)}
-          onAddExternalBooking={handleAddExternalBooking}
-          onUseDates={handleUseDates}
-          onSelectHotel={(h) => {
-            const cur = lastResults;
-            const top = cur?.flights[0];
-            if (!top) return;
-            const parsed = parseTravelRequestCached(tripInput || (messages.find(m => m.role === "user") as { text: string } | undefined)?.text || "");
-            const destAirport = parsed.destination?.airports[0];
-            const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
-            const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);
-            const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : top.destination;
-            const finalPlan: TripPlan & { _flights?: Flight[]; _hotels?: HotelOption[] } = {
-              destination: destLabel,
-              dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
-              startDate, endDate,
-              datesAssumed: !parsed.dates?.departure,
-              datesConfirmed: !!parsed.dates?.departure,
-              needsDateClarification: false,
-              purpose: calendarLinkRef.current?.title || parsePurpose(tripInput),
-              flight: { airline: top.airline, departTime: top.departureTime, returnTime: top.arrivalTime },
-              hotel: { name: h.name, location: h.area },
-              estimatedCost: top.price + h.totalPrice,
-              confidenceLevel: 96,
-              originalPrompt: tripInput,
-              _flights: cur?.flights ?? [top],
-              _hotels: cur?.hotels ?? [h],
-            };
-            setPlanResult(finalPlan);
-          }}
-        />
-      )}
-
-
-
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      </ScrollReveal>
 
       {/* ─── HOTEL SELECTION STEP ─── */}
       <HotelSelectionPage
@@ -2039,186 +1940,6 @@ export default function Dashboard() {
         nights={pendingPlanResult ? Math.max(1, Math.ceil((pendingPlanResult.endDate.getTime() - pendingPlanResult.startDate.getTime()) / (1000 * 60 * 60 * 24))) : 2}
         venueName={pendingPlanResult?.destination || "destination"}
       />
-
-      {/* ─── PROPOSED ITINERARY ─── */}
-      <AnimatePresence>
-        {planResult && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }} className="max-w-3xl mx-auto">
-            <Card className="border-2 border-success/30 shadow-lg overflow-hidden">
-              <div className="p-6 bg-success/5 border-b border-success/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-success/20 flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-success" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">Proposed Itinerary</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {planResult.destination} · {planResult.dates}
-                        {planResult.datesAssumed && !planResult.datesConfirmed && <span className="ml-1 italic">(suggested dates)</span>}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon-sm" onClick={() => setPlanResult(null)}><X className="w-4 h-4" /></Button>
-                  </div>
-                </div>
-              </div>
-              <CardContent className="p-6 space-y-3">
-                <div className="grid gap-3">
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                    <Plane className="w-5 h-5 text-primary" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium">{planResult.flight.airline}{planResult.flight.from && planResult.flight.to && <span className="font-normal text-muted-foreground"> · {planResult.flight.from} → {planResult.flight.to}</span>}</p>
-                      {(() => {
-                        // The offer that will actually be bought carries the full
-                        // detail; the plan's own strings are the fallback.
-                        const f = selectedFlightFromResults;
-                        const plus = (days?: number) => (days ? ` (+${days} day${days > 1 ? "s" : ""})` : "");
-                        const stopsText = (n?: number) => (n === undefined ? "" : n === 0 ? " · Nonstop" : ` · ${n} stop${n > 1 ? "s" : ""}`);
-                        const roundTrip = f?.tripType === "round_trip";
-                        return (
-                          <>
-                            <p className="text-sm text-muted-foreground">
-                              {roundTrip ? "Out: " : ""}Departs {planResult.flight.departTime} · Arrives {planResult.flight.returnTime}{plus(f?.arriveDayOffset)}
-                              {f?.duration ? ` · ${f.duration}` : ""}{stopsText(f?.stops)}
-                            </p>
-                            {roundTrip ? (
-                              <>
-                                <p className="text-sm text-muted-foreground">
-                                  Back: {f?.returnOrigin} → {f?.returnDestination} · Departs {f?.returnDepartureTime} · Arrives {f?.returnArrivalTime}{plus(f?.returnArriveDayOffset)}
-                                  {f?.returnDuration ? ` · ${f.returnDuration}` : ""}{stopsText(f?.returnStops)}
-                                </p>
-                                {f?.returnDestination && f.origin && f.returnDestination !== f.origin && (
-                                  <p className="text-xs text-warning mt-0.5">
-                                    Returns to {f.returnDestination}, not {f.origin} — a different airport from the one you leave from.
-                                  </p>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-xs text-warning mt-0.5">
-                                {(planResult as TripPlan & { _returnUnavailable?: boolean })._returnUnavailable
-                                  ? "One-way fare — no airline sells this as a round trip for your dates, so the flight home is not included and needs booking separately."
-                                  : "One-way fare — no return flight is included."}
-                              </p>
-                            )}
-                            {f && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                ${f.price.toLocaleString()} {roundTrip ? "round trip" : "one way"}{f.identityDocumentsRequired ? " · passport details required" : ""}
-                              </p>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                  {/* Why this flight, and what it was chosen over. Without this
-                      the card is a price with no way to judge it — the traveler
-                      can't tell the cheapest of 600 fares from a bad pick. */}
-                  {(() => {
-                    const f = selectedFlightFromResults;
-                    const results = lastResults;
-                    if (!f || !results) return null;
-                    const advice = results.advice && results.advice.pickId === f.id ? results.advice : null;
-                    const facts = f.ranking;
-                    if (!advice && !facts) return null;
-                    const considered = results.ranking?.considered ?? 0;
-                    const others = results.flights.filter((x) => x.id !== f.id && x.id.startsWith("off_")).slice(0, 2);
-                    const describe = (x: Flight) =>
-                      `${x.airline} · ${x.departureTime}${x.tripType === "round_trip" && x.returnDepartureTime ? `, back ${x.returnDepartureTime}` : ""}`;
-                    return (
-                      <div className="space-y-2">
-                        {advice ? (
-                          <div className="-mt-3"><PickAdvice advice={advice} /></div>
-                        ) : facts && (facts.pluses.length > 0 || facts.notes.length > 0 || facts.issues.length > 0) ? (
-                          <div className="rounded-lg border border-border/60 p-3 text-xs space-y-1">
-                            <p className="font-medium text-sm">About the flight you chose</p>
-                            {facts.issues.map((line) => <p key={line} className="text-destructive">{line}</p>)}
-                            {facts.pluses.length > 0 && <p className="text-muted-foreground">{facts.pluses.join(" · ")}</p>}
-                            {facts.notes.length > 0 && <p className="text-muted-foreground">Worth knowing: {facts.notes.slice(0, 2).join("; ")}</p>}
-                          </div>
-                        ) : null}
-                        {(considered > 0 || others.length > 0) && (
-                          <div className="px-1 text-xs text-muted-foreground space-y-1">
-                            {considered > 0 && (
-                              <p>
-                                Chosen from {considered.toLocaleString()} real fares for these dates
-                                {results.ranking?.requirements.length ? ` · ranked for: ${results.ranking.requirements.join(" · ")}` : ""}.
-                              </p>
-                            )}
-                            {(results.ranking?.notes ?? []).map((note) => <p key={note} className="text-warning">{note}</p>)}
-                            {others.map((x) => {
-                              const gap = x.price - f.price;
-                              const why = x.ranking?.issues[0] ?? x.ranking?.notes.find((n) => !n.includes("more than the cheapest")) ?? "";
-                              return (
-                                <p key={x.id}>
-                                  <span className="text-foreground/80">Also considered:</span> {describe(x)} · ${x.price.toLocaleString()}
-                                  {gap > 0 ? ` (${"$"}${gap.toLocaleString()} more)` : gap < 0 ? ` (${"$"}${Math.abs(gap).toLocaleString()} less)` : " (same price)"}
-                                  {why ? ` — ${why}` : ""}
-                                </p>
-                              );
-                            })}
-                            {others.length > 0 && <p>Use Refine to switch to any of them.</p>}
-                          </div>
-                        )}
-                        {results.dateHint && (
-                          <DateHintRow hint={results.dateHint} shownDates={results.chips.dateLabel} onUse={handleUseDates} busy={isThinking || isBooking} />
-                        )}
-                      </div>
-                    );
-                  })()}
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                    <Building2 className="w-5 h-5 text-primary" />
-                    <div className="flex-1 min-w-0">
-                      {planResult.hotel.name ? (
-                        <>
-                          <p className="font-medium truncate">{planResult.hotel.name}</p>
-                          <p className="text-sm text-muted-foreground truncate">{planResult.hotel.location}</p>
-                          {(planResult.hotel.pricePerNight || planResult.hotel.totalPrice) && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {planResult.hotel.pricePerNight ? `$${planResult.hotel.pricePerNight}/night` : null}
-                              {planResult.hotel.pricePerNight && planResult.hotel.totalPrice ? " · " : null}
-                              {planResult.hotel.totalPrice
-                                ? `$${planResult.hotel.totalPrice.toLocaleString()} total${planResult.hotel.nights ? ` (${planResult.hotel.nights} ${planResult.hotel.nights === 1 ? "night" : "nights"})` : ""}`
-                                : null}
-                              {planResult.hotel.dueAtAccommodation ? ` · plus $${planResult.hotel.dueAtAccommodation.toLocaleString()} in fees at the hotel` : null}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Reserved right after the flight is booked, at the room rate you choose.
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          {(() => {
-                            const plan = planResult as TripPlan & { _hotels?: HotelOption[]; _hotelNote?: HotelSearchFailure };
-                            // Hotels were available and none was picked, versus
-                            // none could be offered at all — different things.
-                            return (plan._hotels || []).length > 0
-                              ? "No hotel selected. Use Refine to add one."
-                              : hotelUnavailableMessage(plan._hotelNote);
-                          })()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/10">
-                  <div className="flex items-center gap-2"><DollarSign className="w-5 h-5 text-primary" /><span className="font-medium">Estimated Total</span></div>
-                  <span className="text-2xl font-bold text-primary">${planResult.estimatedCost.toLocaleString()}</span>
-                </div>
-                <p className="text-xs text-muted-foreground -mt-1">
-                  Flight{planResult.hotel.name ? " and hotel" : ""}. The exact amount is confirmed with the airline{planResult.hotel.name ? " and hotel" : ""} before you pay.
-                </p>
-                <div className="flex gap-3 pt-1">
-                  <Button variant="default" className="flex-1" onClick={handleConfirmBook} disabled={isBooking}>{isBooking ? "Booking…" : "Confirm & Book"}</Button>
-                  <Button variant="outline" className="flex-1" onClick={handleRefine}>Refine</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ─── OPERATIONS + FINANCE PANELS ─── */}
       <ScrollReveal delay={0.15}>
@@ -2501,6 +2222,350 @@ export default function Dashboard() {
           navigate("/trips");
         }}
       />
+
+      {/* Sync calendar, from the Calendar card. */}
+      <CalendarSyncDialog
+        open={calendarDialogOpen}
+        onOpenChange={(open) => {
+          setCalendarDialogOpen(open);
+          // Show a new or removed connection on the card straight away.
+          if (!open) void calendarAgent.refresh();
+        }}
+        onConnected={() => void calendarAgent.refresh()}
+      />
+
+      {/* ─── TRIP PLANNER: the chat window behind the button in the corner ─── */}
+      <ChatDock open={chatOpen} onOpenChange={setChatOpen} busy={isPlanning || isThinking}>
+        {activeThreadId && !planResult ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+            {plannerError}
+
+            {/* ─── CHAT THREAD (results live here as assistant messages) ─── */}
+            {activeThreadId && !planResult && (
+              <BookingChatThread
+                fill
+                messages={messages}
+                isThinking={isThinking}
+                threads={threadList}
+                activeThreadId={activeThreadId}
+                onSend={handleSendFollowUp}
+                onNewTrip={handleNewTrip}
+                onSelectThread={handleSelectThread}
+                onDeleteThread={handleDeleteThread}
+                onSelectFlight={(f) => handleSelectFlight(f)}
+                onAddExternalBooking={handleAddExternalBooking}
+                onUseDates={handleUseDates}
+                onSelectHotel={(h) => {
+                  const cur = lastResults;
+                  const top = cur?.flights[0];
+                  if (!top) return;
+                  const parsed = parseTravelRequestCached(tripInput || (messages.find(m => m.role === "user") as { text: string } | undefined)?.text || "");
+                  const destAirport = parsed.destination?.airports[0];
+                  const startDate = parsed.dates?.departure || new Date(Date.now() + 7 * 86400000);
+                  const endDate = parsed.dates?.return || new Date(startDate.getTime() + 3 * 86400000);
+                  const destLabel = destAirport ? `${destAirport.city}, ${destAirport.country}` : top.destination;
+                  const finalPlan: TripPlan & { _flights?: Flight[]; _hotels?: HotelOption[] } = {
+                    destination: destLabel,
+                    dates: `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`,
+                    startDate, endDate,
+                    datesAssumed: !parsed.dates?.departure,
+                    datesConfirmed: !!parsed.dates?.departure,
+                    needsDateClarification: false,
+                    purpose: calendarLinkRef.current?.title || parsePurpose(tripInput),
+                    flight: { airline: top.airline, departTime: top.departureTime, returnTime: top.arrivalTime },
+                    hotel: { name: h.name, location: h.area },
+                    estimatedCost: top.price + h.totalPrice,
+                    confidenceLevel: 96,
+                    originalPrompt: tripInput,
+                    _flights: cur?.flights ?? [top],
+                    _hotels: cur?.hotels ?? [h],
+                  };
+                  setPlanResult(finalPlan);
+                }}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+            {/* Start a trip: the box that used to lead the home page. */}
+            {!activeThreadId && (
+              <div>
+                <p className="text-sm text-muted-foreground text-center mb-3">
+                  Your AI-powered travel command center.
+                </p>
+
+                {(showLearnedBadge || preferenceLabels.length > 0) && (
+                  <div className="flex justify-center mb-3">
+                    <PreferencesIndicator labels={preferenceLabels} showLearnedBadge={showLearnedBadge} />
+                  </div>
+                )}
+
+                <form
+                  onSubmit={(e) => { e.preventDefault(); handlePlanTrip(); }}
+                  className="relative rounded-2xl border-2 border-border bg-card shadow-xl overflow-hidden transition-all focus-within:border-primary/30 focus-within:shadow-2xl"
+                >
+                  <div className="flex items-center gap-3 px-5 py-4">
+                    <Sparkles className="w-5 h-5 text-muted-foreground shrink-0" />
+                    <motion.input
+                      type="text"
+                      placeholder="Search anywhere: Paris, Texas, Tokyo, Japan, or ‘NYC to London April 10–20’"
+                      value={tripInput}
+                      onChange={e => { setTripInput(e.target.value); if (inputError) setInputError(null); }}
+                      whileFocus={{ scale: 1.005 }}
+                      transition={{ duration: 0.15 }}
+                      disabled={voiceRecording.state !== 'idle'}
+                      className="flex-1 bg-transparent text-base md:text-lg outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
+                    />
+
+                    {/* Voice recording UI hidden until reliably wired. Keep state so confirm/edit handlers don't crash. */}
+
+                    <Button
+                      type="submit"
+                      variant="cta"
+                      size="default"
+                      className="shrink-0 rounded-xl gap-2"
+                      disabled={isPlanning || voiceRecording.state !== 'idle' || !tripInput.trim()}
+                    >
+                      {isPlanning ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Searching flights…</span></>
+                      ) : (
+                        <><Sparkles className="w-4 h-4" /><span>Plan trip</span></>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+
+                <AnimatePresence>
+                  {voiceRecording.state === 'ready' && (
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                      className="mt-3 p-4 bg-card rounded-xl border border-border shadow-sm space-y-3"
+                    >
+                      <p className="text-sm text-muted-foreground">Use this request?</p>
+                      <p className="text-sm font-medium text-foreground">"{voiceRecording.transcript}"</p>
+                      <div className="flex gap-2">
+                        <Button variant="default" size="sm" onClick={handleConfirmVoice} className="gap-1"><Check className="w-3 h-3" />Confirm</Button>
+                        <Button variant="outline" size="sm" onClick={handleEditVoice} className="gap-1"><Edit2 className="w-3 h-3" />Edit</Button>
+                        <Button variant="ghost" size="sm" onClick={voiceRecording.cancelRecording}>Cancel</Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                  {inputError && (
+                    <motion.p initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mt-2 text-sm text-destructive flex items-center gap-1 justify-center">
+                      <AlertCircle className="w-4 h-4" />{inputError}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+
+                {/* Example query suggestions (shown when no chat history yet, or always in non-demo) */}
+                {(!demoMode || threadList.length === 0) && (
+                  <div className="mt-5 flex flex-wrap gap-2 justify-center">
+                    {exampleQueries.map(q => (
+                      <button
+                        key={q}
+                        type="button"
+                        onClick={() => { setTripInput(q); }}
+                        className="text-xs px-3 py-1.5 rounded-full border border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-secondary transition-colors"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Quick access: history when conversations exist */}
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  Search by destination, dates, or trip type — e.g. "NYC next Monday" or "hotel in Austin under $200".
+                </p>
+              </div>
+            )}
+
+            {plannerError}
+
+            {/* ─── PROPOSED ITINERARY ─── */}
+            <AnimatePresence>
+              {planResult && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }} className="max-w-3xl mx-auto">
+                  <Card className="border-2 border-success/30 shadow-lg overflow-hidden">
+                    <div className="p-6 bg-success/5 border-b border-success/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-success/20 flex items-center justify-center">
+                            <Sparkles className="w-4 h-4 text-success" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">Proposed Itinerary</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {planResult.destination} · {planResult.dates}
+                              {planResult.datesAssumed && !planResult.datesConfirmed && <span className="ml-1 italic">(suggested dates)</span>}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="icon-sm" onClick={() => setPlanResult(null)}><X className="w-4 h-4" /></Button>
+                        </div>
+                      </div>
+                    </div>
+                    <CardContent className="p-6 space-y-3">
+                      <div className="grid gap-3">
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
+                          <Plane className="w-5 h-5 text-primary" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">{planResult.flight.airline}{planResult.flight.from && planResult.flight.to && <span className="font-normal text-muted-foreground"> · {planResult.flight.from} → {planResult.flight.to}</span>}</p>
+                            {(() => {
+                              // The offer that will actually be bought carries the full
+                              // detail; the plan's own strings are the fallback.
+                              const f = selectedFlightFromResults;
+                              const plus = (days?: number) => (days ? ` (+${days} day${days > 1 ? "s" : ""})` : "");
+                              const stopsText = (n?: number) => (n === undefined ? "" : n === 0 ? " · Nonstop" : ` · ${n} stop${n > 1 ? "s" : ""}`);
+                              const roundTrip = f?.tripType === "round_trip";
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">
+                                    {roundTrip ? "Out: " : ""}Departs {planResult.flight.departTime} · Arrives {planResult.flight.returnTime}{plus(f?.arriveDayOffset)}
+                                    {f?.duration ? ` · ${f.duration}` : ""}{stopsText(f?.stops)}
+                                  </p>
+                                  {roundTrip ? (
+                                    <>
+                                      <p className="text-sm text-muted-foreground">
+                                        Back: {f?.returnOrigin} → {f?.returnDestination} · Departs {f?.returnDepartureTime} · Arrives {f?.returnArrivalTime}{plus(f?.returnArriveDayOffset)}
+                                        {f?.returnDuration ? ` · ${f.returnDuration}` : ""}{stopsText(f?.returnStops)}
+                                      </p>
+                                      {f?.returnDestination && f.origin && f.returnDestination !== f.origin && (
+                                        <p className="text-xs text-warning mt-0.5">
+                                          Returns to {f.returnDestination}, not {f.origin} — a different airport from the one you leave from.
+                                        </p>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <p className="text-xs text-warning mt-0.5">
+                                      {(planResult as TripPlan & { _returnUnavailable?: boolean })._returnUnavailable
+                                        ? "One-way fare — no airline sells this as a round trip for your dates, so the flight home is not included and needs booking separately."
+                                        : "One-way fare — no return flight is included."}
+                                    </p>
+                                  )}
+                                  {f && (
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      ${f.price.toLocaleString()} {roundTrip ? "round trip" : "one way"}{f.identityDocumentsRequired ? " · passport details required" : ""}
+                                    </p>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                        {/* Why this flight, and what it was chosen over. Without this
+                            the card is a price with no way to judge it — the traveler
+                            can't tell the cheapest of 600 fares from a bad pick. */}
+                        {(() => {
+                          const f = selectedFlightFromResults;
+                          const results = lastResults;
+                          if (!f || !results) return null;
+                          const advice = results.advice && results.advice.pickId === f.id ? results.advice : null;
+                          const facts = f.ranking;
+                          if (!advice && !facts) return null;
+                          const considered = results.ranking?.considered ?? 0;
+                          const others = results.flights.filter((x) => x.id !== f.id && x.id.startsWith("off_")).slice(0, 2);
+                          const describe = (x: Flight) =>
+                            `${x.airline} · ${x.departureTime}${x.tripType === "round_trip" && x.returnDepartureTime ? `, back ${x.returnDepartureTime}` : ""}`;
+                          return (
+                            <div className="space-y-2">
+                              {advice ? (
+                                <div className="-mt-3"><PickAdvice advice={advice} /></div>
+                              ) : facts && (facts.pluses.length > 0 || facts.notes.length > 0 || facts.issues.length > 0) ? (
+                                <div className="rounded-lg border border-border/60 p-3 text-xs space-y-1">
+                                  <p className="font-medium text-sm">About the flight you chose</p>
+                                  {facts.issues.map((line) => <p key={line} className="text-destructive">{line}</p>)}
+                                  {facts.pluses.length > 0 && <p className="text-muted-foreground">{facts.pluses.join(" · ")}</p>}
+                                  {facts.notes.length > 0 && <p className="text-muted-foreground">Worth knowing: {facts.notes.slice(0, 2).join("; ")}</p>}
+                                </div>
+                              ) : null}
+                              {(considered > 0 || others.length > 0) && (
+                                <div className="px-1 text-xs text-muted-foreground space-y-1">
+                                  {considered > 0 && (
+                                    <p>
+                                      Chosen from {considered.toLocaleString()} real fares for these dates
+                                      {results.ranking?.requirements.length ? ` · ranked for: ${results.ranking.requirements.join(" · ")}` : ""}.
+                                    </p>
+                                  )}
+                                  {(results.ranking?.notes ?? []).map((note) => <p key={note} className="text-warning">{note}</p>)}
+                                  {others.map((x) => {
+                                    const gap = x.price - f.price;
+                                    const why = x.ranking?.issues[0] ?? x.ranking?.notes.find((n) => !n.includes("more than the cheapest")) ?? "";
+                                    return (
+                                      <p key={x.id}>
+                                        <span className="text-foreground/80">Also considered:</span> {describe(x)} · ${x.price.toLocaleString()}
+                                        {gap > 0 ? ` (${"$"}${gap.toLocaleString()} more)` : gap < 0 ? ` (${"$"}${Math.abs(gap).toLocaleString()} less)` : " (same price)"}
+                                        {why ? ` — ${why}` : ""}
+                                      </p>
+                                    );
+                                  })}
+                                  {others.length > 0 && <p>Use Refine to switch to any of them.</p>}
+                                </div>
+                              )}
+                              {results.dateHint && (
+                                <DateHintRow hint={results.dateHint} shownDates={results.chips.dateLabel} onUse={handleUseDates} busy={isThinking || isBooking} />
+                              )}
+                            </div>
+                          );
+                        })()}
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
+                          <Building2 className="w-5 h-5 text-primary" />
+                          <div className="flex-1 min-w-0">
+                            {planResult.hotel.name ? (
+                              <>
+                                <p className="font-medium truncate">{planResult.hotel.name}</p>
+                                <p className="text-sm text-muted-foreground truncate">{planResult.hotel.location}</p>
+                                {(planResult.hotel.pricePerNight || planResult.hotel.totalPrice) && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {planResult.hotel.pricePerNight ? `$${planResult.hotel.pricePerNight}/night` : null}
+                                    {planResult.hotel.pricePerNight && planResult.hotel.totalPrice ? " · " : null}
+                                    {planResult.hotel.totalPrice
+                                      ? `$${planResult.hotel.totalPrice.toLocaleString()} total${planResult.hotel.nights ? ` (${planResult.hotel.nights} ${planResult.hotel.nights === 1 ? "night" : "nights"})` : ""}`
+                                      : null}
+                                    {planResult.hotel.dueAtAccommodation ? ` · plus $${planResult.hotel.dueAtAccommodation.toLocaleString()} in fees at the hotel` : null}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Reserved right after the flight is booked, at the room rate you choose.
+                                </p>
+                              </>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                {(() => {
+                                  const plan = planResult as TripPlan & { _hotels?: HotelOption[]; _hotelNote?: HotelSearchFailure };
+                                  // Hotels were available and none was picked, versus
+                                  // none could be offered at all — different things.
+                                  return (plan._hotels || []).length > 0
+                                    ? "No hotel selected. Use Refine to add one."
+                                    : hotelUnavailableMessage(plan._hotelNote);
+                                })()}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/10">
+                        <div className="flex items-center gap-2"><DollarSign className="w-5 h-5 text-primary" /><span className="font-medium">Estimated Total</span></div>
+                        <span className="text-2xl font-bold text-primary">${planResult.estimatedCost.toLocaleString()}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground -mt-1">
+                        Flight{planResult.hotel.name ? " and hotel" : ""}. The exact amount is confirmed with the airline{planResult.hotel.name ? " and hotel" : ""} before you pay.
+                      </p>
+                      <div className="flex gap-3 pt-1">
+                        <Button variant="default" className="flex-1" onClick={handleConfirmBook} disabled={isBooking}>{isBooking ? "Booking…" : "Confirm & Book"}</Button>
+                        <Button variant="outline" className="flex-1" onClick={handleRefine}>Refine</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+      </ChatDock>
     </motion.div>
   );
 }

@@ -79,7 +79,10 @@ You should see:
 
 ## 3. Open the App
 
-Go to **http://localhost:8080**.
+Go to **http://localhost:8080**. That's the landing page (from `landing/`),
+the same as flybyai.net; click **Log in to product**, or go straight to
+http://localhost:8080/get-started. Once you're signed in, the app's home is
+`/dashboard`.
 
 Sign in with a seeded account, or create your own:
 

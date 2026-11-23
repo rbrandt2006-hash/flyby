@@ -40,7 +40,7 @@ export default function Onboarding() {
       if (next) localStorage.removeItem("flyby_post_onboarding_next");
     } catch { /* ignore */ }
     toast.success("You're all set. Welcome aboard.");
-    const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
     navigate(target, { replace: true });
   };
 
