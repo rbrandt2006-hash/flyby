@@ -184,7 +184,7 @@ section{position:relative}
 
 /* ═══════════════════════ CAROUSEL ═══════════════════════ */
 .carousel-container{position:relative;overflow:hidden}
-.carousel-track{position:relative;height:464px;overflow:hidden}
+.carousel-track{position:relative;height:440px;overflow:hidden}
 .c-slide{position:absolute;inset:0;display:flex;opacity:0;pointer-events:none;transform:translateY(14px);transition:opacity .55s var(--ease),transform .55s var(--ease)}
 .c-slide.active{opacity:1;pointer-events:all;transform:translateY(0)}
 .c-slide.leaving{position:absolute;inset:0;opacity:0;transform:translateY(-10px);transition:opacity .35s ease,transform .35s ease}
@@ -202,7 +202,7 @@ section{position:relative}
 .c-dot.active{width:28px;background:var(--ink)}
 .c-dot:hover:not(.active){background:rgba(10,18,34,.35)}
 
-/* Slide 2 · a trip from the calendar, priced and waiting for a yes */
+/* Slide 1 · a trip from the calendar, priced and waiting for a yes */
 .ta-pill{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:.64rem;font-weight:550;color:var(--ink-2)}
 .ta-pill svg{width:11px;height:11px;color:var(--ink-4)}
 .ta-pill::after{content:'';width:6px;height:6px;border-radius:50%;background:#22A06B}
@@ -238,80 +238,6 @@ section{position:relative}
 .ta-btn{padding:6px 11px;border-radius:8px;font-size:.62rem;font-weight:600;white-space:nowrap}
 .ta-btn.yes{background:var(--blue);color:#fff}
 .ta-btn.no{box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);color:#fff}
-
-/* Slide 1 · home: what Flyby saved, what needs a yes or no, what it did */
-.c-main.hm-main{gap:8px;padding-top:13px;padding-bottom:12px}
-.hm-greet{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px}
-.hm-greet h4{font-size:1rem;font-weight:650;letter-spacing:-.03em;line-height:1.2;color:var(--ink)}
-.hm-greet p{font-size:.6rem;color:var(--ink-4)}
-.hm-auto{display:flex;align-items:center;gap:9px;padding:7px 10px;border:1px solid var(--blue-100);border-radius:10px;background:var(--blue-50)}
-.hm-auto-icon{width:22px;height:22px;flex-shrink:0;border-radius:6px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--blue-100);color:var(--blue)}
-.hm-auto-icon svg{width:12px;height:12px}
-.hm-auto-text{flex:1;min-width:0}
-.hm-auto-title{font-size:.66rem;font-weight:600;color:var(--ink)}
-.hm-auto-sub{font-size:.55rem;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hm-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:.54rem;font-weight:550;color:var(--ink-3);white-space:nowrap}
-.hm-chip.done{border-color:transparent;background:var(--green-bg);color:var(--green)}
-.hm-btn{padding:5px 10px;border-radius:7px;background:var(--blue);color:#fff;font-size:.58rem;font-weight:600;white-space:nowrap}
-.hm-btn.ghost{background:#fff;color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line)}
-.hm-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.hm-stat{border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:#fff}
-.hm-stat.hi{border-color:var(--blue);background:var(--blue)}
-.hm-stat-l{font-size:.54rem;color:var(--ink-3)}
-.hm-stat-v{font-size:1rem;font-weight:650;letter-spacing:-.03em;line-height:1.25;color:var(--ink);font-variant-numeric:tabular-nums}
-.hm-stat-s{font-size:.5rem;color:var(--ink-4)}
-.hm-stat.hi .hm-stat-l,.hm-stat.hi .hm-stat-s{color:rgba(255,255,255,.8)}
-.hm-stat.hi .hm-stat-v{color:#fff}
-.hm-cols{display:grid;grid-template-columns:1.7fr 1fr;gap:10px;align-items:start}
-.hm-h{display:flex;align-items:center;gap:5px;margin-bottom:5px;font-size:.62rem;font-weight:600;color:var(--ink)}
-.hm-count{display:inline-flex;align-items:center;justify-content:center;min-width:13px;height:13px;padding:0 3px;border-radius:999px;background:var(--blue);color:#fff;font-size:.5rem;font-weight:700}
-.hm-live{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:.52rem;font-weight:550;color:#22A06B}
-.hm-live::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
-.hm-card{display:flex;flex-direction:column;gap:5px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
-.hm-card + .hm-card{margin-top:5px}
-.hm-card-head{display:flex;align-items:flex-start;gap:7px}
-.hm-card-icon{width:18px;height:18px;flex-shrink:0;border-radius:5px;display:flex;align-items:center;justify-content:center;background:var(--blue-50);color:var(--blue)}
-.hm-card-icon.warn{background:var(--amber-bg);color:var(--amber)}
-.hm-card-icon svg{width:10px;height:10px}
-.hm-card-title{font-size:.62rem;font-weight:600;color:var(--ink)}
-.hm-card-sub{font-size:.52rem;color:var(--ink-4);margin-top:1px}
-.hm-tag{margin-left:auto;padding:2px 6px;border-radius:999px;background:var(--green-bg);color:var(--green);font-size:.5rem;font-weight:550;white-space:nowrap}
-.hm-tag.warn{background:var(--amber-bg);color:var(--amber)}
-.hm-tag.blue{background:var(--blue-50);color:var(--blue-600)}
-.hm-picks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.hm-pick{padding:5px 8px;border:1px solid var(--line-soft);border-radius:7px;background:#FBFCFD}
-.hm-pick-l{font-family:var(--font-mono);font-size:.46rem;letter-spacing:.1em;text-transform:uppercase;color:var(--blue-600)}
-.hm-pick-m{display:flex;justify-content:space-between;gap:6px;margin-top:1px;font-size:.58rem;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
-.hm-pick-s{margin-top:1px;font-size:.5rem;font-weight:550;color:var(--green)}
-.hm-card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.52rem;color:var(--ink-4)}
-.hm-card-foot b{font-weight:600;color:var(--blue-600)}
-.hm-card-btns{display:flex;gap:5px;flex-shrink:0}
-.hm-feed{display:flex;flex-direction:column;gap:7px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
-.hm-feed-row{display:flex;gap:7px}
-.hm-dot{width:15px;height:15px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--blue-50);color:var(--blue);font-size:.5rem;font-weight:700;line-height:1}
-.hm-dot.warn{background:var(--amber-bg);color:var(--amber)}
-.hm-dot.ok{background:var(--green-bg);color:var(--green)}
-.hm-dot svg{width:8px;height:8px}
-.hm-feed-t{font-size:.54rem;line-height:1.35;color:var(--ink-3)}
-.hm-feed-t b{font-weight:600;color:var(--ink)}
-.hm-feed-w{margin-top:1px;font-size:.48rem;color:var(--ink-4)}
-.hm-trips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.hm-trip{padding:6px 10px 5px;border:1px solid var(--line);border-radius:10px;background:#fff}
-.hm-trip-head{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
-.hm-trip-name{font-size:.6rem;font-weight:600;color:var(--ink)}
-.hm-trip-sub{font-size:.5rem;color:var(--ink-4);font-variant-numeric:tabular-nums}
-.hm-steps{display:grid;grid-template-columns:repeat(5,1fr);margin-top:5px}
-.hm-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.44rem;color:var(--ink-4);text-align:center;white-space:nowrap}
-.hm-step::before{content:'';position:absolute;top:3px;right:50%;width:100%;height:1px;background:var(--line)}
-.hm-step:first-child::before{display:none}
-.hm-step i{position:relative;z-index:1;width:7px;height:7px;border:1.5px solid var(--line);border-radius:50%;background:#fff}
-.hm-step.done{color:var(--ink-2)}
-.hm-step.done i{border-color:var(--blue);background:var(--blue)}
-.hm-step.done::before,.hm-step.now::before{background:var(--blue)}
-.hm-step.now{font-weight:600;color:var(--blue-600)}
-.hm-step.now i{border-color:var(--blue)}
-.hm-trip-foot{margin-top:4px;font-size:.48rem;color:var(--ink-4)}
-.hm-trip-foot b{font-weight:600;color:var(--ink-2)}
 
 /* chat slide */
 .chat-slide-bubbles{display:flex;flex-direction:column;gap:10px;overflow:hidden}
@@ -678,8 +604,6 @@ section{position:relative}
 }
 @media(max-width:768px){
   .ta-why,.ta-pill{display:none}
-  .hm-cols{grid-template-columns:1fr}
-  .hm-activity,.hm-auto-sub,.hm-trips{display:none}
   .ta-approve,.ta-total{flex-wrap:wrap}
 }
 @media(max-width:480px){
@@ -687,9 +611,6 @@ section{position:relative}
      approve bar (the point of the slide), drop the supporting lines. */
   .ta-picks{grid-template-columns:1fr}
   .ta-rows,.ta-pick .ta-sub,.ta-total{display:none}
-  .hm-stats{grid-template-columns:1fr 1fr}
-  .hm-auto,.hm-card-foot > span{display:none}
-  .hm-card-foot{justify-content:flex-end}
 }
 @media(max-width:480px){
   .hero-ctas{flex-direction:column;align-items:stretch}
@@ -761,7 +682,7 @@ section{position:relative}
             <div class="mockup-dot"></div>
             <div class="mockup-url">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
-              <span id="carouselUrl">flyby.app / home</span>
+              <span id="carouselUrl">flyby.app / trips / london</span>
             </div>
           </div>
 
@@ -776,79 +697,8 @@ section{position:relative}
 
             <div class="carousel-track" id="carouselTrack">
 
-              <!-- SLIDE 1 · Home: what Flyby saved, what needs a yes or no, what it did -->
-              <div class="c-slide active" data-url="flyby.app / home">
-                <div class="c-aside">
-                  <div class="m-nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Home</div>
-                  <div class="m-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>Trips</div>
-                  <div class="m-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Expenses</div>
-                  <div class="m-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z"/></svg>Team</div>
-                  <div class="m-nav-item m-nav-bottom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>Settings</div>
-                </div>
-                <div class="c-main hm-main">
-                  <div class="hm-greet">
-                    <h4>Good morning, Julia.</h4>
-                    <p>2 things need your yes or no. Everything else is handled.</p>
-                  </div>
-                  <div class="hm-auto">
-                    <div class="hm-auto-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
-                    <div class="hm-auto-text">
-                      <div class="hm-auto-title">Put Flyby on autopilot in 2 steps</div>
-                      <div class="hm-auto-sub">Connect your calendar and your credit card. Flyby plans your trips, finds the best prices, and tracks expenses. You just say yes or no.</div>
-                    </div>
-                    <span class="hm-chip done">✓ Calendar</span>
-                    <span class="hm-chip">2 Card</span>
-                    <span class="hm-btn">Connect card</span>
-                  </div>
-                  <div class="hm-stats">
-                    <div class="hm-stat hi"><div class="hm-stat-l">Saved for you this quarter</div><div class="hm-stat-v">$4,280</div><div class="hm-stat-s">vs. average prices for your dates</div></div>
-                    <div class="hm-stat"><div class="hm-stat-l">Trips planned automatically</div><div class="hm-stat-v">12</div><div class="hm-stat-s">0 booked by hand</div></div>
-                    <div class="hm-stat"><div class="hm-stat-l">Rebookings handled</div><div class="hm-stat-v">3</div><div class="hm-stat-s">avg. fix ready in 40 seconds</div></div>
-                    <div class="hm-stat"><div class="hm-stat-l">Admin time saved</div><div class="hm-stat-v">18 hrs</div><div class="hm-stat-s">0 expense reports written</div></div>
-                  </div>
-                  <div class="hm-cols">
-                    <div>
-                      <div class="hm-h">Needs your yes or no <span class="hm-count">2</span></div>
-                      <div class="hm-card">
-                        <div class="hm-card-head">
-                          <div class="hm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg></div>
-                          <div><div class="hm-card-title">London · Client meeting, Nov 13</div><div class="hm-card-sub">Found on your calendar · Trip dates Nov 12–15</div></div>
-                          <span class="hm-tag">New trip planned</span>
-                        </div>
-                        <div class="hm-picks">
-                          <div class="hm-pick"><div class="hm-pick-l">Best flight</div><div class="hm-pick-m"><span>JFK → LHR · BA 178</span><span>$680</span></div><div class="hm-pick-s">Saves $132 vs. avg $812</div></div>
-                          <div class="hm-pick"><div class="hm-pick-l">Best hotel</div><div class="hm-pick-m"><span>Marriott London City</span><span>$178/n</span></div><div class="hm-pick-s">Saves $159 vs. avg $231/n</div></div>
-                        </div>
-                        <div class="hm-card-foot"><span>Compared <b>214 flights</b> and <b>38 hotels</b> · $1,214 total · Within policy</span><div class="hm-card-btns"><span class="hm-btn ghost">No</span><span class="hm-btn">Yes, book it</span></div></div>
-                      </div>
-                      <div class="hm-card">
-                        <div class="hm-card-head">
-                          <div class="hm-card-icon warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></div>
-                          <div><div class="hm-card-title">Chicago · Flight delayed 3 hrs</div><div class="hm-card-sub">UA 1482 · Dec 2 · Rebooked on UA 2210, no change fee</div></div>
-                          <span class="hm-tag warn">Plan changed</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="hm-activity">
-                      <div class="hm-h">Flyby activity <span class="hm-live">Live</span></div>
-                      <div class="hm-feed">
-                        <div class="hm-feed-row"><span class="hm-dot">+</span><div><div class="hm-feed-t"><b>Planned your London trip.</b> Compared 214 flights and picked the lowest fare within policy.</div><div class="hm-feed-w">2 min ago</div></div></div>
-                        <div class="hm-feed-row"><span class="hm-dot warn">!</span><div><div class="hm-feed-t"><b>Spotted a delay on UA 1482.</b> Rebooking options ready for your approval.</div><div class="hm-feed-w">14 min ago</div></div></div>
-                        <div class="hm-feed-row"><span class="hm-dot ok">✓</span><div><div class="hm-feed-t"><b>Logged $284 from your card.</b> Nobu London, categorized as client meal.</div><div class="hm-feed-w">1 hr ago</div></div></div>
-                        <div class="hm-feed-row"><span class="hm-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><div><div class="hm-feed-t"><b>Scanned your calendar.</b> Found 3 new meetings that need travel.</div><div class="hm-feed-w">6 hrs ago</div></div></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="hm-trips">
-                    <div class="hm-trip"><div class="hm-trip-head"><div><div class="hm-trip-name">London, UK</div><div class="hm-trip-sub">Nov 12–15 · $1,214</div></div><span class="hm-tag warn">Needs you</span></div><div class="hm-steps"><span class="hm-step done"><i></i>Detected</span><span class="hm-step done"><i></i>Planned</span><span class="hm-step now"><i></i>Your yes</span><span class="hm-step"><i></i>Booked</span><span class="hm-step"><i></i>Report</span></div><div class="hm-trip-foot"><b>Waiting on you</b> · one tap to approve</div></div>
-                    <div class="hm-trip"><div class="hm-trip-head"><div><div class="hm-trip-name">Chicago, IL</div><div class="hm-trip-sub">Dec 2–4 · $1,046</div></div><span class="hm-tag blue">Plan changed</span></div><div class="hm-steps"><span class="hm-step done"><i></i>Detected</span><span class="hm-step done"><i></i>Planned</span><span class="hm-step now"><i></i>Your yes</span><span class="hm-step"><i></i>Booked</span><span class="hm-step"><i></i>Report</span></div><div class="hm-trip-foot"><b>Waiting on you</b> · rebooking ready</div></div>
-                    <div class="hm-trip"><div class="hm-trip-head"><div><div class="hm-trip-name">New York, NY</div><div class="hm-trip-sub">Dec 11–15 · $640</div></div><span class="hm-tag">Booked</span></div><div class="hm-steps"><span class="hm-step done"><i></i>Detected</span><span class="hm-step done"><i></i>Planned</span><span class="hm-step done"><i></i>Your yes</span><span class="hm-step done"><i></i>Booked</span><span class="hm-step now"><i></i>Report</span></div><div class="hm-trip-foot"><b>Flyby</b> is watching prices and delays</div></div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- SLIDE 2 · A trip from the calendar, waiting for a yes -->
-              <div class="c-slide" data-url="flyby.app / trips / london">
+              <!-- SLIDE 1 · A trip from the calendar, waiting for a yes -->
+              <div class="c-slide active" data-url="flyby.app / trips / london">
                 <div class="c-aside">
                   <div class="m-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Home</div>
                   <div class="m-nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>Trips</div>
@@ -896,7 +746,7 @@ section{position:relative}
                 </div>
               </div>
 
-              <!-- SLIDE 3 · AI Expense Insights -->
+              <!-- SLIDE 2 · AI Expense Insights -->
               <div class="c-slide" data-url="flyby.app / expenses">
                 <div class="c-aside">
                   <div class="m-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Home</div>
@@ -940,7 +790,7 @@ section{position:relative}
                 </div>
               </div>
 
-              <!-- SLIDE 4 · Expense Table -->
+              <!-- SLIDE 3 · Expense Table -->
               <div class="c-slide" data-url="flyby.app / expenses / list">
                 <div class="c-aside">
                   <div class="m-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Home</div>
@@ -996,7 +846,7 @@ section{position:relative}
                 </div>
               </div>
 
-              <!-- SLIDE 5 · Team Tracking -->
+              <!-- SLIDE 4 · Team Tracking -->
               <div class="c-slide" data-url="flyby.app / team">
                 <div class="c-aside">
                   <div class="m-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Home</div>
@@ -1031,7 +881,6 @@ section{position:relative}
         <button class="c-dot" data-idx="1" aria-label="Slide 2"></button>
         <button class="c-dot" data-idx="2" aria-label="Slide 3"></button>
         <button class="c-dot" data-idx="3" aria-label="Slide 4"></button>
-        <button class="c-dot" data-idx="4" aria-label="Slide 5"></button>
       </div>
     </div><!-- /carousel-outer -->
   </div>

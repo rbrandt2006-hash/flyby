@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2, Trash2, CreditCard, CalendarClock, CalendarDays } from "lucide-react";
+import { Plane, MapPin, Calendar, Sparkles, ArrowRight, Clock, DollarSign, Loader2, AlertCircle, Hotel, X, Brain, ChevronRight, Mic, Square, Check, Edit2, TrendingUp, TrendingDown, Users, Shield, ArrowUpRight, Building2, Trash2, CreditCard, CalendarClock, CalendarDays, Send } from "lucide-react";
 import ScrollReveal from "@/components/home/ScrollReveal";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { PreferencesIndicator } from "@/components/trips/PreferencesIndicator";
@@ -1858,77 +1858,124 @@ export default function Dashboard() {
   return (
     <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-6xl mx-auto space-y-10 pb-36 md:pb-24">
 
-      {/* ─── PAGE HEADER ─── */}
-      <motion.div variants={itemVariants} className="pt-2 md:pt-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-          Corporate travel, without the chaos.
+      {/* ─── HOME (Ryan's design): one job — get the calendar connected, then
+          show what Flyby found on it. Planning itself is in the chat window
+          behind the button in the corner. ─── */}
+      <motion.section variants={itemVariants} className="pt-8 md:pt-16 text-center">
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.1] [text-wrap:balance]">
+          {calendarAgent.connected ? "Your calendar is connected." : "Connect your calendar."}
+          <br />
+          Flyby does the rest.
         </h1>
-      </motion.div>
-
-      {/* ─── CALENDAR (moved here from the Trips page) ─── */}
-      <ScrollReveal delay={0.05}>
-        <Card className="border border-border/50 shadow-sm overflow-hidden">
-          <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <CalendarClock className="w-4 h-4 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="font-semibold text-base">Calendar</h2>
-                <p className="text-sm text-muted-foreground">
-                  {calendarAgent.connected ? (
-                    <>Watching <span className="text-foreground">{calendarAgent.account || "your calendar"}</span> for meetings that need travel booked.</>
-                  ) : (
-                    "Connect one calendar and Flyby will spot meetings that need travel booked."
-                  )}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/trips?view=calendar")}>
+        <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-xl mx-auto [text-wrap:pretty]">
+          {calendarAgent.connected ? (
+            <>Flyby is watching <span className="text-foreground">{calendarAgent.account || "your calendar"}</span> for meetings that need travel. You just say yes or no.</>
+          ) : (
+            "It finds your trips, books the best flights and hotels, and tracks your expenses. You just say yes or no."
+          )}
+        </p>
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
+          {calendarAgent.connected ? (
+            <>
+              <Button variant="outline" className="gap-2" onClick={() => navigate("/trips?view=calendar")}>
                 <CalendarDays className="w-4 h-4" />
                 View calendar
               </Button>
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => setCalendarDialogOpen(true)}>
+              <Button variant="outline" className="gap-2" onClick={() => setCalendarDialogOpen(true)}>
                 <Calendar className="w-4 h-4" />
                 Sync calendar
               </Button>
-            </div>
-          </div>
+            </>
+          ) : (
+            <Button variant="cta" size="lg" className="gap-2 rounded-xl px-7" onClick={() => setCalendarDialogOpen(true)}>
+              <Calendar className="w-4 h-4" />
+              Connect calendar
+            </Button>
+          )}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {calendarAgent.connected ? "Nothing is booked without you." : "Takes about 30 seconds. Nothing is booked without you."}
+        </p>
+      </motion.section>
 
-          {/* Meetings on the connected calendar that need a trip. One click
-              plans it: the travel days are already worked out from the
-              meeting, and flights are ranked to land in time for it. */}
-          {calendarAgent.unbooked.length > 0 && (
-            <div className="border-t border-border/50 px-5 pb-5 pt-4">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <CalendarClock className="w-4 h-4 text-primary" />
-                Meetings that need a trip
-              </p>
-              <div className="mt-3 space-y-2">
+      <motion.section variants={itemVariants} className="max-w-2xl mx-auto w-full">
+        {calendarAgent.connected ? (
+          <>
+            <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Meetings that need a trip
+            </p>
+            {calendarAgent.unbooked.length > 0 ? (
+              <div className="space-y-2">
+                {/* One click plans it: the travel days are already worked out
+                    from the meeting, and flights are ranked to land in time. */}
                 {calendarAgent.unbooked.slice(0, 3).map(({ proposal }) => (
-                  <div key={proposal.key} className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm">
-                        <span className="font-medium">{proposal.meetingLabel}</span>
-                        <span className="text-muted-foreground"> · {proposal.destinationCity}</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {proposal.plan}.
-                        {proposal.cityInferred && ` The event doesn't name a city — Flyby AI read this as ${proposal.destinationCity}.`}
-                        {proposal.existingTravel && ` ${proposal.existingTravel}`}
-                      </p>
+                  <div key={proposal.key} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="w-9 h-9 rounded-lg bg-cta/10 flex items-center justify-center shrink-0">
+                        <Send className="w-4 h-4 text-cta" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          {proposal.meetingLabel}
+                          <span className="font-normal text-muted-foreground"> · {proposal.destinationCity}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {proposal.plan}.
+                          {proposal.cityInferred && ` The event doesn't name a city — Flyby AI read this as ${proposal.destinationCity}.`}
+                          {proposal.existingTravel && ` ${proposal.existingTravel}`}
+                        </p>
+                      </div>
                     </div>
-                    <Button size="sm" variant="outline" className="shrink-0" disabled={isPlanning} onClick={() => planFromCalendar(proposal)}>
+                    <Button variant="cta" size="sm" className="shrink-0 self-end sm:self-auto" disabled={isPlanning} onClick={() => planFromCalendar(proposal)}>
                       Plan trip
                     </Button>
                   </div>
                 ))}
+                {calendarAgent.unbooked.length > 3 && (
+                  <div className="text-center">
+                    <Button variant="link" size="sm" className="text-muted-foreground" onClick={() => navigate("/trips?view=calendar")}>
+                      {calendarAgent.unbooked.length - 3} more on your calendar
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border/70 px-5 py-6 text-center text-sm text-muted-foreground">
+                {calendarAgent.syncError
+                  ? `Flyby couldn't read your calendar: ${calendarAgent.syncError}`
+                  : calendarAgent.checking && !calendarAgent.lastCheckedAt
+                    ? "Reading your calendar…"
+                    : "Nothing here yet. Flyby checks your calendar every few minutes and lists a meeting here when it needs a trip."}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Here is what you will see
+            </p>
+            {/* An example of a trip Flyby found, not a real one: it only shows
+                what to expect, so its buttons are pictures and do nothing. */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm" aria-label="Example of a trip Flyby found">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className="w-9 h-9 rounded-lg bg-cta/10 flex items-center justify-center shrink-0">
+                  <Send className="w-4 h-4 text-cta" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">London trip, Nov 12–15 · $1,214</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Flyby found the best flight and hotel for you. <span className="font-medium text-success">$231 under average.</span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-2 self-end sm:self-auto pointer-events-none select-none" aria-hidden="true">
+                <span className={buttonVariants({ variant: "outline", size: "sm" })}>No</span>
+                <span className={buttonVariants({ variant: "cta", size: "sm" })}>Yes, book it</span>
               </div>
             </div>
-          )}
-        </Card>
-      </ScrollReveal>
+          </>
+        )}
+      </motion.section>
 
       {/* ─── HOTEL SELECTION STEP ─── */}
       <HotelSelectionPage
@@ -1941,122 +1988,17 @@ export default function Dashboard() {
         venueName={pendingPlanResult?.destination || "destination"}
       />
 
-      {/* ─── OPERATIONS + FINANCE PANELS ─── */}
-      <ScrollReveal delay={0.15}>
-        <div className={cn("grid gap-6", demoMode ? "md:grid-cols-2" : "md:grid-cols-1 max-w-2xl mx-auto")}>
-          {/* Team traveling now — demo only */}
-          {demoMode && (
-          <Card className="border border-border/50 shadow-sm">
-            <div className="p-5 pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary" />
-                  <h2 className="font-semibold text-base">Team traveling now</h2>
-                </div>
-                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => navigate("/team")}>
-                  View all <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </div>
-            </div>
-            <CardContent className="pt-0 space-y-1">
-              {teamTraveling.map((member) => (
-                <div key={member.name} className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer group" onClick={() => setSelectedTraveler(member)}>
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-                    {member.initials}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{member.name}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />{member.destination}
-                    </p>
-                    <div className="mt-1.5 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                          <motion.div
-                            className={cn(
-                              "h-full rounded-full",
-                              member.statusType === "success" && "bg-success",
-                              member.statusType === "warning" && "bg-warning",
-                              member.statusType === "info" && "bg-primary",
-                            )}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(member.journeyStep / member.totalSteps) * 100}%` }}
-                            transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          {member.journeyStep}/{member.totalSteps}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground/80">
-                        Trip step {member.journeyStep} of {member.totalSteps}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge
-                    variant="secondary"
-                    className={cn(
-                      "text-xs shrink-0",
-                      member.statusType === "warning" && "bg-warning/10 text-warning border-warning/20",
-                      member.statusType === "success" && "bg-success/10 text-success border-success/20",
-                      member.statusType === "info" && "bg-primary/10 text-primary border-primary/20",
-                    )}
-                  >
-                    {member.status}
-                  </Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-          )}
-
-          {/* Travel spend overview */}
-          <Card className="border border-border/50 shadow-sm">
-            <div className="p-5 pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-primary" />
-                  <h2 className="font-semibold text-base">Travel spend overview</h2>
-                </div>
-                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => navigate("/expenses")}>
-                  Details <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </div>
-            </div>
-            <CardContent className="pt-0 space-y-5">
-              {/* Real spend only — no sample figures. */}
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold tracking-tight text-foreground">$0</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Connect a card to start tracking.</p>
-                <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate("/expenses")}>
-                  <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Connect a card
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </ScrollReveal>
-
-      {/* ─── UPCOMING TRIPS ─── */}
-      <ScrollReveal delay={0.25}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Upcoming trips</h2>
+      {/* ─── UPCOMING TRIPS (only when there are some) ─── */}
+      {upcomingTrips.length > 0 && (
+      <ScrollReveal delay={0.1}>
+        <div className="max-w-3xl mx-auto">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Upcoming trips</p>
           <Button variant="ghost" size="sm" onClick={() => navigate("/trips")} className="text-muted-foreground hover:text-foreground">
             View all <ArrowRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
-        {upcomingTrips.length === 0 ? (
-          <Card className="border-dashed border-2 border-border/50 bg-muted/20">
-            <CardContent className="flex flex-col items-center justify-center py-12 space-y-3">
-              <Plane className="w-10 h-10 text-muted-foreground/50" />
-              <p className="text-muted-foreground text-center">No upcoming trips yet.</p>
-              <p className="text-sm text-muted-foreground/70 text-center">Use the command bar above to plan your next trip.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-2 gap-4">
             <AnimatePresence mode="popLayout">
               {upcomingTrips.map((trip, index) => (
                 <motion.div
@@ -2110,8 +2052,9 @@ export default function Dashboard() {
               ))}
             </AnimatePresence>
           </div>
-        )}
+        </div>
       </ScrollReveal>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
